@@ -13,6 +13,7 @@ export function slugFromLocation(): string | null {
 
 /** Only rewrite the URL when served from the site root (not e.g. an embedded preview). */
 const canSyncUrl = (() => {
+  if (import.meta.env.VITE_EMBEDDED) return false;
   const p = window.location.pathname;
   return p === '/' || p === '/index.html' || /^\/word\//.test(p);
 })();
