@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useAccount } from '../account/store';
 import { acquireCardTexture, releaseCardTexture } from './texturePool';
 import { WORD_BY_SLUG } from '../lib/words';
 import { EXIT_MS, gesture, useDurar } from '../state/store';
@@ -17,6 +18,10 @@ const SURFACE_END = 3600;
 const LEARNING_DRIFT = 1500;
 
 const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's'] as const;
+const GLINT_MS = 1150;
+
+/** Live pose of the focused card, read by the scene to pin HTML controls (e.g. Save) to it. */
+export const focusedCard = { slug: '', matrix: new THREE.Matrix4(), focus: 0, opacity: 0 };
 
 interface Sim {
   pose: Pose;
@@ -61,7 +66,7 @@ export function PearlCard({ slug, index, departAt, layout, reducedMotion }: Prop
   useFrame((state, rawDt) => {
     const g = group.current;
     if (!g) return;
-    const dt = Math.min(rawDt, 0.1);
+    const dt = Math.min(rawDt, 0.25); // keeps near real-time pacing even on very slow devices
     const now = performance.now();
     const t = state.clock.elapsedTime;
     const { surfacing, learning } = useDurar.getState();
@@ -149,6 +154,18 @@ export function PearlCard({ slug, index, departAt, layout, reducedMotion }: Prop
     const sinceLearning = learning && learning.slug === slug ? (now - learning.at) / 1000 : 99;
     u.uPulse.value = sinceLearning < 8 ? (0.5 + 0.5 * Math.sin(sinceLearning * 2.4)) * (1 - sinceLearning / 8) : 0;
     u.uGlow.value = rising ? Math.max(0, Math.sin(Math.PI * THREE.MathUtils.clamp((surf - 1700) / 1700, 0, 1))) : 0;
+    const glint = useAccount.getState().glint;
+    const gk = glint && glint.slug === slug ? (now - glint.at) / GLINT_MS : -1;
+    u.uGlint.value = gk >= 0 && gk <= 1 ? gk : -1;
+    u.uStill.value = reducedMotion ? 1 : 0;
+
+    if (idx === 0 && departAt === undefined) {
+      g.updateMatrixWorld();
+      focusedCard.slug = slug;
+      focusedCard.matrix.copy(g.matrixWorld);
+      focusedCard.focus = s.focus;
+      focusedCard.opacity = s.opacity;
+    }
 
     // Light shaft + bubble wake while surfacing.
     const sh = shaft.current;

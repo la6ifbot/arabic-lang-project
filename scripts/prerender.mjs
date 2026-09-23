@@ -15,10 +15,11 @@ const site = SITE && !/^https?:\/\//.test(SITE) ? `https://${SITE}` : SITE;
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const HIDDEN = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap';
 
-function head({ title, description, path, type = 'article', extra = '' }) {
-  const url = site ? `${site}${path}` : '';
+function head({ title, description, path, type = 'article', extra = '', noindex = false }) {
+  const url = site && !noindex ? `${site}${path}` : '';
   return [
     `<title>${esc(title)}</title>`,
+    noindex && `<meta name="robots" content="noindex" />`,
     `<meta name="description" content="${esc(description)}" />`,
     url && `<link rel="canonical" href="${url}" />`,
     `<meta property="og:type" content="${type}" />`,
@@ -81,6 +82,26 @@ for (const w of words) {
   writeFileSync(out, html);
 }
 
+// App pages. The Library is personal: never indexed, never in the sitemap.
+const pages = [
+  {
+    path: '/library',
+    title: 'My Pearls · Durar',
+    description: 'The Arabic words you have saved on Durar.',
+    noindex: true,
+  },
+  {
+    path: '/privacy',
+    title: 'Privacy · Durar',
+    description: 'What Durar stores about you (very little), why, where, and how to delete it.',
+  },
+];
+for (const page of pages) {
+  const out = join(dist, page.path.slice(1), 'index.html');
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, inject(template, head({ ...page, type: 'website' }), ''));
+}
+
 // Home: keep default tags, add canonical + a crawlable index of every word.
 const index = `<nav id="seo-word" style="${HIDDEN}" aria-label="All words"><ul>${words
   .map((w) => `<li><a href="/word/${w.slug}" lang="ar">${esc(w.ar)}</a> — ${esc(w.meanings[0])}</li>`)
@@ -90,7 +111,7 @@ if (site) home = home.replace('<!--seo:end-->', `<link rel="canonical" href="${s
 writeFileSync(join(dist, 'index.html'), home);
 
 if (site) {
-  const urls = ['/', ...words.map((w) => `/word/${w.slug}`)];
+  const urls = ['/', '/privacy', ...words.map((w) => `/word/${w.slug}`)];
   writeFileSync(
     join(dist, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls

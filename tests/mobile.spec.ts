@@ -24,3 +24,27 @@ test('touch swipe works on a phone and nothing scrolls', async ({ page }) => {
   await expect(page.getByTestId('btn-known')).toBeVisible();
   await expect(page.getByRole('combobox')).toBeVisible();
 });
+
+test.describe('mobile save', () => {
+  test('tap the pearl to save on a phone', async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __DURAR_MOCK__: boolean }).__DURAR_MOCK__ = true;
+      localStorage.setItem(
+        'durar-mock-db',
+        JSON.stringify({
+          users: [{ id: 'u', email: 'phone@example.com', password: 'x', verified: true, provider: 'email' }],
+          sessionUserId: 'u',
+          saved: {},
+          outbox: [],
+        }),
+      );
+    });
+    await page.goto('/word/najm');
+    await waitForScene(page);
+    await expect(page.getByTestId('account-button')).toBeVisible();
+    const btn = page.getByTestId('save-button');
+    await btn.tap();
+    await expect(btn).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('focused-word')).toHaveAttribute('data-slug', 'najm');
+  });
+});

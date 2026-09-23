@@ -13,6 +13,8 @@ export type CardMaterial = THREE.ShaderMaterial & {
     uPulse: { value: number };
     uGlow: { value: number };
     uBend: { value: number };
+    uGlint: { value: number };
+    uStill: { value: number };
   };
 };
 
@@ -48,6 +50,8 @@ const fragmentShader = /* glsl */ `
   ${NOISE_GLSL}
   uniform sampler2D uMap;
   uniform float uFocus, uOpacity, uSeed, uHover, uPulse, uGlow;
+  uniform float uGlint; // -1 = idle, 0..1 = progress of the “saved” glint
+  uniform float uStill; // 1 = reduced motion
   varying vec2 vUv;
   varying vec3 vNormalW;
   varying vec3 vViewDirW;
@@ -108,6 +112,17 @@ const fragmentShader = /* glsl */ `
 
     col += vec3(0.35, 0.8, 0.8) * (uPulse * 0.1 + uHover * 0.07 + uGlow * 0.3) * (inner + 0.25);
 
+    // Saved: a glint of light runs once around the nacre rim (a soft brightening if motion is reduced).
+    if (uGlint >= 0.0) {
+      float g = clamp(uGlint, 0.0, 1.0);
+      float fade = sin(3.14159 * g);
+      float rim = 1.0 - smoothstep(0.0, 0.028 + aa, abs(d + 0.006));
+      float ang = atan(p.y, p.x) / 6.2831 + 0.5;
+      float dd = abs(fract(ang - (0.12 + g * 1.1) + 0.5) - 0.5);
+      float sweep = exp(-dd * dd * 700.0) * (1.0 - uStill);
+      col += vec3(1.0, 0.97, 0.93) * rim * (sweep * 1.8 + 0.1 + 0.25 * uStill) * fade;
+    }
+
     // Murk: distant/unfocused cards dissolve into the colour of the water behind them.
     float fog = 1.0 - exp(-pow(max(vDist - 9.5, 0.0) * 0.085, 1.25));
     fog = clamp(fog + unf * 0.1, 0.0, 0.94);
@@ -131,6 +146,8 @@ export function createCardMaterial(map: THREE.Texture, seed: number): CardMateri
       uPulse: { value: 0 },
       uGlow: { value: 0 },
       uBend: { value: 0.035 },
+      uGlint: { value: -1 },
+      uStill: { value: 0 },
     },
     vertexShader,
     fragmentShader,

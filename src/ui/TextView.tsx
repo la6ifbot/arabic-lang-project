@@ -1,7 +1,9 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useAccount } from '../account/store';
 import { WORD_BY_SLUG } from '../lib/words';
 import { gesture, useDurar } from '../state/store';
 import { useSwipeInput } from '../scene/useSwipeInput';
+import { SaveButton } from './SaveButton';
 import { WordDetails } from './WordDetails';
 import { useAnimationFrame } from './useAnimationFrame';
 
@@ -15,6 +17,16 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
   const wrap = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLElement>(null);
   useSwipeInput(wrap, onFirstSwipe);
+
+  // The same “saved” glint as the 3D card, as a light running around the rim.
+  const glint = useAccount((st) => (st.glint?.slug === slug ? st.glint.at : null));
+  const [glinting, setGlinting] = useState(false);
+  useEffect(() => {
+    if (glint === null) return;
+    setGlinting(true);
+    const id = window.setTimeout(() => setGlinting(false), 1200);
+    return () => window.clearTimeout(id);
+  }, [glint]);
 
   // Card follows the finger/mouse while dragging.
   useAnimationFrame(() => {
@@ -31,7 +43,8 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
           {notice}
         </p>
       )}
-      <article ref={card} key={slug} className="html-card" data-testid="html-card">
+      <article ref={card} key={slug} className="html-card" data-testid="html-card" data-glint={glinting || undefined}>
+        <SaveButton slug={slug} className="save-in-card" />
         <WordDetails word={word} />
       </article>
     </div>

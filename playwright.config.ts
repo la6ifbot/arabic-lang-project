@@ -6,6 +6,8 @@ const args = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignor
 
 export default defineConfig({
   testDir: 'tests',
+  testMatch: '**/*.spec.ts', // tests/db holds the node:test database suite
+
   timeout: 45_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,

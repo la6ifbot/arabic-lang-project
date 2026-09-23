@@ -4,8 +4,8 @@
 vocabulary. Word cards drift like pearls in deep water. You swipe through them, or search for one
 and watch it rise out of the depths.
 
-> Status: **Phase 0.1 — Core Experience (MVP)**. See [`docs/PHASE-0.1.md`](docs/PHASE-0.1.md) for the
-> checklist report against the development plan.
+> Status: **Phase 0.2 — Accounts & Personal Library**. Reports: [`docs/PHASE-0.1.md`](docs/PHASE-0.1.md),
+> [`docs/PHASE-0.2.md`](docs/PHASE-0.2.md). One-time account setup: [`docs/ACCOUNTS-SETUP.md`](docs/ACCOUNTS-SETUP.md).
 
 ## Quick start
 
@@ -16,7 +16,13 @@ npm run build          # type-check, bundle, prerender /word/<slug> pages → di
 npm run preview        # serve dist/ at http://localhost:4173 (clean URLs like production)
 npm run validate:data  # schema check for src/data/words.json
 npm run test:e2e       # Playwright (builds are served via `npm run preview`)
+npm run test:db        # Row Level Security tests; needs DATABASE_URL pointing at a PostgreSQL server
 ```
+
+Accounts need a Supabase project (see [`docs/ACCOUNTS-SETUP.md`](docs/ACCOUNTS-SETUP.md)). Copy
+`.env.example` to `.env.local` and fill in the values. Without them the site runs exactly as
+before, just without sign-in. To try accounts with no backend at all, run
+`VITE_BACKEND=mock npm run dev`: a browser-only demo that needs no email.
 
 If Playwright can't download browsers in your environment, point it at an existing Chromium:
 `PW_CHROMIUM_PATH=/path/to/chrome npm run test:e2e`.
@@ -29,6 +35,7 @@ If Playwright can't download browsers in your environment, point it at an existi
 | **Still learning** (card drifts aside, comes back soon) | drag left · two-finger swipe left | swipe left | `←` |
 | Search | click the search box | tap it | `/` |
 | Bring a background pearl forward | click it | tap it | — |
+| Save to My Pearls | the pearl on the card's corner | tap it | `S` |
 
 A **Text-only view** toggle (bottom-left) switches to a calm HTML version with the same data and
 controls. It's also what you see automatically if WebGL isn't available.
@@ -49,9 +56,15 @@ src/
     cardMaterial.ts      card shader: nacre body, iridescent rim, caustics, mip-bias depth-of-field, water fog
     Backdrop/GodRays/Particles/Bubbles
     useSwipeInput.ts     one gesture model for mouse, touch, trackpad and arrow keys
-  ui/                    2D chrome: search combobox, swipe controls, live region, text-only view
-scripts/prerender.mjs    post-build: static HTML + OG/Twitter/JSON-LD for every word
-tests/                   Playwright e2e (desktop, mobile touch, no-WebGL)
+  ui/                    2D chrome: search, swipe controls, live regions, text-only view,
+                         sign-in dialog, account menu, save control
+  account/               accounts: Supabase client (lazy chunk), browser-only mock, store
+                         (optimistic saves, pending save across sign-in), friendly errors
+  pages/                 /library (My Pearls) and /privacy, light CSS-only pages
+supabase/migrations/     versioned SQL: saved_pearls table, Row Level Security, delete_my_account()
+scripts/prerender.mjs    post-build: static HTML + OG/Twitter/JSON-LD for every word; noindex /library
+tests/                   Playwright e2e (desktop, mobile touch, no-WebGL, accounts, axe a11y)
+tests/db/                node:test Row Level Security suite against real PostgreSQL
 ```
 
 **Design decisions:**
@@ -84,6 +97,19 @@ sizes with full diacritics:
   covers both scripts).
 
 All fonts are self-hosted via Fontsource (SIL Open Font License), with no third-party font CDN.
+
+### Accounts
+
+- The words stay static (`words.json` plus prerendered pages). The database stores only
+  *which* word slugs each user saved, so SEO and load time are unaffected.
+- The browser talks to Supabase directly with the public anon key. **Row Level Security** is the
+  security boundary: users can read, add and remove only their own rows; nobody can update rows;
+  signed-out requests get nothing. `tests/db/rls.test.mjs` proves this against real PostgreSQL
+  (user A cannot read or write user B's pearls) and runs in CI.
+- `delete_my_account()` is a `security definer` function, so people can delete their own
+  account without a server.
+- The Supabase client is a lazy chunk loaded after the scene is up (or immediately when an auth
+  redirect lands), so it never delays first paint.
 
 ## Word data
 
@@ -118,7 +144,10 @@ The build output (`dist/`) is fully static:
 
 Set `SITE_URL` (e.g. `https://durar.example`) at build time to emit absolute canonical/`og:url`
 tags, `sitemap.xml` and a `robots.txt` sitemap entry. On Vercel and Netlify the production URL is
-detected automatically.
+detected automatically. `/library` is always `noindex` and left out of the sitemap.
+
+For accounts, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for Production *and* Preview
+(full walkthrough, including Google sign-in and email delivery: [`docs/ACCOUNTS-SETUP.md`](docs/ACCOUNTS-SETUP.md)).
 
 Per-word social preview **images** arrive with the card-export work in Phase 0.4. Until then, link
 previews show the title and description only.

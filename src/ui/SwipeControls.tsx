@@ -1,3 +1,4 @@
+import { accountsMode } from '../account/backend';
 import { useDurar } from '../state/store';
 
 export function SwipeControls({ showHint, onUse }: { showHint: boolean; onUse: () => void }) {
@@ -21,7 +22,7 @@ export function SwipeControls({ showHint, onUse }: { showHint: boolean; onUse: (
         <span>still learning</span>
       </button>
       <p className="hint" data-hidden={!showHint || undefined} aria-hidden="true">
-        drag · swipe · ← →
+        drag · swipe · ← →{accountsMode !== 'off' && <span className="hint-save"> · S to save</span>}
       </p>
       <button
         type="button"

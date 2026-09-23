@@ -27,6 +27,8 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
 
     const down = (e: PointerEvent) => {
       if (e.button !== 0 || pointerId !== null) return;
+      // Controls on or over the card (e.g. Save) are taps, not the start of a swipe.
+      if (e.target instanceof Element && e.target.closest('button, a, input, [role="menu"]')) return;
       pointerId = e.pointerId;
       startX = e.clientX;
       startY = e.clientY;
@@ -98,7 +100,7 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
 
     // ---- Keyboard ---------------------------------------------------------------------------
     const key = (e: KeyboardEvent) => {
-      if (isTyping(e.target) || e.altKey || e.ctrlKey || e.metaKey) return;
+      if (isTyping(e.target) || e.altKey || e.ctrlKey || e.metaKey || document.body.dataset.modal) return;
       if (e.key === 'ArrowRight') {
         e.preventDefault();
         swipe('known');

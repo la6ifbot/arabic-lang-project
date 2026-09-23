@@ -9,7 +9,11 @@ export default mergeConfig(
   defineConfig({
     base: './',
     plugins: [viteSingleFile()],
-    define: { 'import.meta.env.VITE_EMBEDDED': JSON.stringify('1') },
+    // Embedded: leave the URL alone. Accounts run as a browser-only demo (no backend to reach).
+    define: {
+      'import.meta.env.VITE_EMBEDDED': JSON.stringify('1'),
+      'import.meta.env.VITE_BACKEND': JSON.stringify('mock'),
+    },
     build: { outDir: 'dist-artifact', assetsInlineLimit: 100_000_000, cssCodeSplit: false },
   }),
 );

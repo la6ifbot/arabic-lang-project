@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { onNavigate, slugFromPath } from '../lib/router';
 import { WORDS, WORD_BY_SLUG } from '../lib/words';
 import type { SwipeDir } from '../types';
 
@@ -99,6 +100,13 @@ export const useDurar = create<DurarState>((set, get) => ({
 
   setTextMode: (textMode) => set({ textMode }),
 }));
+
+// Arriving at /word/<slug> from inside the app (Library, back button): that pearl rises into focus.
+onNavigate((route, path) => {
+  if (route.name !== 'scene') return;
+  const slug = slugFromPath(path);
+  if (slug) useDurar.getState().surface(slug);
+});
 
 /** High-frequency input state, kept out of React to avoid re-rendering at pointer rate. */
 export const gesture = {

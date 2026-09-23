@@ -8,6 +8,7 @@ import { GodRays } from './GodRays';
 import { CAMERA_FOV, CAMERA_Z } from './layout';
 import { Particles } from './Particles';
 import { Runtime } from './Runtime';
+import { SaveAnchor } from './SaveAnchor';
 import { useSwipeInput } from './useSwipeInput';
 
 export interface Quality {
@@ -64,6 +65,7 @@ export function Experience({
         <GodRays reducedMotion={reducedMotion} />
         <Particles count={quality.particles} reducedMotion={reducedMotion} />
         <Bubbles />
+        <SaveAnchor />
       </Canvas>
     </div>
   );
