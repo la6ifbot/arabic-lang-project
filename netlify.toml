@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Static /word/<slug>/index.html files are served first; everything else falls back to the SPA.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

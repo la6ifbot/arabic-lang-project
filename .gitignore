@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-artifact
+test-results
+playwright-report
+.lighthouse
+*.log
+.DS_Store

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#041621" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!--seo:start-->
+    <title>Durar · درر — Arabic words, like pearls</title>
+    <meta name="description" content="Durar is an immersive, underwater world of beautiful Arabic words. Swipe through pearls of vocabulary — each with its meaning and example sentences." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Durar · درر" />
+    <meta property="og:title" content="Durar · درر — Arabic words, like pearls" />
+    <meta property="og:description" content="An immersive, underwater world of beautiful Arabic words." />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Durar · درر — Arabic words, like pearls" />
+    <meta name="twitter:description" content="An immersive, underwater world of beautiful Arabic words." />
+    <!--seo:end-->
+    <style>
+      /* Critical paint before any JS: the water, so the first frame is already underwater. */
+      html,body{margin:0;height:100%;overflow:hidden;background:#020b14}
+      body{background:radial-gradient(120% 70% at 50% -10%,rgba(48,148,158,.55),transparent 60%),radial-gradient(140% 90% at 50% 40%,#04202d 0%,#020b14 70%)}
+      .boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;color:#f4efe3;pointer-events:none;transition:opacity 1.8s cubic-bezier(.37,0,.18,1)}
+      .boot-ar{font:700 3.4rem/1.2 'Aref Ruqaa','Markazi Text',serif;opacity:.92}
+      .boot-en{margin:0;font:italic 500 1.1rem/1.3 'Cormorant Garamond',Georgia,serif;letter-spacing:.14em;color:rgba(214,232,236,.7)}
+      .boot[data-gone]{opacity:0}
+    </style>
+  </head>
+  <body>
+    <div id="root"><div class="boot" aria-hidden="true"><span class="boot-ar" lang="ar">دُرَر</span><p class="boot-en">Arabic words, like pearls</p></div></div>
+    <!--seo:body-->
+    <noscript>
+      <p style="color:#dfeef0;font-family:serif;padding:2rem;text-align:center">
+        Durar is an interactive experience and needs JavaScript enabled.
+      </p>
+    </noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
