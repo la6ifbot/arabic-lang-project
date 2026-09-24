@@ -63,7 +63,7 @@ with no changes.
 
 - **See the email without sending anything:** `npm run email:render`, then open `dist-email/daily.html`.
 - **Send today's email to yourself now:** in a terminal (replace the secret):
-  `curl -H "Authorization: Bearer <CRON_SECRET>" "https://arabic-lang-project.vercel.app/api/cron/daily?test=1"`
+  `curl -H "Authorization: Bearer <CRON_SECRET>" "https://durar.space/api/cron/daily?test=1"`
   (or, with the same variables in `.env.local`, `npm run email:test`). Test sends aren't logged, so
   they never stop the real morning email.
 - **Count tomorrow's recipients:** the same URL with `?dry=1`.
@@ -81,13 +81,8 @@ Send one test with `?test=1`, then open it in **Gmail web**, **Gmail iOS**, **Gm
 - Gmail and Apple Mail show their own “Unsubscribe” link near the sender (from the one-click
   headers). It may only appear once the domain has DKIM set up.
 
-## Domain day (no code changes)
+## Domain day
 
-1. SES: verify the domain (DKIM, SPF and DMARC records in DNS) and request **production access**.
-2. Vercel: `EMAIL_FROM=Durar <pearls@yourdomain>`, `EMAIL_MODE=live`, and **`EMAIL_SIGNUP=on`**
-   (Production), which reveals the sign-up link and the account-menu toggle on the live site.
-   `VITE_CONTACT_EMAIL=hello@yourdomain`. Redeploy.
-3. Supabase pg_cron: point the job at the new domain (the command is at the bottom of
-   `daily-email-cron.sql`).
-4. Supabase Auth → SMTP settings → SES SMTP credentials; turn **Confirm email** back on. The site
-   switches back to the full confirmation and reset flows automatically.
+durar.space is live. The click-by-click steps (Vercel, Supabase, Google, SES DNS records for
+Namecheap, production access, Supabase SMTP, Confirm email, going live) are in
+[`DOMAIN-DAY.md`](DOMAIN-DAY.md).

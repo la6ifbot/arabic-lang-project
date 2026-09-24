@@ -36,14 +36,14 @@ export function siteUrlFrom(env: Record<string, string | undefined>): string {
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
   const mode = (env.EMAIL_MODE ?? 'sandbox').toLowerCase();
-  const style = (env.EMAIL_SUBJECT_STYLE ?? 'a').toLowerCase();
+  const style = (env.EMAIL_SUBJECT_STYLE ?? 'b').toLowerCase();
   return {
     siteUrl: siteUrlFrom(env),
     contactEmail: env.CONTACT_EMAIL || env.VITE_CONTACT_EMAIL || null,
     emailMode: mode === 'live' || mode === 'dry-run' ? mode : 'sandbox',
     sandboxTo: list(env.EMAIL_SANDBOX_TO),
     from: env.EMAIL_FROM || 'Durar <no-reply@example.com>',
-    subjectStyle: style === 'b' || style === 'c' ? style : 'a',
+    subjectStyle: style === 'a' || style === 'c' ? style : 'b', // b chosen by the owner
     tokenSecret: env.EMAIL_TOKEN_SECRET || '',
     cronSecret: env.CRON_SECRET || null,
     sendHour: Number(env.EMAIL_SEND_HOUR ?? 7),

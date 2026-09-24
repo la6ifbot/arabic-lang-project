@@ -5,7 +5,7 @@ vocabulary. Word cards drift like pearls in deep water. You swipe through them, 
 and watch it rise out of the depths.
 
 > Status: **Phase 0.3 — Pearl of the Day**. Reports: [0.1](docs/PHASE-0.1.md), [0.2](docs/PHASE-0.2.md),
-> [0.3](docs/PHASE-0.3.md). Setup: [accounts](docs/ACCOUNTS-SETUP.md), [daily email](docs/EMAIL-SETUP.md).
+> [0.3](docs/PHASE-0.3.md). Setup: [accounts](docs/ACCOUNTS-SETUP.md), [daily email](docs/EMAIL-SETUP.md), [domain day](docs/DOMAIN-DAY.md).
 
 ## Quick start
 

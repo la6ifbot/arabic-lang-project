@@ -60,7 +60,7 @@ exports[`daily email > matches the snapshot > html 1`] = `
 <meta name="x-apple-disable-message-reformatting">
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
-<title>دُرَّةُ اليَوْم · بَحْر — sea</title>
+<title>Pearl of the Day: بَحْر (baḥr)</title>
 <style>
   body { margin: 0; padding: 0; background: #041621; }
   a { color: #c8dde2; }
@@ -112,7 +112,7 @@ exports[`daily email > matches the snapshot > html 1`] = `
 </html>"
 `;
 
-exports[`daily email > matches the snapshot > subject 1`] = `"دُرَّةُ اليَوْم · بَحْر — sea"`;
+exports[`daily email > matches the snapshot > subject 1`] = `"Pearl of the Day: بَحْر (baḥr)"`;
 
 exports[`daily email > matches the snapshot > text 1`] = `
 "دُرَّةُ اليَوْم · Pearl of the Day · Thursday 24 September

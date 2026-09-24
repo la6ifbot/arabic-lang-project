@@ -10,7 +10,7 @@
 -- Before running: Database → Extensions → enable “pg_cron” and “pg_net”.
 -- Replace the two placeholders below. The secret must equal CRON_SECRET in Vercel.
 
-select vault.create_secret('https://arabic-lang-project.vercel.app/api/cron/daily', 'durar_daily_url');
+select vault.create_secret('https://durar.space/api/cron/daily', 'durar_daily_url');
 select vault.create_secret('REPLACE-WITH-THE-CRON_SECRET-VALUE', 'durar_cron_secret');
 
 select cron.schedule(
