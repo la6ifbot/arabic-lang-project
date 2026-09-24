@@ -3,8 +3,8 @@ import { useAccount } from '../account/store';
 import { WORD_BY_SLUG } from '../lib/words';
 import { gesture, useDurar } from '../state/store';
 import { useSwipeInput } from '../scene/useSwipeInput';
+import { CardActions } from './CardActions';
 import { PearlLabel } from './PearlLabel';
-import { SaveButton } from './SaveButton';
 import { WordDetails } from './WordDetails';
 import { useAnimationFrame } from './useAnimationFrame';
 
@@ -62,7 +62,7 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
         </article>
       )}
       <article ref={card} key={slug} className="html-card" data-testid="html-card" data-glint={glinting || undefined}>
-        <SaveButton slug={slug} className="save-in-card" />
+        <CardActions slug={slug} className="card-actions-in-card" />
         <WordDetails word={word} />
       </article>
     </div>

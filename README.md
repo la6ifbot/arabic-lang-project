@@ -4,8 +4,8 @@
 vocabulary. Word cards drift like pearls in deep water. You swipe through them, or search for one
 and watch it rise out of the depths.
 
-> Status: **Phase 0.3 — Pearl of the Day**. Reports: [0.1](docs/PHASE-0.1.md), [0.2](docs/PHASE-0.2.md),
-> [0.3](docs/PHASE-0.3.md). Setup: [accounts](docs/ACCOUNTS-SETUP.md), [daily email](docs/EMAIL-SETUP.md), [domain day](docs/DOMAIN-DAY.md).
+> Status: **Phase 0.4 — Sharing**. Reports: [0.1](docs/PHASE-0.1.md), [0.2](docs/PHASE-0.2.md),
+> [0.3](docs/PHASE-0.3.md), [0.4](docs/PHASE-0.4.md). Setup: [accounts](docs/ACCOUNTS-SETUP.md), [daily email](docs/EMAIL-SETUP.md), [domain day](docs/DOMAIN-DAY.md).
 
 ## Quick start
 
@@ -40,6 +40,7 @@ If Playwright can't download browsers in your environment, point it at an existi
 | Search | click the search box | tap it | `/` |
 | Bring a background pearl forward | click it | tap it | — |
 | Save to My Pearls | the pearl on the card's corner | tap it | `S` |
+| Share | the share icon beside it: WhatsApp, Copy link, Download image | tap it: your phone's share sheet, with the image | Tab to it, `Enter` |
 
 A **Text-only view** toggle (bottom-left) switches to a calm HTML version with the same data and
 controls. It's also what you see automatically if WebGL isn't available.
@@ -65,6 +66,7 @@ src/
   account/               accounts: Supabase client (lazy chunk), browser-only mock, store
                          (optimistic saves, pending save across sign-in), friendly errors
   pages/                 /library (My Pearls) and /privacy, light CSS-only pages
+  share/                 sharing (lazy chunk): share text + links, the 9:16 story image, share sheet
 shared/                  code used by both site and server (Pearl of the Day schedule, flags)
 api/                     Vercel functions: subscribe, confirm, unsubscribe, cron/daily
 server/                  their logic: handlers, SQL-function store, email templates, SES adapter
@@ -132,6 +134,20 @@ All fonts are self-hosted via Fontsource (SIL Open Font License), with no third-
   no tracking, one send per subscriber per day (enforced by a primary key), and sandbox mode until the
   domain exists. Details: [`docs/EMAIL-SETUP.md`](docs/EMAIL-SETUP.md).
 
+### Sharing
+
+- One Share icon beside the save pearl, on the focused card (3D and text-only). Phones open the
+  system share sheet with a 1080×1920 story image, the text and the link. Desktop gets a small menu:
+  WhatsApp, Copy link, Download image. Sharing needs no account, and nothing is counted or tagged.
+- The story image is drawn in the browser (`src/share/image.ts`) with the site's own fonts, in the
+  same look as the card images. Every exported image goes through `renderStory`, which always draws
+  the دُرَر · durar.space signature inside Instagram's safe area. `layout.ts` shrinks and wraps
+  long words until everything fits.
+- iOS only opens the share sheet straight from a tap, so phones draw the focused card's image while
+  idle. The tap then shares at once.
+- Links are always the canonical `https://durar.space/word/<slug>` (from `SITE_URL`). Text:
+  `سَرَاب (sarāb) — mirage · a pearl from Durar`, or a “Today's pearl” version for the Pearl of the Day.
+
 ## Word data
 
 `src/data/words.json` holds 140 hand-picked words: the sea, light, sky, longing, virtue, desert,
@@ -171,5 +187,6 @@ detected automatically. `/library` is always `noindex` and left out of the sitem
 For accounts, set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` for Production *and* Preview
 (full walkthrough, including Google sign-in and email delivery: [`docs/ACCOUNTS-SETUP.md`](docs/ACCOUNTS-SETUP.md)).
 
-Per-word social preview **images** arrive with the card-export work in Phase 0.4. Until then, link
-previews show the title and description only.
+Every word page carries its card image (`og:image`), so link previews in WhatsApp, Telegram and
+iMessage show the card. `vercel.json` permanently redirects `www.durar.space` and
+`arabic-lang-project.vercel.app` to `durar.space` (except `/api/`).

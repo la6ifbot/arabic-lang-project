@@ -4,6 +4,30 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.durar.space"
+        }
+      ],
+      "destination": "https://durar.space/$1",
+      "permanent": true
+    },
+    {
+      "source": "/((?!api/).*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "arabic-lang-project.vercel.app"
+        }
+      ],
+      "destination": "https://durar.space/$1",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/((?!api/).*)",

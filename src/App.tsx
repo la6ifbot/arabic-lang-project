@@ -5,14 +5,15 @@ import { hasAuthCallback } from './account/urlState';
 import { configureTextureSize } from './lib/cardTexture';
 import { mayHaveWebGL2, pickQuality, prefersReducedMotion } from './lib/device';
 import { loadCardFonts } from './lib/fonts';
+import { cancelIdle, whenIdle } from './lib/idle';
 import { linkHandler, syncUrl, useRoute } from './lib/router';
 import { saveAnchor } from './state/anchors';
 import { useDialogs } from './state/dialogs';
 import { useDurar } from './state/store';
 import { AccountMenu } from './ui/AccountMenu';
+import { CardActions } from './ui/CardActions';
 import { Announcer } from './ui/Announcer';
 import { PearlLabel } from './ui/PearlLabel';
-import { SaveButton } from './ui/SaveButton';
 import { SearchBar } from './ui/SearchBar';
 import { StatusAnnouncer } from './ui/StatusAnnouncer';
 import { SwipeControls } from './ui/SwipeControls';
@@ -43,11 +44,6 @@ class SceneBoundary extends Component<{ fallback: ReactNode; onError: () => void
 }
 
 const NO_WEBGL = 'Your browser can’t show the 3D sea right now, so here is the quiet, text-only version.';
-
-const whenIdle = (fn: () => void): number =>
-  typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 2500 }) : window.setTimeout(fn, 400);
-const cancelIdle = (id: number) =>
-  typeof window.cancelIdleCallback === 'function' ? window.cancelIdleCallback(id) : window.clearTimeout(id);
 
 export function App() {
   const route = useRoute((s) => s.route);
@@ -168,7 +164,7 @@ function Sea() {
               saveAnchor.el = el;
             }}
           >
-            <SaveButton slug={focused} />
+            <CardActions slug={focused} />
           </div>
         )}
         <Announcer />
