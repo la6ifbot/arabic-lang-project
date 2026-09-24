@@ -1,10 +1,14 @@
 import { create } from 'zustand';
 import { onNavigate, slugFromPath } from '../lib/router';
-import { WORDS, WORD_BY_SLUG } from '../lib/words';
+import { TODAY, WORDS, WORD_BY_SLUG } from '../lib/words';
 import type { SwipeDir } from '../types';
 
-/** A “still learning” card resurfaces after this many swipes. */
+/** A “still learning” card resurfaces after this many swipes… */
 export const LEARNING_REINSERT_AT = 4;
+/** …and, once reviewed, one more time after this many (spaced out). */
+export const REVIEW_REINSERT_AT = 8;
+/** Comebacks still owed after the first one, when a card is marked “still learning”. */
+const REVIEWS_AFTER_FIRST = 1;
 /** How long a departing (“known”) card keeps rendering while it sinks. */
 export const EXIT_MS = 3200;
 
@@ -28,6 +32,8 @@ interface DurarState {
   surfacing: Motion | null;
   /** Session-only counts; persistence arrives with accounts (Phase 0.2/0.5). */
   swipes: number;
+  /** Still-learning words and how many more comebacks each is owed this session. */
+  reviews: Record<string, number>;
   textMode: boolean;
   swipe: (dir: SwipeDir) => void;
   surface: (slug: string) => void;
@@ -50,7 +56,8 @@ function dailyShuffle(slugs: string[]): string[] {
 }
 
 export function initialOrder(startSlug: string | null): string[] {
-  const first = startSlug && WORD_BY_SLUG.has(startSlug) ? startSlug : 'durrah';
+  // Deep links open on their word; everything else opens on today's Pearl of the Day.
+  const first = startSlug && WORD_BY_SLUG.has(startSlug) ? startSlug : TODAY.slug;
   const rest = dailyShuffle(WORDS.map((w) => w.slug).filter((s) => s !== first));
   return [first, ...rest];
 }
@@ -61,27 +68,46 @@ export const useDurar = create<DurarState>((set, get) => ({
   learning: null,
   surfacing: null,
   swipes: 0,
+  reviews: {},
   textMode: false,
 
   swipe: (dir) => {
-    const { order, departures, swipes } = get();
+    const { order, departures, swipes, reviews } = get();
     if (order.length < 2) return;
     const now = performance.now();
     const [current, ...rest] = order;
-    if (dir === 'known') {
+    const owed = reviews[current] ?? 0;
+    const fresh = departures.filter((d) => now - d.at < EXIT_MS && d.slug !== current);
+    if (dir === 'known' && owed > 0) {
+      // Known on review: it still comes back once more, later (spaced repetition, in miniature).
+      const next = [...rest];
+      next.splice(Math.min(REVIEW_REINSERT_AT - 1, next.length), 0, current);
+      set({
+        order: next,
+        departures: [...fresh, { slug: current, at: now }],
+        reviews: { ...reviews, [current]: owed - 1 },
+        swipes: swipes + 1,
+        surfacing: null,
+      });
+    } else if (dir === 'known') {
+      const { [current]: _done, ...rest2 } = reviews;
+      void _done;
       set({
         order: [...rest, current],
-        departures: [...departures.filter((d) => now - d.at < EXIT_MS && d.slug !== current), { slug: current, at: now }],
+        departures: [...fresh, { slug: current, at: now }],
+        reviews: rest2,
         swipes: swipes + 1,
         surfacing: null,
       });
     } else {
+      // Still learning: linger in view a moment, come back soon, then once more later.
       const next = [...rest];
       next.splice(Math.min(LEARNING_REINSERT_AT - 1, next.length), 0, current);
       set({
         order: next,
         learning: { slug: current, at: now },
-        departures: departures.filter((d) => now - d.at < EXIT_MS),
+        reviews: { ...reviews, [current]: REVIEWS_AFTER_FIRST },
+        departures: fresh,
         swipes: swipes + 1,
         surfacing: null,
       });

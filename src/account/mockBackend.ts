@@ -1,5 +1,5 @@
-import { MOCK_DB_KEY } from './storageKeys';
-import { AccountError, type AccountErrorCode, type AccountUser, type AuthChange, type Backend, type SavedPearl } from './types';
+import { MOCK_DB_KEY, MOCK_EMAIL_KEY } from './storageKeys';
+import { AccountError, type AccountErrorCode, type AccountUser, type AuthChange, type Backend, type SavedPearl, type SubscriptionStatus } from './types';
 
 /**
  * In-browser stand-in for Supabase, used by the Playwright suite and the offline preview build.
@@ -16,6 +16,8 @@ interface MockUser {
 }
 
 interface MockDb {
+  /** Mirrors the Supabase dashboard switches that change the flows. */
+  settings?: { confirmEmail?: boolean; emailDelivery?: boolean };
   users: MockUser[];
   sessionUserId: string | null;
   saved: Record<string, SavedPearl[]>;
@@ -110,12 +112,14 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       await step('signUp');
       if (password.length < 8) throw new AccountError('weak_password');
       const db = load();
+      const confirmEmail = !demo && db.settings?.confirmEmail !== false;
+      if (confirmEmail && db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
       const e = email.trim().toLowerCase();
       if (db.users.some((u) => u.email === e)) throw new AccountError('email_taken');
-      const user = { id: crypto.randomUUID(), email: e, password, verified: demo, provider: 'email' };
+      const user = { id: crypto.randomUUID(), email: e, password, verified: !confirmEmail, provider: 'email' };
       db.users.push(user);
-      if (demo) {
-        // No inbox in a demo: the account is ready at once.
+      if (!confirmEmail) {
+        // “Confirm email” off (or a demo): the account is ready at once, like Supabase.
         db.sessionUserId = user.id;
         store(db);
         emit('signed-in', toUser(user));
@@ -162,6 +166,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
     async requestPasswordReset(email) {
       await step('requestPasswordReset');
       const db = load();
+      if (db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
       // Same answer whether or not the address exists, like the real service.
       if (db.users.some((u) => u.email === email.trim().toLowerCase())) db.outbox.push({ to: email.trim().toLowerCase(), kind: 'reset' });
       store(db);
@@ -180,6 +185,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
     async resendVerification(email) {
       await step('resendVerification');
       const db = load();
+      if (db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
       db.outbox.push({ to: email.trim().toLowerCase(), kind: 'verify' });
       store(db);
     },
@@ -206,10 +212,31 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       store(db);
     },
 
+    async accessToken() {
+      const db = load();
+      const u = db.users.find((x) => x.id === db.sessionUserId);
+      return u ? `mock:${u.provider}:${u.email}` : null;
+    },
+
+    async getSubscription() {
+      await step('getSubscription');
+      const email = current(load()).email;
+      return (readMockEmail()[email] ?? 'none') as SubscriptionStatus;
+    },
+
+    async unsubscribeMe() {
+      await step('unsubscribeMe');
+      const email = current(load()).email;
+      writeMockEmail({ ...readMockEmail(), [email]: 'unsubscribed' });
+    },
+
     async deleteAccount() {
       await step('deleteAccount');
       const db = load();
       const id = current(db).id;
+      const { [current(db).email]: _gone, ...rest } = readMockEmail();
+      void _gone;
+      writeMockEmail(rest);
       db.users = db.users.filter((u) => u.id !== id);
       delete db.saved[id];
       db.sessionUserId = null;
@@ -217,4 +244,21 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       emit('signed-out', null);
     },
   };
+}
+
+/** Mock email subscriptions (email → status), shared with src/lib/emailApi.ts in mock mode. */
+export function readMockEmail(): Record<string, string> {
+  try {
+    return JSON.parse(localStorage.getItem(MOCK_EMAIL_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+
+export function writeMockEmail(v: Record<string, string>) {
+  try {
+    localStorage.setItem(MOCK_EMAIL_KEY, JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
 }

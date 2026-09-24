@@ -18,3 +18,12 @@ export function trackErrors(page: Page) {
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
   return errors;
 }
+
+import words from '../src/data/words.json' with { type: 'json' };
+import { pearlOfTheDay } from '../shared/pearlOfTheDay';
+
+/** Today's Pearl of the Day, computed exactly as the site does. */
+export function today() {
+  const slug = pearlOfTheDay(words).slug;
+  return words.find((w) => w.slug === slug)!;
+}

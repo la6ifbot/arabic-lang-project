@@ -1,13 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { focused, focusedSlug, trackErrors, waitForScene } from './helpers';
+import { focused, focusedSlug, today, trackErrors, waitForScene } from './helpers';
 
 test.describe('immersive scene', () => {
   test('opens on the first pearl with no errors and no scrolling', async ({ page }) => {
     const errors = trackErrors(page);
     await page.goto('/');
     await waitForScene(page);
-    await expect(focused(page)).toHaveAttribute('data-slug', 'durrah');
-    await expect(focused(page).locator('h1')).toHaveText('دُرَّة');
+    // Since Phase 0.3 the home page opens on today's Pearl of the Day.
+    await expect(focused(page)).toHaveAttribute('data-slug', today().slug);
+    await expect(focused(page).locator('h1')).toHaveText(today().ar);
     await expect(focused(page).locator('h1')).toHaveAttribute('dir', 'rtl');
     const scroll = await page.evaluate(() => ({
       h: document.scrollingElement!.scrollHeight - window.innerHeight,
@@ -126,7 +127,7 @@ test.describe('search', () => {
     await waitForScene(page);
     await page.getByRole('combobox').fill('rain');
     await page.keyboard.press('ArrowRight');
-    await expect(focused(page)).toHaveAttribute('data-slug', 'durrah');
+    await expect(focused(page)).toHaveAttribute('data-slug', today().slug);
     await page.getByRole('option', { name: /ghayth/ }).click();
     await expect(focused(page)).toHaveAttribute('data-slug', 'ghayth');
   });
@@ -149,14 +150,14 @@ test.describe('routes & SEO', () => {
   test('unknown word routes fall back to the home experience', async ({ page }) => {
     await page.goto('/word/not-a-word');
     await waitForScene(page);
-    await expect(focused(page)).toHaveAttribute('data-slug', 'durrah');
+    await expect(focused(page)).toHaveAttribute('data-slug', today().slug);
   });
 
   test('word pages are prerendered with meta tags and content', async ({ request }) => {
     const html = await (await request.get('/word/hanin')).text();
     expect(html).toContain('<title>حَنِين (ḥanīn) — longing, nostalgia · Durar</title>');
     expect(html).toMatch(/<meta property="og:title" content="حَنِين/);
-    expect(html).toMatch(/<meta name="twitter:card" content="summary"/);
+    expect(html).toMatch(/<meta name="twitter:card" content="summary(_large_image)?"/);
     expect(html).toContain('"@type":"DefinedTerm"');
     expect(html).toContain('يملؤني الحنين إلى بيت جدي.');
   });
@@ -174,9 +175,9 @@ test.describe('fallbacks & accessibility', () => {
     await waitForScene(page);
     await page.getByTestId('mode-toggle').click();
     await expect(page.getByTestId('text-view')).toBeVisible();
-    await expect(page.getByTestId('html-card').locator('h2')).toHaveText('دُرَّة');
+    await expect(page.getByTestId('html-card').locator('h2')).toHaveText(today().ar);
     await page.keyboard.press('ArrowRight');
-    await expect(page.getByTestId('html-card').locator('h2')).not.toHaveText('دُرَّة');
+    await expect(page.getByTestId('html-card').locator('h2')).not.toHaveText(today().ar);
     await page.getByTestId('mode-toggle').click();
     await expect(page.locator('[data-testid=scene] canvas')).toBeVisible();
   });

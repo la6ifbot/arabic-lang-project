@@ -20,6 +20,8 @@ export interface Word {
   tags?: string[];
   /** Reserved for future pronunciation audio. */
   audio?: string;
+  /** ISO date the word joined the dataset (words added after launch); drives Pearl of the Day cycles. */
+  added?: string;
 }
 
 export type SwipeDir = 'known' | 'learning';

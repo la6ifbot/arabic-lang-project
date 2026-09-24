@@ -62,6 +62,19 @@ export class Layout {
     return { x, y, z, rx: 0.05, ry: -x * 0.025, rz: (((index * 0.37) % 1) - 0.5) * 0.24, s: 1 };
   }
 
+  /**
+   * Where a “still learning” card lingers: beside the new focus, near the light and still sharp,
+   * so it can be read once or twice more before it softens back into the field.
+   */
+  aside(): Pose {
+    const z = this.portrait ? -2.4 : -0.8;
+    const hw = this.halfW(z);
+    const s = this.focusScale() * (this.portrait ? 0.8 : 0.72);
+    const half = (CARD_W * s) / 2;
+    const x = this.portrait ? -hw * 0.62 : -(hw - half - hw * 0.05);
+    return { x, y: this.focus().y + 0.05, z, rx: 0, ry: 0.26, rz: 0.03, s };
+  }
+
   /** Where a “known” card sinks to: down, away and into the dark. */
   sunk(fromX: number): Pose {
     const z = -9;

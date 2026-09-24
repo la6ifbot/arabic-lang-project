@@ -7,9 +7,11 @@ import { mayHaveWebGL2, pickQuality, prefersReducedMotion } from './lib/device';
 import { loadCardFonts } from './lib/fonts';
 import { linkHandler, syncUrl, useRoute } from './lib/router';
 import { saveAnchor } from './state/anchors';
+import { useDialogs } from './state/dialogs';
 import { useDurar } from './state/store';
 import { AccountMenu } from './ui/AccountMenu';
 import { Announcer } from './ui/Announcer';
+import { PearlLabel } from './ui/PearlLabel';
 import { SaveButton } from './ui/SaveButton';
 import { SearchBar } from './ui/SearchBar';
 import { StatusAnnouncer } from './ui/StatusAnnouncer';
@@ -21,6 +23,8 @@ const Experience = lazy(() => import('./scene/Experience').then((m) => ({ defaul
 // Pages and dialogs that most visits never open are their own small chunks too.
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const EmailLinkPage = lazy(() => import('./pages/EmailLinkPage'));
+const SubscribeModal = lazy(() => import('./ui/SubscribeModal'));
 const AuthModal = lazy(() => import('./ui/AuthModal'));
 const DeleteAccountDialog = lazy(() => import('./ui/DeleteAccountDialog'));
 
@@ -49,10 +53,11 @@ export function App() {
   const route = useRoute((s) => s.route);
   const authOpen = useAccount((s) => s.auth !== null);
   const confirmDelete = useAccount((s) => s.confirmDelete);
+  const subscribeOpen = useDialogs((s) => s.subscribe);
 
   // Auth redirects (email links, Google) must be handled right away, wherever they land.
   useEffect(() => {
-    if (hasAuthCallback() || route.name !== 'scene') void bootAccounts();
+    if (hasAuthCallback() || route.name === 'library' || route.name === 'privacy') void bootAccounts();
   }, [route.name]);
 
   useEffect(() => {
@@ -66,13 +71,20 @@ export function App() {
         <Sea />
       ) : (
         <Suspense fallback={<div className="page-loading" aria-hidden="true" />}>
-          {route.name === 'library' ? <LibraryPage /> : <PrivacyPage />}
+          {route.name === 'library' ? (
+            <LibraryPage />
+          ) : route.name === 'privacy' ? (
+            <PrivacyPage />
+          ) : (
+            <EmailLinkPage kind={route.name} />
+          )}
         </Suspense>
       )}
       <StatusAnnouncer />
       <Suspense fallback={null}>
         {authOpen && <AuthModal />}
         {confirmDelete && <DeleteAccountDialog />}
+        {subscribeOpen && <SubscribeModal />}
       </Suspense>
     </>
   );
@@ -172,6 +184,7 @@ function Sea() {
         <AccountMenu />
       </header>
 
+      {use3D && <PearlLabel />}
       <SearchBar />
       <SwipeControls showHint={!touched} onUse={firstUse} />
 

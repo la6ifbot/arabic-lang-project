@@ -111,6 +111,65 @@ body[data-cursor='pointer'] .scene {
   color: var(--ink-soft);
 }
 
+/* ---------- Pearl of the Day ---------- */
+.potd {
+  position: absolute;
+  top: max(20px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 6;
+  text-align: center;
+  animation: fade 1.6s var(--ease-water);
+}
+.potd-label {
+  margin: 0;
+  font: italic 500 1rem/1.3 var(--font-en);
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+.potd-label [lang='ar'] {
+  font: normal 600 1.2rem/1 var(--font-ar);
+  color: var(--ink);
+  letter-spacing: 0;
+}
+.potd-sub {
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-faint);
+  font: 400 0.72rem/1.2 var(--font-ui);
+  letter-spacing: 0.04em;
+  text-decoration: underline;
+  text-decoration-color: rgba(214, 232, 236, 0.25);
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: color 0.4s var(--ease-water);
+}
+.potd-sub:hover,
+.potd-sub:focus-visible {
+  color: var(--ink);
+  outline: none;
+}
+.potd-sub:focus-visible {
+  box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.3);
+}
+.potd-inline {
+  position: static;
+  transform: none;
+  margin-bottom: 12px;
+}
+@media (max-width: 640px) {
+  .potd:not(.potd-inline) {
+    top: max(96px, calc(env(safe-area-inset-top) + 82px));
+  }
+}
+
 /* ---------- Search ---------- */
 .search {
   position: absolute;
@@ -421,6 +480,66 @@ body[data-cursor='pointer'] .scene {
 }
 .acct-danger {
   color: #f3b8b0;
+}
+
+.acct-switch {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(127, 214, 214, 0.1);
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+}
+.acct-switch[data-state='on'] {
+  background: rgba(190, 240, 240, 0.85);
+  color: #06232b;
+}
+.acct-item[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Honeypot: off-screen for people and assistive tech, still a field for form-filling bots. */
+.hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+/* ---------- Email link pages (confirm / unsubscribe) ---------- */
+.email-link {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  max-width: 34rem;
+  margin: 40px auto 0;
+  text-align: center;
+}
+.email-link-ar {
+  margin: 0;
+  font: 600 2.2rem/1.2 var(--font-ar);
+  color: var(--ink-soft);
+}
+.email-link-title {
+  margin: 0;
+  outline: none;
+}
+.email-link-body {
+  margin: 0;
+  font: 500 1.2rem/1.55 var(--font-en);
+  color: var(--ink-soft);
+}
+.email-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.email-link-actions [lang='ar'] {
+  font: 600 1.15rem/1 var(--font-ar);
 }
 
 /* ---------- Save pearl ---------- */
@@ -769,6 +888,15 @@ body[data-cursor='pointer'] .scene {
 .form-error p {
   margin: 0;
 }
+.form-error-help {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+.form-error-help a {
+  color: #ffe7e3;
+  overflow-wrap: anywhere;
+}
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1026,6 +1154,73 @@ body[data-cursor='pointer'] .scene {
   margin: 0.2rem 0 0;
   font: 500 0.85rem var(--font-en);
   color: var(--ink-faint);
+}
+
+/* ---------- Text-only view: “still learning” linger ---------- */
+.textview {
+  isolation: isolate;
+}
+.textview .html-card:not(.html-card-ghost) {
+  z-index: 1;
+}
+.html-card-ghost {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 0;
+  pointer-events: none;
+  animation: linger 3.4s var(--ease-water) forwards;
+}
+@keyframes linger {
+  0% {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+  }
+  22%,
+  64% {
+    transform: translate(-128%, -50%) scale(0.9);
+    opacity: 0.95;
+    filter: none;
+  }
+  100% {
+    transform: translate(-134%, -48%) scale(0.86);
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+@media (max-width: 900px) {
+  @keyframes linger {
+    0% {
+      transform: translate(-50%, -50%);
+      opacity: 1;
+    }
+    22%,
+    64% {
+      transform: translate(-72%, -56%) scale(0.9);
+      opacity: 0.55;
+    }
+    100% {
+      transform: translate(-76%, -56%) scale(0.86);
+      opacity: 0;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .html-card-ghost {
+    z-index: 2;
+    animation: linger-still 1.4s linear forwards !important;
+  }
+  @keyframes linger-still {
+    0%,
+    55% {
+      transform: translate(-50%, -50%);
+      opacity: 1;
+    }
+    100% {
+      transform: translate(-50%, -50%);
+      opacity: 0;
+    }
+  }
 }
 
 /* ---------- Text-only card: saved glint ---------- */

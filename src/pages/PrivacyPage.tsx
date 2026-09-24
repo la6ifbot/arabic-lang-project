@@ -51,6 +51,27 @@ export default function PrivacyPage() {
           served from our own site, not from Google.
         </p>
 
+        <h2>If you get the Pearl of the Day by email</h2>
+        <p>You don’t need an account for this. When you subscribe we store:</p>
+        <ul>
+          <li>
+            <strong>Your email address</strong> and whether you’ve confirmed it, with the dates you subscribed, confirmed or
+            unsubscribed.
+          </li>
+          <li>
+            <strong>Which day’s email was sent to you</strong>, so nobody gets the same day twice. We keep this for 60 days.
+          </li>
+          <li>
+            To stop abuse of the sign-up form, <strong>a scrambled (hashed) form of your IP address</strong>, kept for one day.
+          </li>
+        </ul>
+        <p>
+          Addresses that don’t confirm within 7 days are deleted. The email is sent by <strong>Amazon SES</strong> from its
+          Frankfurt (EU) region. We don’t track opens or clicks: no tracking pixels, no redirected links. Every email has a
+          one-click unsubscribe link, and signed-in readers can also switch the email off in the account menu. If an address
+          bounces or its owner reports the email as spam, we stop sending to it.
+        </p>
+
         <h2>Cookies and browser storage</h2>
         <p>
           Durar sets no cookies and uses no analytics or tracking of any kind. When you sign in, your browser’s local storage
@@ -61,7 +82,9 @@ export default function PrivacyPage() {
         <h2>Deleting your data</h2>
         <p>
           Open the account menu (the pearl in the top-left corner) and choose <strong>Delete my account</strong>. Your
-          account and every saved word are removed at once, permanently. Signing out removes the session from this browser.
+          account, every saved word and any email subscription for your address are removed at once, permanently. Signing
+          out removes the session from this browser. To stop the daily email without an account, use the unsubscribe link in
+          any of them.
         </p>
         {accountsMode !== 'off' && signedIn && (
           <p>

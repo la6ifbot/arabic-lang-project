@@ -22,6 +22,8 @@ export type AccountErrorCode =
   | 'email_taken'
   | 'weak_password'
   | 'same_password'
+  | 'email_unavailable'
+  | 'invalid_email'
   | 'rate_limited'
   | 'network'
   | 'limit_reached'
@@ -60,4 +62,11 @@ export interface Backend {
   unsave(slug: string): Promise<void>;
   /** Permanently deletes the signed-in user and everything they saved. */
   deleteAccount(): Promise<void>;
+  /** The current session's access token, for calls to our own server. */
+  accessToken(): Promise<string | null>;
+  /** The signed-in user's Pearl of the Day email subscription. */
+  getSubscription(): Promise<SubscriptionStatus>;
+  unsubscribeMe(): Promise<void>;
 }
+
+export type SubscriptionStatus = 'none' | 'pending' | 'confirmed' | 'unsubscribed' | 'bounced' | 'complained';

@@ -5,7 +5,7 @@ import { useDurar } from '../state/store';
 import { accountsMode, hasStoredSession, loadBackend } from './backend';
 import { friendlyMessage } from './errors';
 import { PENDING_SAVE_KEY } from './storageKeys';
-import type { AccountUser, AuthChange, Backend, UrlNotice } from './types';
+import type { AccountUser, AuthChange, Backend, SubscriptionStatus, UrlNotice } from './types';
 import { cleanAuthUrl, hasAuthCallback } from './urlState';
 
 export type AccountStatus = 'off' | 'loading' | 'signed-out' | 'signed-in';
@@ -140,6 +140,7 @@ async function requireBackend(): Promise<Backend> {
 function onAuthChange(change: AuthChange, user: AccountUser | null) {
   if (change === 'signed-out') {
     set({ status: 'signed-out', user: null, saved: {}, savedLoaded: false, confirmDelete: false });
+    useEmailToggle.setState({ state: 'unknown' });
     return;
   }
   if (!user) return;
@@ -243,7 +244,12 @@ export const auth = {
     const b = await requireBackend();
     const { needsVerification } = await b.signUp(email, password, returnTo);
     if (needsVerification) setAuthMode('verify-sent', { email });
-    else set({ auth: null });
+    else {
+      // “Confirm email” is off (the interim setup): Supabase signs the new account straight in,
+      // and its signed-in event saves any pearl that was waiting.
+      set({ auth: null });
+      announce('Welcome to Durar. You’re signed in.');
+    }
   },
   async google(returnTo: string) {
     const b = await requireBackend();
@@ -370,5 +376,52 @@ export async function restorePearl(slug: string, savedAt: string) {
     if (versions.get(slug) !== v) return;
     dropSaved(slug);
     announce(`Couldn’t restore ${wordName(slug)}. ${friendlyMessage(e)}`);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Pearl of the Day email, for signed-in users (the account-menu toggle).
+
+export type EmailToggle = 'unknown' | 'loading' | 'off' | 'pending' | 'on' | 'blocked';
+
+export const useEmailToggle = create<{ state: EmailToggle }>(() => ({ state: 'unknown' }));
+
+const toToggle = (s: SubscriptionStatus): EmailToggle =>
+  s === 'confirmed' ? 'on' : s === 'pending' ? 'pending' : s === 'bounced' || s === 'complained' ? 'blocked' : 'off';
+
+export async function loadEmailToggle() {
+  if (get().status !== 'signed-in') return;
+  useEmailToggle.setState({ state: 'loading' });
+  try {
+    useEmailToggle.setState({ state: toToggle(await (await requireBackend()).getSubscription()) });
+  } catch {
+    useEmailToggle.setState({ state: 'unknown' });
+  }
+}
+
+export async function setEmailToggle(on: boolean) {
+  const user = get().user;
+  if (!user?.email) return;
+  const backend = await requireBackend();
+  const previous = useEmailToggle.getState().state;
+  useEmailToggle.setState({ state: 'loading' });
+  try {
+    if (on) {
+      const { subscribeEmail } = await import('../lib/emailApi');
+      const result = await subscribeEmail(user.email, { accessToken: await backend.accessToken() });
+      useEmailToggle.setState({ state: result === 'confirmed' ? 'on' : 'pending' });
+      announce(
+        result === 'confirmed'
+          ? 'You’re subscribed to the Pearl of the Day. The next one arrives at about 7:00.'
+          : `Check your inbox (${user.email}) to confirm the Pearl of the Day email.`,
+      );
+    } else {
+      await backend.unsubscribeMe();
+      useEmailToggle.setState({ state: 'off' });
+      announce('The Pearl of the Day email is off.');
+    }
+  } catch {
+    useEmailToggle.setState({ state: previous });
+    announce('That didn’t work. Check your connection and try again.');
   }
 }

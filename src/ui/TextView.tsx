@@ -3,6 +3,7 @@ import { useAccount } from '../account/store';
 import { WORD_BY_SLUG } from '../lib/words';
 import { gesture, useDurar } from '../state/store';
 import { useSwipeInput } from '../scene/useSwipeInput';
+import { PearlLabel } from './PearlLabel';
 import { SaveButton } from './SaveButton';
 import { WordDetails } from './WordDetails';
 import { useAnimationFrame } from './useAnimationFrame';
@@ -13,10 +14,21 @@ import { useAnimationFrame } from './useAnimationFrame';
  */
 export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwipe: () => void }) {
   const slug = useDurar((s) => s.order[0]);
+  const learning = useDurar((s) => s.learning);
   const word = WORD_BY_SLUG.get(slug)!;
   const wrap = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLElement>(null);
   useSwipeInput(wrap, onFirstSwipe);
+
+  // “Still learning”: the previous word lingers beside the new one for a moment, then fades.
+  const [ghost, setGhost] = useState<{ slug: string; at: number } | null>(null);
+  useEffect(() => {
+    if (!learning) return;
+    setGhost(learning);
+    const id = window.setTimeout(() => setGhost(null), 3400);
+    return () => window.clearTimeout(id);
+  }, [learning]);
+  const ghostWord = ghost ? WORD_BY_SLUG.get(ghost.slug) : undefined;
 
   // The same “saved” glint as the 3D card, as a light running around the rim.
   const glint = useAccount((st) => (st.glint?.slug === slug ? st.glint.at : null));
@@ -42,6 +54,12 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
         <p className="textview-notice" role="status">
           {notice}
         </p>
+      )}
+      <PearlLabel className="potd-inline" />
+      {ghostWord && (
+        <article key={ghost!.at} className="html-card html-card-ghost" aria-hidden="true" inert data-testid="linger-card">
+          <WordDetails word={ghostWord} />
+        </article>
       )}
       <article ref={card} key={slug} className="html-card" data-testid="html-card" data-glint={glinting || undefined}>
         <SaveButton slug={slug} className="save-in-card" />

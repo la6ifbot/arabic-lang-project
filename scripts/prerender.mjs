@@ -15,8 +15,26 @@ const site = SITE && !/^https?:\/\//.test(SITE) ? `https://${SITE}` : SITE;
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const HIDDEN = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap';
 
-function head({ title, description, path, type = 'article', extra = '', noindex = false }) {
+const SITE_IMAGE = { path: '/cards/og/durar.png', alt: 'Durar (دُرَر): Arabic words, like pearls' };
+
+/** og:image / twitter:image need absolute URLs, so they're only emitted when the site URL is known. */
+function imageTags(image) {
+  if (!site || !image) return [];
+  const src = `${site}${image.path}`;
+  return [
+    `<meta property="og:image" content="${src}" />`,
+    `<meta property="og:image:type" content="image/png" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta property="og:image:alt" content="${esc(image.alt)}" />`,
+    `<meta name="twitter:image" content="${src}" />`,
+    `<meta name="twitter:image:alt" content="${esc(image.alt)}" />`,
+  ];
+}
+
+function head({ title, description, path, type = 'article', extra = '', noindex = false, image = SITE_IMAGE }) {
   const url = site && !noindex ? `${site}${path}` : '';
+  const images = noindex ? [] : imageTags(image);
   return [
     `<title>${esc(title)}</title>`,
     noindex && `<meta name="robots" content="noindex" />`,
@@ -29,9 +47,11 @@ function head({ title, description, path, type = 'article', extra = '', noindex 
     url && `<meta property="og:url" content="${url}" />`,
     `<meta property="og:locale" content="en_US" />`,
     `<meta property="og:locale:alternate" content="ar_AR" />`,
-    `<meta name="twitter:card" content="summary" />`,
+    ...images.slice(0, 5),
+    `<meta name="twitter:card" content="${images.length ? 'summary_large_image' : 'summary'}" />`,
     `<meta name="twitter:title" content="${esc(title)}" />`,
     `<meta name="twitter:description" content="${esc(description)}" />`,
+    ...images.slice(5),
     extra,
   ]
     .filter(Boolean)
@@ -74,7 +94,7 @@ for (const w of words) {
   };
   const html = inject(
     template,
-    head({ title, description, path, extra: `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>` }),
+    head({ title, description, path, image: { path: `/cards/og/${w.slug}.png`, alt: `${w.ar} (${w.translit}): ${w.meanings[0]}` }, extra: `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>` }),
     article(w),
   );
   const out = join(dist, 'word', w.slug, 'index.html');
@@ -88,6 +108,18 @@ const pages = [
     path: '/library',
     title: 'My Pearls · Durar',
     description: 'The Arabic words you have saved on Durar.',
+    noindex: true,
+  },
+  {
+    path: '/subscribe/confirm',
+    title: 'Confirm your subscription · Durar',
+    description: 'Confirm your Pearl of the Day email subscription.',
+    noindex: true,
+  },
+  {
+    path: '/unsubscribe',
+    title: 'Unsubscribe · Durar',
+    description: 'Unsubscribe from the Pearl of the Day email.',
     noindex: true,
   },
   {
@@ -106,8 +138,17 @@ for (const page of pages) {
 const index = `<nav id="seo-word" style="${HIDDEN}" aria-label="All words"><ul>${words
   .map((w) => `<li><a href="/word/${w.slug}" lang="ar">${esc(w.ar)}</a> — ${esc(w.meanings[0])}</li>`)
   .join('')}</ul></nav>`;
-let home = template.replace('<!--seo:body-->', index);
-if (site) home = home.replace('<!--seo:end-->', `<link rel="canonical" href="${site}/" />\n    <meta property="og:url" content="${site}/" />\n    <!--seo:end-->`);
+const home = inject(
+  template,
+  head({
+    title: 'Durar · درر — Arabic words, like pearls',
+    description:
+      'Durar is an immersive, underwater world of beautiful Arabic words. Swipe through pearls of vocabulary — each with its meaning and example sentences.',
+    path: '/',
+    type: 'website',
+  }),
+  index,
+);
 writeFileSync(join(dist, 'index.html'), home);
 
 if (site) {

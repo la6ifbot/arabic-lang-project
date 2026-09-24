@@ -15,7 +15,10 @@ const SHAFT_GEOMETRY = new THREE.PlaneGeometry(CARD_W * 1.7, 16);
 /** Surfacing choreography (ms): the light finds the pearl, then it rises and breaks the surface. */
 const SURFACE_HOLD = 550;
 const SURFACE_END = 3600;
-const LEARNING_DRIFT = 1500;
+/** “Still learning”: readable beside the new card for a while, then back into the water. */
+const LINGER_HOLD = 2200;
+/** Reduced motion: a short still hold in place, then a fade. */
+const STILL_HOLD = 800;
 
 const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's'] as const;
 const GLINT_MS = 1150;
@@ -116,13 +119,21 @@ export function PearlCard({ slug, index, departAt, layout, reducedMotion }: Prop
       }
     } else {
       target = layout.slot(idx);
-      if (learning && learning.slug === slug) {
-        const k = (now - learning.at) / LEARNING_DRIFT;
-        if (k < 1) {
-          // Drift aside to the left, staying near the light, before settling back into the field.
-          const f = Math.sin(Math.min(k, 1) * Math.PI);
-          target = { ...target, x: target.x - layout.halfW(target.z) * 0.7 * f, y: target.y + 0.8 * f, z: target.z + 3 * f };
+      const lingering = learning && learning.slug === slug ? now - learning.at : -1;
+      if (lingering >= 0 && lingering < LINGER_HOLD) {
+        // Never blocks: the next card is already in focus and interactive while this one lingers.
+        focusTarget = 1;
+        if (reducedMotion) {
+          target = { ...layout.focus(), z: 0.25 };
+          smooth = 0.2;
+          opacityTarget = lingering < STILL_HOLD ? 1 : 0;
+        } else {
+          target = layout.aside();
+          smooth = 1.7; // noticeably slower than a “known” sink
         }
+      } else if (reducedMotion && lingering >= LINGER_HOLD && s.opacity < 0.05) {
+        // Faded out in place: reappear quietly in its slot instead of drifting there.
+        Object.assign(s.pose, target);
       }
     }
 

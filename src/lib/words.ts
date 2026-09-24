@@ -1,8 +1,12 @@
 import raw from '../data/words.json';
+import { pearlOfTheDay } from '../../shared/pearlOfTheDay';
 import type { Word } from '../types';
 
 export const WORDS: Word[] = raw as Word[];
 export const WORD_BY_SLUG: ReadonlyMap<string, Word> = new Map(WORDS.map((w) => [w.slug, w]));
+
+/** Today's Pearl of the Day (Amsterdam calendar day), fixed for this visit. */
+export const TODAY = pearlOfTheDay(WORDS);
 
 const AR_MARKS = /[ؐ-ًؚ-ٰٟۖ-ۭـ]/g;
 const ARABIC = /[؀-ۿ]/;

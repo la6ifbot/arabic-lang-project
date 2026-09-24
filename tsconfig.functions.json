@@ -1,0 +1,16 @@
+{
+  // Mirrors how Vercel compiles api/*.ts (per-file TypeScript → ESM, no bundling), so
+  // `npm run check:functions` catches import paths that would only fail after deploying.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "resolveJsonModule": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "node_modules/.functions-check",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["api", "server", "shared", "src/data/words.json"]
+}

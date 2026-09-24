@@ -6,6 +6,8 @@ const MESSAGES: Record<AccountErrorCode, string> = {
   email_taken: 'That email already has an account. Sign in instead, or reset your password.',
   weak_password: 'Choose a longer password: at least 8 characters, ideally a short phrase.',
   same_password: 'That’s your current password. Choose a new one.',
+  email_unavailable: 'Durar can’t send emails just yet, so this step isn’t available right now.',
+  invalid_email: 'That email address doesn’t look right.',
   rate_limited: 'Too many attempts just now. Wait a minute, then try again.',
   network: 'We couldn’t reach the server. Check your connection and try again.',
   limit_reached: 'You’ve reached the limit of saved pearls.',

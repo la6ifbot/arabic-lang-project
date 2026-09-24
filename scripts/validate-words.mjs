@@ -20,6 +20,10 @@ words.forEach((w, i) => {
     if (!ARABIC.test(ex.ar ?? '') || !ex.en) errors.push(`${at}: example needs ar + en`);
   }
   if (w.tags && !Array.isArray(w.tags)) errors.push(`${at}: tags must be an array`);
+  // New words must say when they were added, so Pearl of the Day can add them to future cycles
+  // without changing days that were already shown (see shared/pearlOfTheDay.ts).
+  if (w.added !== undefined && (!/^\d{4}-\d{2}-\d{2}$/.test(w.added) || w.added < '2026-09-24'))
+    errors.push(`${at}: added must be an ISO date on or after 2026-09-24`);
 });
 
 if (words.length < 100 || words.length > 300) errors.push(`expected 100–300 words, found ${words.length}`);

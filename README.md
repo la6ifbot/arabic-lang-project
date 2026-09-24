@@ -4,8 +4,8 @@
 vocabulary. Word cards drift like pearls in deep water. You swipe through them, or search for one
 and watch it rise out of the depths.
 
-> Status: **Phase 0.2 — Accounts & Personal Library**. Reports: [`docs/PHASE-0.1.md`](docs/PHASE-0.1.md),
-> [`docs/PHASE-0.2.md`](docs/PHASE-0.2.md). One-time account setup: [`docs/ACCOUNTS-SETUP.md`](docs/ACCOUNTS-SETUP.md).
+> Status: **Phase 0.3 — Pearl of the Day**. Reports: [0.1](docs/PHASE-0.1.md), [0.2](docs/PHASE-0.2.md),
+> [0.3](docs/PHASE-0.3.md). Setup: [accounts](docs/ACCOUNTS-SETUP.md), [daily email](docs/EMAIL-SETUP.md).
 
 ## Quick start
 
@@ -16,7 +16,11 @@ npm run build          # type-check, bundle, prerender /word/<slug> pages → di
 npm run preview        # serve dist/ at http://localhost:4173 (clean URLs like production)
 npm run validate:data  # schema check for src/data/words.json
 npm run test:e2e       # Playwright (builds are served via `npm run preview`)
-npm run test:db        # Row Level Security tests; needs DATABASE_URL pointing at a PostgreSQL server
+npm run test:db        # database tests (RLS, subscriptions); needs DATABASE_URL (PostgreSQL)
+npm run test:unit      # schedule, email rendering, server handlers (handlers need DATABASE_URL)
+npm run cards          # re-render card images for new/changed words (needs Chromium)
+npm run email:render   # write today's emails to dist-email/ for a look
+npm run check:functions  # compile api/ like Vercel and load it in plain Node
 ```
 
 Accounts need a Supabase project (see [`docs/ACCOUNTS-SETUP.md`](docs/ACCOUNTS-SETUP.md)). Copy
@@ -61,7 +65,12 @@ src/
   account/               accounts: Supabase client (lazy chunk), browser-only mock, store
                          (optimistic saves, pending save across sign-in), friendly errors
   pages/                 /library (My Pearls) and /privacy, light CSS-only pages
-supabase/migrations/     versioned SQL: saved_pearls table, Row Level Security, delete_my_account()
+shared/                  code used by both site and server (Pearl of the Day schedule, flags)
+api/                     Vercel functions: subscribe, confirm, unsubscribe, cron/daily
+server/                  their logic: handlers, SQL-function store, email templates, SES adapter
+public/cards/            card images (social previews + email), rendered by scripts/cards.mjs
+supabase/migrations/     versioned SQL: saved_pearls, subscribers, daily_sends, RLS, functions
+supabase/setup/          one-off owner SQL (pg_cron schedule for the daily email)
 scripts/prerender.mjs    post-build: static HTML + OG/Twitter/JSON-LD for every word; noindex /library
 tests/                   Playwright e2e (desktop, mobile touch, no-WebGL, accounts, axe a11y)
 tests/db/                node:test Row Level Security suite against real PostgreSQL
@@ -111,6 +120,18 @@ All fonts are self-hosted via Fontsource (SIL Open Font License), with no third-
 - The Supabase client is a lazy chunk loaded after the scene is up (or immediately when an auth
   redirect lands), so it never delays first paint.
 
+### Pearl of the Day
+
+- `shared/pearlOfTheDay.ts` maps each Europe/Amsterdam calendar day to a word. Every word appears
+  once per cycle, and words added later (with an `added` date) join the next cycle, so past days
+  never change. The site (`/` opens on today's pearl) and the email sender both use it.
+- Card images are rendered with headless Chromium (real Arabic shaping) and committed under
+  `public/cards/`. A hash manifest means `npm run cards` only redraws what changed. The build fails if
+  an image is stale.
+- The email runs on Vercel functions + Supabase + Amazon SES: double opt-in, one-click unsubscribe,
+  no tracking, one send per subscriber per day (enforced by a primary key), and sandbox mode until the
+  domain exists. Details: [`docs/EMAIL-SETUP.md`](docs/EMAIL-SETUP.md).
+
 ## Word data
 
 `src/data/words.json` holds 140 hand-picked words: the sea, light, sky, longing, virtue, desert,
@@ -129,6 +150,7 @@ interface Word {
   root?: string;           // reserved: root-family feature
   tags?: string[];
   audio?: string;          // reserved: pronunciation audio
+  added?: string;          // ISO date, required for words added after launch (Pearl of the Day cycles)
 }
 ```
 

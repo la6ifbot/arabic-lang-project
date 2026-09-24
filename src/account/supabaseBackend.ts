@@ -6,7 +6,7 @@ import {
   type AuthChangeEvent,
   type User,
 } from '@supabase/supabase-js';
-import { AccountError, type AccountErrorCode, type AccountUser, type Backend, type UrlNotice } from './types';
+import { AccountError, type AccountErrorCode, type AccountUser, type Backend, type SubscriptionStatus, type UrlNotice } from './types';
 import { SESSION_STORAGE_KEY } from './storageKeys';
 import { readAuthUrl } from './urlState';
 
@@ -25,6 +25,9 @@ const AUTH_CODES: Partial<Record<string, AccountErrorCode>> = {
   same_password: 'same_password',
   over_request_rate_limit: 'rate_limited',
   over_email_send_rate_limit: 'rate_limited',
+  // Until custom SMTP is set up, Supabase's built-in mailer refuses addresses outside the team.
+  email_address_not_authorized: 'email_unavailable',
+  email_address_invalid: 'invalid_email',
 };
 
 function authError(error: unknown): AccountError {
@@ -35,6 +38,7 @@ function authError(error: unknown): AccountError {
     if (code) return new AccountError(code, error.message);
     if (/invalid login credentials/i.test(error.message)) return new AccountError('invalid_credentials', error.message);
     if (/email not confirmed/i.test(error.message)) return new AccountError('email_not_confirmed', error.message);
+    if (/error sending .*email/i.test(error.message)) return new AccountError('email_unavailable', error.message);
   }
   if (error instanceof Error && /fetch|network/i.test(error.message)) return new AccountError('network', error.message);
   return new AccountError('unknown', error instanceof Error ? error.message : String(error));
@@ -150,6 +154,22 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
 
     async unsave(slug) {
       const { error } = await client.from('saved_pearls').delete().eq('word_slug', slug);
+      if (error) throw dataError(error);
+    },
+
+    async accessToken() {
+      const { data } = await client.auth.getSession();
+      return data.session?.access_token ?? null;
+    },
+
+    async getSubscription() {
+      const { data, error } = await client.rpc('my_subscription');
+      if (error) throw dataError(error);
+      return (data ?? 'none') as SubscriptionStatus;
+    },
+
+    async unsubscribeMe() {
+      const { error } = await client.rpc('unsubscribe_me');
       if (error) throw dataError(error);
     },
 

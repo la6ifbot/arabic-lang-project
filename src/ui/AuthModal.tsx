@@ -16,6 +16,8 @@ const TITLES: Record<AuthDialog['mode'], string> = {
   reset: 'Choose a new password',
 };
 
+const CONTACT = import.meta.env.VITE_CONTACT_EMAIL;
+
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const WEAK = 'Choose a longer password: at least 8 characters, ideally a short phrase.';
 
@@ -232,6 +234,24 @@ export default function AuthModal() {
             {error && (
               <div className="form-error" role="alert">
                 <p>{error}</p>
+                {errorCode === 'email_unavailable' && (
+                  <div className="form-error-help">
+                    <p>
+                      {mode === 'forgot'
+                        ? 'If you signed up with Google, just continue with Google.'
+                        : 'You can continue with Google instead.'}
+                      {CONTACT && (
+                        <>
+                          {' '}
+                          Otherwise write to <a href={`mailto:${CONTACT}`}>{CONTACT}</a> and we’ll help.
+                        </>
+                      )}
+                    </p>
+                    <button type="button" className="btn btn-google" onClick={() => run(() => auth.google(returnUrl('oauth')))} disabled={busy}>
+                      Continue with Google
+                    </button>
+                  </div>
+                )}
                 {errorCode === 'email_not_confirmed' && (
                   <button type="button" className="link-btn" onClick={resend} disabled={busy || resent}>
                     {resent ? 'We sent a new link.' : 'Send the confirmation link again'}

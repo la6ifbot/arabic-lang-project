@@ -24,11 +24,17 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Row Level Security tests
+      - name: Database tests (RLS, subscriptions)
         run: npm run test:db
         env:
           CI: 'true'
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      - name: Unit + server tests (schedule, emails, handlers against PostgreSQL)
+        run: npm run test:unit
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+      - name: Serverless functions load as plain Node ESM (like on Vercel)
+        run: npm run check:functions
 
   build-and-test:
     runs-on: ubuntu-latest

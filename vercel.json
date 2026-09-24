@@ -6,7 +6,7 @@
   "trailingSlash": false,
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ],
@@ -41,5 +41,19 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/cron/daily.ts": {
+      "maxDuration": 60
+    },
+    "api/subscribe.ts": {
+      "maxDuration": 15
+    },
+    "api/confirm.ts": {
+      "maxDuration": 10
+    },
+    "api/unsubscribe.ts": {
+      "maxDuration": 10
+    }
+  }
 }

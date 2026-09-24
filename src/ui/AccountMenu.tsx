@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { openAuth, signOut, useAccount } from '../account/store';
+import { loadEmailToggle, openAuth, setEmailToggle, signOut, useAccount, useEmailToggle } from '../account/store';
+import { emailSignupEnabled } from '../lib/flags';
 import { navigate } from '../lib/router';
 import { WORD_BY_SLUG } from '../lib/words';
 
@@ -9,11 +10,12 @@ export function AccountMenu() {
   const user = useAccount((s) => s.user);
   const count = useAccount((s) => Object.keys(s.saved).filter((k) => WORD_BY_SLUG.has(k)).length);
   const [open, setOpen] = useState(false);
+  const emailState = useEmailToggle((st) => st.state);
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const menuId = useId();
 
-  const items = () => [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+  const items = () => [...(menu.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
   const close = (refocus = true) => {
     setOpen(false);
     if (refocus) button.current?.focus();
@@ -22,6 +24,7 @@ export function AccountMenu() {
   useEffect(() => {
     if (!open) return;
     items()[0]?.focus();
+    if (emailSignupEnabled && useEmailToggle.getState().state === 'unknown') void loadEmailToggle();
     const onDown = (e: PointerEvent) => {
       if (!menu.current?.contains(e.target as Node) && !button.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -50,7 +53,7 @@ export function AccountMenu() {
   };
 
   const onMenuKey = (e: React.KeyboardEvent) => {
-    const list = items();
+    const list = [...(menu.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
     const i = list.indexOf(document.activeElement as HTMLElement);
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -105,6 +108,25 @@ export function AccountMenu() {
               {count}
             </span>
           </button>
+          {emailSignupEnabled && (
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={emailState === 'on' ? true : emailState === 'pending' ? 'mixed' : false}
+              aria-disabled={emailState === 'loading' || emailState === 'blocked' || undefined}
+              className="acct-item"
+              onClick={() => {
+                if (emailState === 'loading' || emailState === 'blocked') return;
+                void setEmailToggle(emailState !== 'on');
+              }}
+              data-testid="email-toggle"
+            >
+              Pearl of the Day email
+              <span className="acct-switch" data-state={emailState}>
+                {{ on: 'On', pending: 'Confirm in inbox', off: 'Off', blocked: 'Unavailable', loading: '…', unknown: '…' }[emailState]}
+              </span>
+            </button>
+          )}
           <button type="button" role="menuitem" className="acct-item" onClick={choose(() => navigate('/privacy'))}>
             Privacy
           </button>
