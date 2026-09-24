@@ -19,7 +19,9 @@ export function pickQuality(): Quality {
   const cores = navigator.hardwareConcurrency ?? 4;
   const low = coarse || small || cores <= 4;
   return {
-    maxDpr: Math.min(window.devicePixelRatio || 1, low ? 1.5 : 2),
+    // Full sharpness up to 2× on every device: the card text lives in the 3D canvas, so a lower
+    // resolution blurs it. (Particles and card count are what lighter devices give up instead.)
+    maxDpr: Math.min(window.devicePixelRatio || 1, 2),
     particles: low ? 550 : 1400,
     visibleCards: low ? 7 : 10,
   };

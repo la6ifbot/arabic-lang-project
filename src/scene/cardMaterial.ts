@@ -77,9 +77,11 @@ const fragmentShader = /* glsl */ `
     // Caustic refraction: the water between us and an unfocused card bends its surface.
     vec2 cp = vUv * vec2(ASPECT, 1.0) * 3.5 + uSeed * 17.0;
     vec2 warp = vec2(vnoise(cp + t * 0.35), vnoise(cp.yx * 1.3 - t * 0.3)) - 0.5;
-    vec2 uv = vUv + warp * 0.014 * (0.08 + unf);
-    // Depth of field: sample blurrier mip levels the further a card is from focus.
-    vec4 tex = texture2D(uMap, uv, unf * 3.0);
+    // (Only unfocused cards: the focused card's text stays perfectly still.)
+    vec2 uv = vUv + warp * 0.014 * unf;
+    // Depth of field: sample blurrier mip levels the further a card is from focus. The focused
+    // card leans the other way (a sharper mip), so its text reads crisply on every screen.
+    vec4 tex = texture2D(uMap, uv, unf * 3.0 - uFocus * 0.6);
 
     vec3 V = normalize(vViewDirW);
     vec3 N = normalize(vNormalW);

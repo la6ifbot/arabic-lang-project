@@ -117,6 +117,15 @@ Also check that Gmail and Apple Mail show their own “Unsubscribe” link near 
 7. Share on desktop: WhatsApp, Copy link, Download image.
 8. Lighthouse on `/word/bahr`, desktop and mobile.
 
+## Follow-up: sharper card text
+
+You reported that the 3D card's text was blurred, and barely readable on a phone. Three causes, all fixed:
+- **Phone resolution:** phones rendered the scene at 1.5× at most, and dropped to 1× when the frame rate dipped. On a 3× screen that's a third of full sharpness. Now every device renders at up to 2×, and the automatic slowdown never goes below 1.5×. Phones still use fewer particles and cards, as before.
+- **Depth-of-field blur:** the blur meant for background cards still applied a little to the focused card while it settled. The focused card now samples a slightly *sharper* texture level instead.
+- **Water ripple:** the caustic refraction no longer moves the focused card's text. It still ripples the cards behind.
+
+All 79 Playwright tests still pass.
+
 ## Files
 
 - `src/share/text.ts`: the share text, canonical URL and WhatsApp link builders.
