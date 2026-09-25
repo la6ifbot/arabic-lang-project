@@ -35,7 +35,7 @@ async function main() {
     mkdirSync('dist-email', { recursive: true });
     writeFileSync('dist-email/daily.html', daily.html);
     writeFileSync('dist-email/daily.txt', daily.text);
-    writeFileSync('dist-email/daily.eml', buildMime({ to: 'you@example.com', from: config.from, ...daily }));
+    writeFileSync('dist-email/daily.eml', buildMime({ to: 'you@example.com', from: config.from, replyTo: config.replyTo, ...daily }));
     writeFileSync('dist-email/confirmation.html', confirm.html);
     writeFileSync('dist-email/confirmation.txt', confirm.text);
     console.log(`Rendered ${slug} for ${date} → dist-email/ (subject: ${daily.subject})`);

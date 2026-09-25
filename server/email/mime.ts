@@ -22,6 +22,7 @@ export function buildMime(msg: EmailMessage, date = new Date()): string {
   const headers: Record<string, string> = {
     From: encodeAddress(msg.from),
     To: msg.to,
+    ...(msg.replyTo ? { 'Reply-To': encodeAddress(msg.replyTo) } : {}),
     Subject: encodeHeader(msg.subject),
     Date: date.toUTCString().replace('GMT', '+0000'),
     'MIME-Version': '1.0',

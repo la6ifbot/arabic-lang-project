@@ -10,7 +10,8 @@ import words from '../../src/data/words.json';
 import { loadConfig } from '../../server/config';
 import { memorySender } from '../../server/email/memory';
 import type { EmailWord } from '../../server/email/templates';
-import { handleConfirm, handleDaily, handleSubscribe, handleUnsubscribe, type AccountUser, type Deps } from '../../server/handlers';
+import { buildMime } from '../../server/email/mime';
+import { handleConfirm, handleDaily, handleHealth, handleSubscribe, handleUnsubscribe, type AccountUser, type Deps } from '../../server/handlers';
 import { pgStore } from '../../server/store';
 import { pearlForDate } from '../../shared/pearlOfTheDay';
 
@@ -52,6 +53,7 @@ function makeDeps(env: Record<string, string> = {}) {
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   new Request(`${SITE}${path}`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-forwarded-for': '203.0.113.9', ...headers }, body: JSON.stringify(body) });
 const cron = (query = '', auth = 'Bearer cron-secret') => new Request(`${SITE}/api/cron/daily${query}`, { headers: { authorization: auth } });
+const health = (query = '', auth = 'Bearer cron-secret') => new Request(`${SITE}/api/cron/health${query}`, { headers: { authorization: auth } });
 const linkParam = (html: string, path: string) => {
   const m = html.match(new RegExp(`${path}\\?token=([^"&\\s]+)`));
   return m ? decodeURIComponent(m[1]) : null;
@@ -209,5 +211,52 @@ describe.skipIf(!ADMIN_URL)('email handlers (PostgreSQL)', () => {
     const { deps: live, mailer } = makeDeps({ EMAIL_MODE: 'live' });
     expect(await (await handleDaily(cron(), live)).json()).toMatchObject({ sent: 1, remaining: 0 });
     expect(mailer.sent.map((m) => m.to)).toEqual(['live.reader@example.com']);
+  });
+  test('Reply-To goes on every email when EMAIL_REPLY_TO is set, and only then', async () => {
+    const { deps, mailer } = makeDeps({ EMAIL_REPLY_TO: 'Durar <hello@durar.example>' });
+    await handleDaily(cron('?test=1'), deps);
+    expect(mailer.sent[0].replyTo).toBe('Durar <hello@durar.example>');
+    expect(buildMime(mailer.sent[0])).toContain('\r\nReply-To: Durar <hello@durar.example>\r\n');
+    const { deps: plain, mailer: plainMailer } = makeDeps();
+    await handleDaily(cron('?test=1'), plain);
+    expect(buildMime(plainMailer.sent[0])).not.toContain('Reply-To:');
+  });
+
+  test('each run is logged, and the 08:15 health check stays quiet on a good day', async () => {
+    const { rows } = await client.query(`select status, sent, failed, remaining from public.daily_runs where run_date = '2026-10-01'`);
+    expect(rows[0]).toMatchObject({ status: 'complete', sent: 3, failed: 0, remaining: 0 });
+    const { deps, mailer } = makeDeps();
+    expect((await handleHealth(health('', 'Bearer wrong'), deps)).status).toBe(401);
+    clock = new Date('2026-10-01T05:15:00Z'); // 07:15 Amsterdam: not the check's hour
+    expect(await (await handleHealth(health(), deps)).json()).toMatchObject({ skipped: 'outside_check_window' });
+    clock = new Date('2026-10-01T06:15:00Z'); // 08:15 Amsterdam
+    expect(await (await handleHealth(health(), deps)).json()).toMatchObject({ date: '2026-10-01', ok: true, problems: [], alerted: false });
+    expect(mailer.sent).toHaveLength(0);
+  });
+
+  test('a morning with no run emails the owner (dry=1 only reports)', async () => {
+    clock = new Date('2026-10-02T06:15:00Z');
+    const { deps, mailer } = makeDeps();
+    expect(await (await handleHealth(health('?dry=1'), deps)).json()).toMatchObject({ ok: false, alerted: false });
+    expect(mailer.sent).toHaveLength(0);
+    const res = await (await handleHealth(health(), deps)).json();
+    expect(res).toMatchObject({ date: '2026-10-02', ok: false, alerted: true });
+    expect(res.problems[0]).toMatch(/No run was recorded/);
+    expect(mailer.sent).toHaveLength(1);
+    expect(mailer.sent[0]).toMatchObject({ to: OWNER, subject: 'Durar: the 2026-10-02 email needs a look' });
+  });
+
+  test('failed sends are logged and reported to ALERT_EMAIL', async () => {
+    clock = new Date('2026-10-03T05:15:00Z');
+    const { deps } = makeDeps();
+    deps.mailer = { name: 'broken', send: async () => Promise.reject(new Error('SES said no')) };
+    expect(await (await handleDaily(cron(), deps)).json()).toMatchObject({ sent: 0, failed: 2, remaining: 0, status: 'had_failures' });
+    clock = new Date('2026-10-03T06:15:00Z');
+    const { deps: check, mailer } = makeDeps({ ALERT_EMAIL: 'alerts@example.com' });
+    const res = await (await handleHealth(health(), check)).json();
+    expect(res).toMatchObject({ ok: false, alerted: true, problems: ['2 send(s) failed.'] });
+    expect(mailer.sent[0].to).toBe('alerts@example.com');
+    expect(mailer.sent[0].text).toContain('2 send(s) failed.');
+    clock = new Date('2026-10-01T05:15:00Z');
   });
 });
