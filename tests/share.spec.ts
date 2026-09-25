@@ -12,7 +12,8 @@ const shareMenu = (page: Page, slug: string) => page.getByRole('menu', { name: `
 async function openWord(page: Page, slug: string) {
   await page.goto(`/word/${slug}`);
   await expect(page.locator('[data-testid=scene] canvas')).toBeVisible();
-  await expect(page.locator('.save-anchor')).toHaveAttribute('data-visible', 'true', { timeout: 20_000 });
+  // Software WebGL on a busy CI runner can take a while to settle the first frame.
+  await expect(page.locator('.save-anchor')).toHaveAttribute('data-visible', 'true', { timeout: 40_000 });
 }
 
 async function downloadStory(page: Page) {
@@ -132,7 +133,8 @@ test('Download image saves durar-<slug>.png, signed and described', async ({ pag
 });
 
 test('story images: short word, long headword, several meanings, long example', async ({ page }) => {
-  test.setTimeout(120_000);
+  // Four full page loads and four story renders, under software WebGL.
+  test.setTimeout(300_000);
   // A short word, the longest headword, the most meaning text with two meanings, the longest example.
   const crops: Buffer[] = [];
   for (const slug of ['nur', 'tumaninah', 'durrah', 'azal']) {
