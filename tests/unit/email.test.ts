@@ -9,6 +9,8 @@ const SITE = 'https://durar.example';
 const UNSUB = `${SITE}/unsubscribe?token=abc.def`;
 
 const daily = renderDaily({ word: bahr, date: '2026-09-24', siteUrl: SITE, unsubscribeUrl: UNSUB, contactEmail: 'hello@durar.example' });
+const sarab = WORDS.find((w) => w.slug === 'sarab')!;
+const withRevisit = renderDaily({ word: bahr, revisit: sarab, date: '2026-09-24', siteUrl: SITE, unsubscribeUrl: UNSUB, contactEmail: 'hello@durar.example' });
 const confirmation = renderConfirmation({ confirmUrl: `${SITE}/subscribe/confirm?token=xyz`, siteUrl: SITE, unsubscribeUrl: UNSUB, contactEmail: null });
 
 /** Every URL an email contains, from href/src attributes and the plain-text part. */
@@ -47,6 +49,20 @@ describe('daily email', () => {
     expect(daily.text).toContain(`Unsubscribe: ${UNSUB}`);
   });
 
+  test('“A pearl to revisit”: one line under the main card, live RTL text, linked, and in the plain text', () => {
+    expect(withRevisit.html).toMatchSnapshot('html with revisit');
+    expect(withRevisit.text).toMatchSnapshot('text with revisit');
+    expect(withRevisit.html).toContain(
+      `A pearl to revisit: <a href="${SITE}/word/sarab"`,
+    );
+    expect(withRevisit.html).toMatch(/<span lang="ar" dir="rtl"[^>]*>سَرَاب<\/span> \(sarāb\)<\/a> — mirage/);
+    expect(withRevisit.text).toContain(`A pearl to revisit: سَرَاب (sarāb) — mirage: ${SITE}/word/sarab`);
+    expect(withRevisit.subject).toBe(daily.subject);
+    // Without a revisit word the email is exactly as before.
+    expect(daily.html).not.toContain('A pearl to revisit');
+    expect(daily.text).not.toContain('A pearl to revisit');
+  });
+
   test('three bilingual subject lines to choose from', () => {
     expect(Object.values(SUBJECTS).map((s) => s(bahr))).toEqual([
       'دُرَّةُ اليَوْم · بَحْر — sea',
@@ -59,6 +75,7 @@ describe('daily email', () => {
 describe('no tracking, in any email', () => {
   for (const [name, email] of [
     ['daily', daily],
+    ['daily with a pearl to revisit', withRevisit],
     ['confirmation', confirmation],
   ] as const) {
     test(`${name}: no tracking pixels, redirects or campaign parameters`, () => {

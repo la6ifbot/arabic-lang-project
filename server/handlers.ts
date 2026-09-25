@@ -2,12 +2,13 @@
  * HTTP handlers for Pearl of the Day email, written against the standard Request/Response API so
  * they run unchanged on Vercel and in tests. Dependencies are injected (see deps.ts).
  */
+import { pickRevisit } from '../shared/mastery.js';
 import { amsterdamDate, amsterdamHour, pearlForDate } from '../shared/pearlOfTheDay.js';
 import type { Config } from './config.js';
 import type { EmailMessage, EmailSender } from './email/types.js';
 import { renderAlert } from './email/alert.js';
 import { renderConfirmation, renderDaily, type EmailWord } from './email/templates.js';
-import type { DayHealth, Store } from './store.js';
+import type { DayHealth, RevisitCandidate, Store } from './store.js';
 import { ipHash, randomToken, sha256, unsubscribeToken, verifyUnsubscribeToken } from './tokens.js';
 
 export interface AccountUser {
@@ -197,10 +198,12 @@ export async function handleDaily(req: Request, deps: Deps): Promise<Response> {
     }
   }
 
-  const build = (to: string, subscriberId: string): EmailMessage => {
+  const bySlug = new Map(deps.words.map((w) => [w.slug, w]));
+  const build = (to: string, subscriberId: string, revisit?: EmailWord): EmailMessage => {
     const links = unsubscribeLinks(config, subscriberId);
     const r = renderDaily({
       word,
+      revisit,
       date,
       siteUrl: config.siteUrl,
       unsubscribeUrl: links.page,
@@ -237,10 +240,22 @@ export async function handleDaily(req: Request, deps: Deps): Promise<Response> {
       const batch = await store.claim(date, slug, BATCH, only);
       if (!batch.length) break;
       claimed += batch.length;
+      // “A pearl to revisit”: only for subscribers with an account and a due word. If this lookup
+      // fails, the email simply goes out without the line.
+      let revisits = new Map<string, RevisitCandidate[]>();
+      try {
+        revisits = await store.revisits(
+          batch.map((r) => r.subscriberId),
+          now,
+        );
+      } catch (e) {
+        deps.log('daily: could not look up words to revisit', e);
+      }
       for (const r of batch) {
         const t0 = Date.now();
         try {
-          const { messageId } = await mailer.send(build(r.email, r.subscriberId));
+          const pick = pickRevisit(revisits.get(r.subscriberId) ?? [], (s) => s !== slug && bySlug.has(s), now.getTime());
+          const { messageId } = await mailer.send(build(r.email, r.subscriberId, pick ? bySlug.get(pick.slug) : undefined));
           await store.mark(r.subscriberId, date, 'sent', messageId);
           sent++;
         } catch (e) {

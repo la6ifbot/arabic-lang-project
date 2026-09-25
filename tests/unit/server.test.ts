@@ -212,6 +212,40 @@ describe.skipIf(!ADMIN_URL)('email handlers (PostgreSQL)', () => {
     expect(await (await handleDaily(cron(), live)).json()).toMatchObject({ sent: 1, remaining: 0 });
     expect(mailer.sent.map((m) => m.to)).toEqual(['live.reader@example.com']);
   });
+  test('“A pearl to revisit” goes only to subscribers with an account and a due word', async () => {
+    clock = new Date('2026-10-07T05:20:00Z');
+    const date = '2026-10-07';
+    const today = pearlForDate(date, words as EmailWord[]);
+    const [a, b] = (words as EmailWord[]).filter((w) => w.slug !== today);
+    const reader = '5b1f2c3d-0000-4000-8000-000000000001';
+    const early = '5b1f2c3d-0000-4000-8000-000000000002';
+    await client.query(`insert into auth.users (id, email) values ($1, 'member@example.com'), ($2, 'early@example.com')`, [reader, early]);
+    await client.query(
+      `insert into public.subscribers (email, status, confirmed_at, user_id) values
+         ('member@example.com', 'confirmed', now(), $1), ('early@example.com', 'confirmed', now(), $2), ('guest@example.com', 'confirmed', now(), null)`,
+      [reader, early],
+    );
+    await client.query(
+      `insert into public.word_progress (user_id, word_slug, box, due_at, last_reviewed_at) values
+         ($1, 'retired-word', 1, $3::timestamptz - interval '9 days', $3::timestamptz - interval '10 days'),
+         ($1, $4, 3, $3::timestamptz - interval '2 days', $3::timestamptz - interval '9 days'),
+         ($1, $5, 1, $3::timestamptz - interval '2 days', $3::timestamptz - interval '3 days'),
+         ($1, $6, 1, $3::timestamptz - interval '5 days', $3::timestamptz - interval '6 days'),
+         ($2, $4, 2, $3::timestamptz + interval '1 day', $3::timestamptz - interval '2 days')`,
+      [reader, early, clock.toISOString(), a.slug, b.slug, today],
+    );
+    const { deps, mailer } = makeDeps({ EMAIL_MODE: 'live' });
+    expect(await (await handleDaily(cron(), deps)).json()).toMatchObject({ date, failed: 0, remaining: 0 });
+    const to = (email: string) => mailer.sent.find((m) => m.to === email)!;
+    // Most overdue first, but never a retired word and never today's own pearl; then the lowest box.
+    expect(to('member@example.com').html).toContain('A pearl to revisit:');
+    expect(to('member@example.com').html).toContain(`href="${SITE}/word/${b.slug}"`);
+    expect(to('member@example.com').text).toContain(`A pearl to revisit: ${b.ar} (${b.translit}) — ${b.meanings[0]}: ${SITE}/word/${b.slug}`);
+    // Nothing due yet, or no account: the email is unchanged.
+    expect(to('early@example.com').html).not.toContain('A pearl to revisit');
+    expect(to('guest@example.com').html).not.toContain('A pearl to revisit');
+  });
+
   test('Reply-To goes on every email when EMAIL_REPLY_TO is set, and only then', async () => {
     const { deps, mailer } = makeDeps({ EMAIL_REPLY_TO: 'Durar <hello@durar.example>' });
     await handleDaily(cron('?test=1'), deps);

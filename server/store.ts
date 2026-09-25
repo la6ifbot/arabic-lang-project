@@ -1,3 +1,4 @@
+import type { Box } from '../shared/mastery.js';
 /**
  * Subscription storage. All logic lives in SQL functions (supabase/migrations), called here either
  * through Supabase's REST API with the service role (production) or over a direct PostgreSQL
@@ -50,6 +51,14 @@ export interface Store {
   housekeeping(): Promise<Record<string, number>>;
   recordRun(r: RunRecord): Promise<RunStatus>;
   health(date: string): Promise<DayHealth>;
+  /** Due words of subscribers linked to an account (mastery), oldest due first, by subscriber id. */
+  revisits(subscriberIds: string[], now: Date): Promise<Map<string, RevisitCandidate[]>>;
+}
+
+export interface RevisitCandidate {
+  slug: string;
+  box: Box;
+  dueAt: string;
 }
 
 type Call = (fn: string, args: Record<string, unknown>, returnsSet: boolean) => Promise<unknown>;
@@ -95,6 +104,22 @@ function storeFrom(call: Call): Store {
         },
         false,
       )) as RunStatus,
+    async revisits(ids, now) {
+      const out = new Map<string, RevisitCandidate[]>();
+      if (!ids.length) return out;
+      const rows = (await call('revisit_candidates', { p_subscriber_ids: ids, p_now: now.toISOString() }, true)) as {
+        subscriber_id: string;
+        word_slug: string;
+        box: number;
+        due_at: string | Date;
+      }[];
+      for (const r of rows) {
+        const list = out.get(r.subscriber_id) ?? [];
+        list.push({ slug: r.word_slug, box: Number(r.box) as Box, dueAt: new Date(r.due_at).toISOString() });
+        out.set(r.subscriber_id, list);
+      }
+      return out;
+    },
     async health(date) {
       const h = (await call('daily_health', { p_date: date }, false)) as DayHealth;
       const n = (v: unknown) => Number(v ?? 0);
