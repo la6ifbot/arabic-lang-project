@@ -1,25 +1,30 @@
 # Phase 0.4 — Sharing: report
 
-Live: https://durar.space (production deploys from `main`). Checked live on 2026-09-25: production runs
-this phase, including the sharper card text.
+Live: https://durar.space. Production deploys from `claude/new-session-id31u5`, not `main`: Vercel's
+production branch was never switched (same code as `main` today; see “Needs your input”). Checked live
+on 2026-09-25: production runs this phase, including the sharper card text.
 Preview with browser-only demo accounts: https://claude.ai/artifact/A71zLZPK1zRW3nWbferAHZ
 
 Legend: **[x]** done and verified · **[~]** built, waiting on the owner or on something I can't reach
 from here · **[ ]** not done
 
-> **Live check, 2026-09-25** ([results](#live-check-results-2026-09-25)). Sharing, the SEO tags, the
-> sitemap and the Privacy contact all work on durar.space, and Lighthouse ran live. Three things need
-> you, all in Vercel: the Supabase key (sign-in is broken on the live site), `www.durar.space` (no
-> certificate) and the vercel.app redirect (302 instead of 308). See “Needs your input”.
+> **Live check, 2026-09-25** ([results](#live-check-results-2026-09-25)), **updated 21:15 UTC**
+> ([Vercel follow-up](#vercel-follow-up-2026-09-25-evening)). Sharing, the SEO tags, the sitemap and the
+> Privacy contact all work on durar.space, and Lighthouse ran live. The three Vercel fixes from the first
+> check are done: the Supabase key, `www.durar.space` (308, with its own certificate) and the vercel.app
+> host (308, `/api/` left alone). **Still open:** every `/api` function answers 500 until Production
+> has `SUPABASE_SERVICE_ROLE_KEY` and `EMAIL_TOKEN_SECRET`, and Vercel's production branch is still
+> `claude/new-session-id31u5`. See “Needs your input”.
 
 ## Checklist
 
 ### A. Carry-over from 0.3 and domain day
-- [~] **durar.space everywhere.** `SITE_URL` defaults to `https://durar.space` (then Vercel's production domain), so canonicals, `og:url`, `og:image`, the sitemap, `robots.txt`, email links and share links all use it. Checked on a simulated production build. **New:** `vercel.json` permanently redirects (308) `www.durar.space` and `arabic-lang-project.vercel.app` to `durar.space`, keeping the path. `/api/…` is left alone so an older scheduler URL keeps working. Preview URLs aren't redirected. **Live:** the tags, sitemap and `robots.txt` are right. The two host redirects aren't yet (live check item 1).
+- [x] **durar.space everywhere.** `SITE_URL` defaults to `https://durar.space` (then Vercel's production domain), so canonicals, `og:url`, `og:image`, the sitemap, `robots.txt`, email links and share links all use it. Checked on a simulated production build. **New:** `vercel.json` permanently redirects (308) `www.durar.space` and `arabic-lang-project.vercel.app` to `durar.space`, keeping the path. `/api/…` is left alone so an older scheduler URL keeps working. Preview URLs aren't redirected. **Live:** the tags, sitemap and `robots.txt` are right, and since the evening of 2026-09-25 both hosts redirect with a 308 (live check item 1).
+- [~] **Server functions on production.** Every `/api` function (subscribe, confirm, unsubscribe, cron/daily) answers 500: Production has none of the server-side variables from [`EMAIL-SETUP.md`](EMAIL-SETUP.md) §2. Two are needed before any function starts: `SUPABASE_SERVICE_ROLE_KEY` and `EMAIL_TOKEN_SECRET`. Details under [Vercel follow-up](#vercel-follow-up-2026-09-25-evening).
 - [x] **Owner steps**, click by click: [`DOMAIN-DAY.md`](DOMAIN-DAY.md). Covers Vercel domains and `SITE_URL`, Supabase Site URL and redirects, Google sign-in (origins and the authorized domain `durar.space`), SES domain verification (DKIM, SPF, DMARC and custom MAIL FROM, written for Namecheap's Host field), the production-access request text, Supabase SMTP via SES, turning **Confirm email** back on, and going live. You said you'd do these later.
 - [x] **Subject style b** is the default: `Pearl of the Day: سَرَاب (sarāb)`. You can delete `EMAIL_SUBJECT_STYLE`.
 - [~] **`EMAIL_MODE=live` and `EMAIL_SIGNUP=on`:** both stay off until SES production access is approved and a test lands in the inbox (DOMAIN-DAY Part 7). No code change is needed.
-- [~] **Live verification:** run on 2026-09-25 (results under “Live check”). Share, the SEO tags and Privacy pass. Sign-up, Google, save and delete account fail on the live site, because Vercel holds placeholder text instead of the Supabase key. Subscribe waits for domain day.
+- [~] **Live verification:** run on 2026-09-25 (results under “Live check”). Share, the SEO tags, Privacy and both host redirects pass. At the first check, sign-up, Google, save and delete account failed because Vercel held placeholder text instead of the Supabase key. The key has been fixed since 20:31 UTC, and you're testing sign-in yourself: sign-up, save and delete account aren't run from here against production. Subscribe waits for domain day.
 - [x] **Live Lighthouse:** run on 2026-09-25. The numbers are under “Quality bar”, after the local ones.
 - [x] **Inbox-test checklist:** below. Results go in the table once you have them.
 
@@ -141,18 +146,62 @@ was blocked in the browser, so nothing touched the production database.
 
 | # | Check | Result |
 | --- | --- | --- |
-| 1 | Host redirects | ✗ **`www.durar.space`:** there's no certificate for `www`. Vercel presents the `durar.space` certificate, so browsers show a security warning instead of redirecting. DNS is already right (`www` → `cname.vercel-dns.com`, no CAA limits). **`arabic-lang-project.vercel.app`:** lands on `https://durar.space/word/bahr`, keeping the path and query, but with a **302** (temporary), not 308, and `/api/…` is redirected too. That's a redirect set on Vercel's Domains page, which runs before `vercel.json`. |
+| 1 | Host redirects | ✓ **Both fixed (re-checked 21:12 UTC).** **`www.durar.space`:** 308 → `https://durar.space/word/bahr?x=1`, keeping the path and query, with its own certificate. At the first check it had none: Vercel presented the `durar.space` certificate, so browsers showed a security warning. The domain wasn't on the project; it was added at 21:09 UTC as a Domains-page redirect to `durar.space` (308), and its certificate was live by 21:12. That redirect runs before `vercel.json`, so it also sends `www.durar.space/api/…` to durar.space. Nothing calls that address. **`arabic-lang-project.vercel.app`:** 308 → `https://durar.space/word/bahr?x=1` from `vercel.json`, and `/api/…` isn't redirected. At the first check this was a 302 set on the Domains page, which also caught `/api/…`. It serves Production again since 20:36 UTC. |
 | 2 | Tags and sitemap | ✓ `canonical`, `og:url`, `og:image`, `twitter:image` and the JSON-LD `url` are all on `https://durar.space`. `/sitemap.xml`: 142 addresses, all `https://durar.space/…`, no `/library`. `robots.txt` points at it. The `og:image` loads (1200×630 PNG). |
-| 3 | Sign-up, Google | ✗ **Broken for every visitor.** Vercel's `VITE_SUPABASE_ANON_KEY` holds the text “the anon or publishable key from Supabase → Project Settings → API Keys” instead of the key. Browsers refuse to send that text (the `→` isn't allowed in a header), so **Create account** and **Sign in** say “We couldn’t reach the server”. **Continue with Google** starts correctly (`redirect_to=https://durar.space/word/bahr?durar=oauth`, PKCE), but its last step uses the same key, so it fails the same way. |
-| 4 | Save → My Pearls → remove → Delete account | ✗ Needs sign-in (3). |
-| 5 | Subscribe → confirm → unsubscribe | — Not on production yet, as planned: `EMAIL_SIGNUP` is off, so there's no subscribe link. DNS shows SES isn't set up yet (no DMARC record, no `mail.durar.space`). |
+| 3 | Sign-up, Google | **Key fixed; you're testing this.** At the first check it was broken for every visitor: Vercel's `VITE_SUPABASE_ANON_KEY` held the text “the anon or publishable key from Supabase → Project Settings → API Keys” instead of the key. Browsers refuse to send that text (the `→` isn't allowed in a header), so **Create account** and **Sign in** said “We couldn’t reach the server”. **Continue with Google** started correctly (`redirect_to=https://durar.space/word/bahr?durar=oauth`, PKCE), but its last step used the same key. You replaced it with the publishable key, live since 20:31 UTC: the site's JavaScript now carries an `sb_publishable_…` key, and the placeholder text is gone. Not re-run from here, at your request. |
+| 4 | Save → My Pearls → remove → Delete account | Yours to test, with 3. Not run from here, at your request. |
+| 5 | Subscribe → confirm → unsubscribe | — Not on production yet, as planned: `EMAIL_SIGNUP` is off, so there's no subscribe link. DNS shows SES isn't set up yet (no DMARC record, no `mail.durar.space`). Separately, every `/api` function answers 500 until the server variables are set (see [Vercel follow-up](#vercel-follow-up-2026-09-25-evening)). |
 | 6 | Privacy contact | ✓ “Write to hello@durar.space …”, with a mailto link. Region: “EU (Frankfurt, Germany)”. Mail for durar.space goes to Namecheap's forwarding; send `hello@` one test email to make sure it's forwarded. |
 | 7 | Share on desktop | ✓ **WhatsApp:** `https://wa.me/?text=…` with only `text`, the exact text and link, a new tab, `noopener noreferrer`. **Copy link:** the clipboard holds `https://durar.space/word/bahr`, “Link copied” shows, focus returns to Share. **Download image:** `durar-bahr.png`, 1080×1920, description `بَحْر (baḥr): sea`, signature present and pixel-identical to the test snapshot. The text-only view has the same menu and download. No console errors. |
 | 8 | Lighthouse | Desktop 64–66 · mobile 39–68 (median 65 both) · Accessibility, Best practices, SEO 100 on every run. Details under “Quality bar”. |
 
 Also checked: `/` opens on today's pearl (`mirah`), and a phone-sized load (Pixel 7) shows the scene and
-one Share icon on the card. If the daily-email scheduler still calls `arabic-lang-project.vercel.app`,
-that 302 stops it: DOMAIN-DAY Part 7, step 2 points it at durar.space.
+one Share icon on the card. The vercel.app host no longer redirects `/api/…`, so a scheduler that still
+calls it keeps working. DOMAIN-DAY Part 7, step 2 points it at durar.space anyway.
+
+### Vercel follow-up (2026-09-25, evening)
+
+Checked at about 21:10 UTC through the Vercel API (project `arabic-lang-project`) and with plain requests.
+Variable names only: no values were read.
+
+**Every `/api` function answers 500.** `GET /api/cron/daily` returns 500 (`{"error":"server_error"}`) on
+durar.space and on the vercel.app host. The function log says `SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+must be set`. Each function builds its configuration before it looks at the request (`productionDeps` in
+`server/deps.ts`), and stops with a 500 if either of these is missing:
+1. the Supabase URL and service key: `SUPABASE_URL` (or `VITE_SUPABASE_URL`) and `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`);
+2. `EMAIL_TOKEN_SECRET`, at least 32 characters.
+
+Production has four variables: `VITE_CONTACT_EMAIL`, `VITE_DATA_REGION`, `VITE_SUPABASE_ANON_KEY` and
+`VITE_SUPABASE_URL`. Against the table in [`EMAIL-SETUP.md`](EMAIL-SETUP.md) §2:
+
+| Variable | In Production | Without it |
+| --- | --- | --- |
+| `SUPABASE_SERVICE_ROLE_KEY` | no | **every function answers 500** (the error above) |
+| `EMAIL_TOKEN_SECRET` | no | **every function answers 500**: the next error once the key is in |
+| `CRON_SECRET` | no | `/api/cron/daily` refuses every call with 401, so the scheduler can't start the daily email |
+| `SES_ACCESS_KEY_ID`, `SES_SECRET_ACCESS_KEY` | no | nothing is sent (logged as “SES keys missing”) |
+| `EMAIL_FROM` | no | the sender would be `Durar <no-reply@example.com>`, which SES refuses |
+| `EMAIL_SANDBOX_TO` | no | sandbox mode (the default) has nobody to send to, test sends included |
+| `SUPABASE_URL` | no | fine: `VITE_SUPABASE_URL` is used instead |
+| `SES_REGION` | no | fine: defaults to `eu-central-1` |
+| `EMAIL_MODE` | no | fine: defaults to `sandbox` |
+| `EMAIL_SUBJECT_STYLE` | no | fine: **b** is the default, so leave it out |
+
+Once the first two are in and production is redeployed, `GET /api/cron/daily` without the secret should
+answer **401**. That shows the functions start. It doesn't prove the service key is right, because the
+secret is checked first. To prove that, `?dry=1` with your `CRON_SECRET` uses the database (it counts
+the recipients and runs the usual cleanup) and sends nothing: `curl -H "Authorization: Bearer <CRON_SECRET>" "https://durar.space/api/cron/daily?dry=1"`.
+
+**Production branch.** All ten production deployments since the import on 2026-09-23 came from
+`claude/new-session-id31u5`, including the one live now. `main` has never been deployed. Vercel →
+Settings → Git still names `claude/new-session-id31u5` as the production branch (set in Phase 0.2, see
+[`ACCOUNTS-SETUP.md`](ACCOUNTS-SETUP.md)). Today that branch is `main` plus one report commit (`acefcd8`),
+so durar.space runs the same code as `main`. But merging a phase into `main` won't reach durar.space.
+
+**Preview deployments.** `VITE_SUPABASE_URL`, `VITE_CONTACT_EMAIL` and `VITE_DATA_REGION` are ticked for
+Production and Development, not Preview. Only `VITE_SUPABASE_ANON_KEY` has Preview. So previews have no
+sign-in (the site needs both the URL and the key), no Privacy contact, and no Supabase URL for their
+`/api` functions.
 
 ## Follow-up: sharper card text
 
@@ -175,12 +224,22 @@ All 79 Playwright tests still pass.
 
 ## Needs your input
 
-1. **The Supabase key (sign-in is broken on the live site).** Vercel → `arabic-lang-project` → **Settings → Environment Variables** → `VITE_SUPABASE_ANON_KEY`. It holds the words “the anon or publishable key from Supabase → Project Settings → API Keys”. Replace them with the key itself: Supabase → **Project Settings → API Keys** → the **anon** key (starts with `eyJ`) or the **publishable** key (starts with `sb_publishable_`). Keep **Production** and **Preview** ticked → **Save** → **Deployments** → latest Production → **⋯ → Redeploy**. Then live check items 3–4 can run.
-2. **`www.durar.space`:** Vercel → **Settings → Domains**. If `www.durar.space` isn't listed: **Add** → `www.durar.space` → **Redirect to `durar.space`** (308). If it's listed with a warning, open it and follow Vercel's prompt. DNS is already right, so the certificate follows within minutes.
-3. **`arabic-lang-project.vercel.app`:** same page → **Edit** on it. It redirects to durar.space with a temporary 302, and because that runs before `vercel.json`, `/api/…` is redirected too. Set it back to serving **Production** (no redirect): `vercel.json` then sends pages to durar.space with a permanent 308 and leaves `/api/` alone. (If you keep the dashboard redirect, pick **308**, and make sure the scheduler points at durar.space: DOMAIN-DAY Part 7, step 2.)
+1. **Server variables (every `/api` function answers 500).** Vercel → `arabic-lang-project` → **Settings → Environment Variables** → **Add**, ticking **Production** and **Preview** as in EMAIL-SETUP §2:
+   - `SUPABASE_SERVICE_ROLE_KEY`: Supabase → **Project Settings → API Keys** → the **service_role** key (starts with `eyJ`) or a **secret** key (starts with `sb_secret_`).
+   - `EMAIL_TOKEN_SECRET`: the output of `openssl rand -base64 36` (48 characters; the minimum is 32).
+   - `CRON_SECRET`: another `openssl rand -base64 36`. Keep it for the scheduler (EMAIL-SETUP §4).
+
+   Then tell me, and I'll redeploy production and check that `/api/cron/daily` answers 401 (or **Deployments → latest Production → ⋯ → Redeploy** yourself). The SES keys, `EMAIL_FROM` and `EMAIL_SANDBOX_TO` can wait for the email test (DOMAIN-DAY Part 7).
+2. **Production branch:** Vercel → **Settings → Git → Production Branch**: change `claude/new-session-id31u5` to `main`, so that merging a phase into `main` updates durar.space, as these reports assume. The site doesn't change until the next deployment from `main`.
+3. **Previews (optional):** tick **Preview** on `VITE_SUPABASE_URL`, `VITE_CONTACT_EMAIL` and `VITE_DATA_REGION` if you want sign-in, the Privacy contact and working `/api` functions on preview deployments.
 4. **Real-phone test:** on an iPhone and an Android phone, open a word, tap Share, and share to **Instagram Stories** and **WhatsApp**. Check that the signature (دُرَر durar.space, bottom-right of the card) is visible and nothing is covered by Instagram's bars. If Instagram doesn't appear in the iPhone's share sheet, tell me. iOS sometimes hides it when a link is shared along with the image, and the fix is to send the image alone to image apps.
 5. **Domain day:** the remaining steps in [`DOMAIN-DAY.md`](DOMAIN-DAY.md).
 6. **Inbox test:** the table above.
+
+Done since the first live check:
+- ~~**The Supabase key**~~: `VITE_SUPABASE_ANON_KEY` holds the publishable key, live since 20:31 UTC. Sign-in is yours to test (live check 3–4).
+- ~~**`www.durar.space`**~~: added to the project at 21:09 UTC as a 308 redirect to `durar.space`. Its certificate was live by 21:12.
+- ~~**`arabic-lang-project.vercel.app`**~~: serves Production again, so `vercel.json` redirects its pages with a 308 and leaves `/api/` alone.
 
 ## Still open
 
