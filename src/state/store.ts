@@ -17,6 +17,21 @@ export interface Departure {
   at: number;
 }
 
+/** A swipe as the progress engine sees it; `returning` = an in-session comeback of a “still learning” word. */
+export interface SwipeEvent {
+  slug: string;
+  dir: SwipeDir;
+  returning: boolean;
+  /** Date.now() at the swipe. */
+  at: number;
+}
+
+/**
+ * Set by the progress engine once it loads (a lazy chunk). Swipes before that are kept in `early`
+ * and replayed, so none is lost while the engine is still on its way.
+ */
+export const swipeHook: { after: ((e: SwipeEvent) => void) | null; early: SwipeEvent[] } = { after: null, early: [] };
+
 export interface Motion {
   slug: string;
   at: number;
@@ -77,6 +92,7 @@ export const useDurar = create<DurarState>((set, get) => ({
     const now = performance.now();
     const [current, ...rest] = order;
     const owed = reviews[current] ?? 0;
+    const event: SwipeEvent = { slug: current, dir, returning: current in reviews, at: Date.now() };
     const fresh = departures.filter((d) => now - d.at < EXIT_MS && d.slug !== current);
     if (dir === 'known' && owed > 0) {
       // Known on review: it still comes back once more, later (spaced repetition, in miniature).
@@ -112,6 +128,8 @@ export const useDurar = create<DurarState>((set, get) => ({
         surfacing: null,
       });
     }
+    if (swipeHook.after) swipeHook.after(event);
+    else swipeHook.early.push(event);
   },
 
   surface: (slug) => {

@@ -1,3 +1,5 @@
+import type { Progress } from '../../shared/mastery';
+
 export interface AccountUser {
   id: string;
   email: string | null;
@@ -60,6 +62,12 @@ export interface Backend {
   /** Idempotent. `savedAt` restores the original date when undoing a removal. */
   save(slug: string, savedAt?: string): Promise<void>;
   unsave(slug: string): Promise<void>;
+  /** Mastery progress of the signed-in user. */
+  listProgress(): Promise<Progress[]>;
+  /** Upserts; for each word the latest review wins (on the server too), so retries are safe. */
+  saveProgress(rows: Progress[]): Promise<void>;
+  /** Deletes all of the signed-in user's progress. Saved pearls stay. */
+  resetProgress(): Promise<void>;
   /** Permanently deletes the signed-in user and everything they saved. */
   deleteAccount(): Promise<void>;
   /** The current session's access token, for calls to our own server. */

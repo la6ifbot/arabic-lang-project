@@ -9,11 +9,13 @@ import { cancelIdle, whenIdle } from './lib/idle';
 import { linkHandler, syncUrl, useRoute } from './lib/router';
 import { saveAnchor } from './state/anchors';
 import { useDialogs } from './state/dialogs';
+import { startProgress } from './state/progress';
 import { useDurar } from './state/store';
 import { AccountMenu } from './ui/AccountMenu';
 import { CardActions } from './ui/CardActions';
 import { Announcer } from './ui/Announcer';
 import { PearlLabel } from './ui/PearlLabel';
+import { ProgressNote } from './ui/ProgressNote';
 import { SearchBar } from './ui/SearchBar';
 import { StatusAnnouncer } from './ui/StatusAnnouncer';
 import { SwipeControls } from './ui/SwipeControls';
@@ -28,6 +30,7 @@ const EmailLinkPage = lazy(() => import('./pages/EmailLinkPage'));
 const SubscribeModal = lazy(() => import('./ui/SubscribeModal'));
 const AuthModal = lazy(() => import('./ui/AuthModal'));
 const DeleteAccountDialog = lazy(() => import('./ui/DeleteAccountDialog'));
+const ResetProgressDialog = lazy(() => import('./ui/ResetProgressDialog'));
 
 class SceneBoundary extends Component<{ fallback: ReactNode; onError: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -50,6 +53,7 @@ export function App() {
   const authOpen = useAccount((s) => s.auth !== null);
   const confirmDelete = useAccount((s) => s.confirmDelete);
   const subscribeOpen = useDialogs((s) => s.subscribe);
+  const resetOpen = useDialogs((s) => s.resetProgress);
 
   // Auth redirects (email links, Google) must be handled right away, wherever they land.
   useEffect(() => {
@@ -81,6 +85,7 @@ export function App() {
         {authOpen && <AuthModal />}
         {confirmDelete && <DeleteAccountDialog />}
         {subscribeOpen && <SubscribeModal />}
+        {resetOpen && <ResetProgressDialog />}
       </Suspense>
     </>
   );
@@ -108,10 +113,13 @@ function Sea() {
 
   const use3D = webgl && !lost && !textMode;
 
-  // Accounts load after the scene is up, so they never compete with the first paint.
+  // Accounts and progress load after the scene is up, so they never compete with the first paint.
   useEffect(() => {
-    if (accountsMode === 'off' || (use3D && !sceneReady)) return;
-    const id = whenIdle(() => void bootAccounts());
+    if (use3D && !sceneReady) return;
+    const id = whenIdle(() => {
+      if (accountsMode !== 'off') void bootAccounts();
+      void startProgress();
+    });
     return () => cancelIdle(id);
   }, [use3D, sceneReady]);
 
@@ -182,6 +190,7 @@ function Sea() {
 
       {use3D && <PearlLabel />}
       <SearchBar />
+      <ProgressNote />
       <SwipeControls showHint={!touched} onUse={firstUse} />
 
       {webgl && !lost && (

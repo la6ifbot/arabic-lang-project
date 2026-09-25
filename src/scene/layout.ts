@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { CARD_ASPECT } from '../lib/cardTexture';
+import { UNSEEN_DEPTH } from '../progress/queue';
 
 export const CARD_H = 3;
 export const CARD_W = CARD_H * CARD_ASPECT;
@@ -49,16 +50,20 @@ export class Layout {
     return { x: 0, y: this.portrait ? -this.halfH(0) * 0.02 : -this.halfH(0) * 0.01, z: 0, rx: 0, ry: 0, rz: 0, s: this.focusScale() };
   }
 
-  /** Background resting place for the card `index` places behind the focus (index ≥ 1). */
-  slot(index: number): Pose {
-    const z = -2.4 - index * 2.15;
+  /**
+   * Background resting place for the card `index` places behind the focus (index ≥ 1), at a depth
+   * (0 = near the light, 1 = the deep; unseen words float mid-water).
+   */
+  slot(index: number, depth = UNSEEN_DEPTH): Pose {
+    const d = depth - UNSEEN_DEPTH;
+    const z = -2.4 - index * 2.15 - d * 7;
     const hh = this.halfH(z);
     const hw = this.halfW(z);
     const a = index * GOLDEN + 0.9;
     const r = 0.5 + 0.4 * ((index * 0.618) % 1);
     const spreadX = this.portrait ? 0.55 : 0.8;
     const x = Math.cos(a) * r * hw * spreadX;
-    const y = Math.sin(a) * r * hh * 0.62 + hh * 0.04;
+    const y = Math.sin(a) * r * hh * 0.62 + hh * 0.04 - d * hh * 0.5;
     return { x, y, z, rx: 0.05, ry: -x * 0.025, rz: (((index * 0.37) % 1) - 0.5) * 0.24, s: 1 };
   }
 
@@ -75,10 +80,21 @@ export class Layout {
     return { x, y: this.focus().y + 0.05, z, rx: 0, ry: 0.26, rz: 0.03, s };
   }
 
-  /** Where a “known” card sinks to: down, away and into the dark. */
-  sunk(fromX: number): Pose {
-    const z = -9;
-    return { x: fromX * 0.3 + this.halfW(z) * 0.45, y: -this.halfH(z) * 1.35, z, rx: 0.55, ry: -0.2, rz: -0.35, s: 1 };
+  /** Where a “known” card sinks to: down, away and into the dark, deeper for higher boxes. */
+  sunk(fromX: number, depth = 0.5): Pose {
+    const z = -6 - depth * 8;
+    return { x: fromX * 0.3 + this.halfW(z) * 0.45, y: -this.halfH(z) * (1.05 + depth * 0.6), z, rx: 0.55, ry: -0.2, rz: -0.35, s: 1 };
+  }
+
+  /** Known words that aren't due: out of the rotation, drifting low in the background at their depth. */
+  drift(slot: number, depth: number): Pose {
+    const z = -9 - depth * 9 - (slot % 3) * 1.2;
+    const hh = this.halfH(z);
+    const hw = this.halfW(z);
+    const a = slot * GOLDEN + 2.1;
+    const x = Math.cos(a) * hw * (this.portrait ? 0.55 : 0.75);
+    const y = -hh * (0.15 + depth * 0.45) + Math.sin(a) * hh * 0.15;
+    return { x, y, z, rx: 0.12, ry: -x * 0.02, rz: (((slot * 0.53) % 1) - 0.5) * 0.3, s: 1 };
   }
 
   /** Where a searched-for card waits before it rises. */

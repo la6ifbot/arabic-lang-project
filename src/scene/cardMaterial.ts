@@ -140,6 +140,7 @@ export function createCardMaterial(map: THREE.Texture, seed: number): CardMateri
     uniforms: {
       uTime: sharedUniforms.uTime,
       uResolution: sharedUniforms.uResolution,
+      uDeep: sharedUniforms.uDeep,
       uMap: { value: map },
       uFocus: { value: 0 },
       uOpacity: { value: 0 },

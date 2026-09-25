@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAccount } from '../account/store';
 import { WORD_BY_SLUG } from '../lib/words';
+import { progressLabel, useProgress } from '../state/progress';
 import { gesture, useDurar } from '../state/store';
 import { useSwipeInput } from '../scene/useSwipeInput';
 import { CardActions } from './CardActions';
@@ -16,6 +17,7 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
   const slug = useDurar((s) => s.order[0]);
   const learning = useDurar((s) => s.learning);
   const word = WORD_BY_SLUG.get(slug)!;
+  const label = useProgress((s) => progressLabel(s.map[slug]));
   const wrap = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLElement>(null);
   useSwipeInput(wrap, onFirstSwipe);
@@ -64,6 +66,11 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
       <article ref={card} key={slug} className="html-card" data-testid="html-card" data-glint={glinting || undefined}>
         <CardActions slug={slug} className="card-actions-in-card" />
         <WordDetails word={word} />
+        {label && (
+          <p className="card-depth" data-testid="card-depth">
+            {label}
+          </p>
+        )}
       </article>
     </div>
   );

@@ -6,6 +6,7 @@ import {
   type AuthChangeEvent,
   type User,
 } from '@supabase/supabase-js';
+import { asProgress, type Progress } from '../../shared/mastery';
 import { AccountError, type AccountErrorCode, type AccountUser, type Backend, type SubscriptionStatus, type UrlNotice } from './types';
 import { SESSION_STORAGE_KEY } from './storageKeys';
 import { readAuthUrl } from './urlState';
@@ -154,6 +155,47 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
 
     async unsave(slug) {
       const { error } = await client.from('saved_pearls').delete().eq('word_slug', slug);
+      if (error) throw dataError(error);
+    },
+
+    async listProgress() {
+      const { data, error } = await client
+        .from('word_progress')
+        .select('word_slug, box, due_at, last_reviewed_at, times_seen, lapses')
+        .limit(5000);
+      if (error) throw dataError(error);
+      return (data ?? [])
+        .map((r) =>
+          asProgress({
+            slug: r.word_slug,
+            box: r.box,
+            dueAt: r.due_at,
+            lastReviewedAt: r.last_reviewed_at,
+            timesSeen: r.times_seen,
+            lapses: r.lapses,
+          }),
+        )
+        .filter((p): p is Progress => p !== null);
+    },
+
+    async saveProgress(rows) {
+      // Small batches: a keepalive request (which may outlive the tab) is limited to 64 KB.
+      for (let i = 0; i < rows.length; i += 200) {
+        const p_rows = rows.slice(i, i + 200).map((p) => ({
+          word_slug: p.slug,
+          box: p.box,
+          due_at: p.dueAt,
+          last_reviewed_at: p.lastReviewedAt,
+          times_seen: p.timesSeen,
+          lapses: p.lapses,
+        }));
+        const { error } = await client.rpc('save_progress', { p_rows });
+        if (error) throw dataError(error);
+      }
+    },
+
+    async resetProgress() {
+      const { error } = await client.rpc('reset_my_progress');
       if (error) throw dataError(error);
     },
 

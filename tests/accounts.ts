@@ -13,14 +13,25 @@ export { expect };
 
 export const LAYLA = { id: 'user-layla', email: 'layla@example.com', password: 'moonlit-harbour', verified: true, provider: 'email' };
 
+export interface SeedProgress {
+  slug: string;
+  box: number;
+  dueAt: string;
+  lastReviewedAt: string;
+  timesSeen: number;
+  lapses: number;
+}
+
 interface Seed {
   signedIn?: boolean;
   saved?: { slug: string; savedAt: string }[];
+  /** Layla's progress in the (mock) database. */
+  progress?: SeedProgress[];
 }
 
 /** Seeds the mock database once per test (later reloads keep whatever the test changed). */
-export async function seed(page: Page, { signedIn = false, saved = [] }: Seed = {}) {
-  const db = { users: [LAYLA], sessionUserId: signedIn ? LAYLA.id : null, saved: { [LAYLA.id]: saved }, outbox: [] };
+export async function seed(page: Page, { signedIn = false, saved = [], progress = [] }: Seed = {}) {
+  const db = { users: [LAYLA], sessionUserId: signedIn ? LAYLA.id : null, saved: { [LAYLA.id]: saved }, progress: { [LAYLA.id]: progress }, outbox: [] };
   await page.addInitScript((value) => {
     if (!localStorage.getItem('durar-mock-db')) localStorage.setItem('durar-mock-db', value);
   }, JSON.stringify(db));

@@ -33,7 +33,7 @@ export default function DeleteAccountDialog() {
       </h2>
       <p id={descId} className="modal-text">
         This permanently deletes your account{user?.email ? <> (<strong>{user.email}</strong>)</> : null} and{' '}
-        {count === 1 ? 'the 1 pearl' : `the ${count} pearls`} you’ve saved. It can’t be undone.
+        {count === 1 ? 'the 1 pearl' : `the ${count} pearls`} you’ve saved, along with your progress. It can’t be undone.
       </p>
       {error && (
         <div className="form-error" role="alert">

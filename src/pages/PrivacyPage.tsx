@@ -15,7 +15,8 @@ export default function PrivacyPage() {
       <div className="prose">
         <p className="prose-lead">
           You can use Durar without an account. Browsing, searching and swiping don’t send anything about you to us. An
-          account is only needed to keep pearls, and then we store as little as we can.
+          account is only needed to keep pearls and carry your progress between devices, and then we store as little as
+          we can.
         </p>
 
         <h2>What we store when you create an account</h2>
@@ -28,12 +29,28 @@ export default function PrivacyPage() {
             tells us your email address and that you signed in.
           </li>
           <li>
-            <strong>The words you save</strong> and when you saved each one. That’s the whole of “My Pearls”.
+            <strong>The words you save</strong> and when you saved each one.
+          </li>
+          <li>
+            <strong>Your progress</strong>: for each word you’ve swiped, which of the five boxes it’s in, when it’s due back,
+            when you last reviewed it, how many times you’ve seen it and how many times it slipped back to “still learning”.
           </li>
         </ul>
+        <p>We don’t load your Google profile photo.</p>
+
+        <h2>Your progress</h2>
         <p>
-          We don’t store your swipes: whether you marked a word “known” or “still learning” stays in your browser and is
-          forgotten when you close the tab. We don’t load your Google profile photo.
+          Progress is what lets a word you know sink deeper and come back later, and a word you’re learning come back
+          tomorrow. It’s used only for that: the order of the sea, how deep each pearl sits, the Library, and one line in
+          the daily email (below). Nothing else, and never for ads or tracking.
+        </p>
+        <p>
+          <strong>Without an account, your progress stays in this browser only</strong> and is never sent to us. If you
+          then sign in, it’s added to your account and removed from the browser.
+        </p>
+        <p>
+          To start over, choose <strong>Reset my progress…</strong> in the account menu or at the bottom of My Pearls. It
+          clears your progress everywhere (your account and this browser). Your saved pearls stay.
         </p>
 
         <h2>Why</h2>
@@ -66,6 +83,10 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
+          If your subscription is linked to a Durar account, the email may add one line, “A pearl to revisit”, with a word
+          from your progress that’s due again. Subscribers without an account get the same email as everyone.
+        </p>
+        <p>
           Addresses that don’t confirm within 7 days are deleted. The email is sent by <strong>Amazon SES</strong> from its
           Frankfurt (EU) region. We don’t track opens or clicks: no tracking pixels, no redirected links. Every email has a
           one-click unsubscribe link, and signed-in readers can also switch the email off in the account menu. If an address
@@ -76,13 +97,16 @@ export default function PrivacyPage() {
         <p>
           Durar sets no cookies and uses no analytics or tracking of any kind. When you sign in, your browser’s local storage
           keeps your session so you stay signed in. If you tap Save while signed out, it briefly remembers that word so we can
-          save it once you’ve signed in. Both are strictly necessary for features you ask for, so there’s no cookie banner.
+          save it once you’ve signed in. Without an account, it keeps your progress. It also remembers how deep the sea was
+          on your last visit, so it doesn’t change suddenly. All of this is strictly necessary for features you use, so
+          there’s no cookie banner.
         </p>
 
         <h2>Deleting your data</h2>
         <p>
           Open the account menu (the pearl in the top-left corner) and choose <strong>Delete my account</strong>. Your
-          account, every saved word and any email subscription for your address are removed at once, permanently. Signing
+          account, every saved word, your progress and any email subscription for your address are removed at once,
+          permanently. Signing
           out removes the session from this browser. To stop the daily email without an account, use the unsubscribe link in
           any of them.
         </p>
