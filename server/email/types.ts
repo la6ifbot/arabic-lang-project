@@ -1,6 +1,8 @@
 export interface EmailMessage {
   to: string;
   from: string;
+  /** Reply-To address, if replies should go somewhere other than the sender. */
+  replyTo?: string | null;
   subject: string;
   html: string;
   text: string;

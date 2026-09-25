@@ -70,6 +70,9 @@
     "api/cron/daily.ts": {
       "maxDuration": 60
     },
+    "api/cron/health.ts": {
+      "maxDuration": 15
+    },
     "api/subscribe.ts": {
       "maxDuration": 15
     },

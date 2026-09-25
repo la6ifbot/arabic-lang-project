@@ -5,8 +5,9 @@
 import { amsterdamDate, amsterdamHour, pearlForDate } from '../shared/pearlOfTheDay.js';
 import type { Config } from './config.js';
 import type { EmailMessage, EmailSender } from './email/types.js';
+import { renderAlert } from './email/alert.js';
 import { renderConfirmation, renderDaily, type EmailWord } from './email/templates.js';
-import type { Store } from './store.js';
+import type { DayHealth, Store } from './store.js';
 import { ipHash, randomToken, sha256, unsubscribeToken, verifyUnsubscribeToken } from './tokens.js';
 
 export interface AccountUser {
@@ -114,7 +115,7 @@ export async function handleSubscribe(req: Request, deps: Deps): Promise<Respons
       const confirmUrl = `${config.siteUrl}/subscribe/confirm?token=${encodeURIComponent(token)}`;
       const r = renderConfirmation({ confirmUrl, siteUrl: config.siteUrl, unsubscribeUrl: links.page, contactEmail: config.contactEmail });
       try {
-        await deps.mailer.send({ to: email, from: config.from, ...r, headers: listUnsubscribeHeaders(links.oneClick) });
+        await deps.mailer.send({ to: email, from: config.from, replyTo: config.replyTo, ...r, headers: listUnsubscribeHeaders(links.oneClick) });
       } catch (e) {
         deps.log('subscribe: confirmation email failed', e);
       }
@@ -206,7 +207,7 @@ export async function handleDaily(req: Request, deps: Deps): Promise<Response> {
       contactEmail: config.contactEmail,
       subjectStyle: config.subjectStyle,
     });
-    return { to, from: config.from, ...r, headers: listUnsubscribeHeaders(links.oneClick) };
+    return { to, from: config.from, replyTo: config.replyTo, ...r, headers: listUnsubscribeHeaders(links.oneClick) };
   };
 
   if (flag('test')) {
@@ -226,26 +227,103 @@ export async function handleDaily(req: Request, deps: Deps): Promise<Response> {
   }
 
   const gap = 1000 / config.ratePerSecond;
+  let claimed = 0;
   let sent = 0;
   let failed = 0;
-  while (Date.now() - started < TIME_BUDGET_MS) {
-    const batch = await store.claim(date, slug, BATCH, only);
-    if (!batch.length) break;
-    for (const r of batch) {
-      const t0 = Date.now();
-      try {
-        const { messageId } = await mailer.send(build(r.email, r.subscriberId));
-        await store.mark(r.subscriberId, date, 'sent', messageId);
-        sent++;
-      } catch (e) {
-        failed++;
-        deps.log(`daily: send failed for subscriber ${r.subscriberId}`, e);
-        await store.mark(r.subscriberId, date, 'failed');
+  let remaining = 0;
+  const run = { date, slug, mode: config.emailMode };
+  try {
+    while (Date.now() - started < TIME_BUDGET_MS) {
+      const batch = await store.claim(date, slug, BATCH, only);
+      if (!batch.length) break;
+      claimed += batch.length;
+      for (const r of batch) {
+        const t0 = Date.now();
+        try {
+          const { messageId } = await mailer.send(build(r.email, r.subscriberId));
+          await store.mark(r.subscriberId, date, 'sent', messageId);
+          sent++;
+        } catch (e) {
+          failed++;
+          deps.log(`daily: send failed for subscriber ${r.subscriberId}`, e);
+          await store.mark(r.subscriberId, date, 'failed');
+        }
+        const wait = gap - (Date.now() - t0);
+        if (wait > 0) await deps.sleep(wait);
       }
-      const wait = gap - (Date.now() - t0);
-      if (wait > 0) await deps.sleep(wait);
+    }
+    remaining = await store.pendingCount(date, only);
+  } catch (e) {
+    // Leave a trace for the health check, then let the route report the 500.
+    const error = e instanceof Error ? e.message : String(e);
+    await store.recordRun({ ...run, claimed, sent, failed, remaining: null, error }).catch(() => {});
+    throw e;
+  }
+  // A missing run log must never stop the email itself; the health check notices the gap.
+  const status = await store.recordRun({ ...run, claimed, sent, failed, remaining }).catch((e) => {
+    deps.log('daily: could not record the run summary', e);
+    return 'unrecorded';
+  });
+  return json(200, { date, slug, mode: config.emailMode, sent, failed, remaining, status, housekeeping, suppressed });
+}
+
+// ---------------------------------------------------------------------------------------------
+// GET /api/cron/health   (Authorization: Bearer $CRON_SECRET)
+// Called by pg_cron after the send window; only the 08:xx Amsterdam call checks. If today's run is
+// missing or had problems, it emails the owner (ALERT_EMAIL, else the first EMAIL_SANDBOX_TO).
+//   ?dry=1   report only, never email
+//   ?force=1 ignore the 08:00 window
+
+/** Plain-language problems with a day's run; empty when all is well. */
+export function runProblems(h: DayHealth): string[] {
+  const problems: string[] = [];
+  const { run, sends } = h;
+  if (!run) {
+    problems.push('No run was recorded today: the scheduler may not have called /api/cron/daily, or every call failed before it finished.');
+  } else {
+    if (run.status === 'error') problems.push(`The last daily call stopped with an error: ${run.last_error ?? 'unknown'}`);
+    if (run.remaining && run.remaining > 0) problems.push(`${run.remaining} confirmed subscriber(s) did not get today's email.`);
+  }
+  if (sends.failed > 0) problems.push(`${sends.failed} send(s) failed.`);
+  if (sends.reserved > 0) problems.push(`${sends.reserved} send(s) were started but never finished.`);
+  return problems;
+}
+
+export async function handleHealth(req: Request, deps: Deps): Promise<Response> {
+  const { config } = deps;
+  if (!config.cronSecret || req.headers.get('authorization') !== `Bearer ${config.cronSecret}`) {
+    return json(401, { error: 'unauthorized' });
+  }
+  const url = new URL(req.url);
+  const flag = (k: string) => url.searchParams.get(k) === '1';
+  const now = deps.now();
+  if (!flag('force') && !flag('dry') && amsterdamHour(now) !== config.healthHour) {
+    return json(200, { skipped: 'outside_check_window', amsterdamHour: amsterdamHour(now) });
+  }
+  const date = amsterdamDate(now);
+  if (config.emailMode === 'dry-run') return json(200, { date, skipped: 'dry_run_mode' });
+
+  let details: unknown;
+  let problems: string[];
+  try {
+    const h = await deps.store.health(date);
+    details = h;
+    problems = runProblems(h);
+  } catch (e) {
+    details = null;
+    problems = [`The health check could not read the run log: ${e instanceof Error ? e.message : String(e)}`];
+  }
+
+  const ok = problems.length === 0;
+  let alerted = false;
+  if (!ok && !flag('dry') && config.alertTo) {
+    try {
+      const r = renderAlert({ date, problems, details, siteUrl: config.siteUrl });
+      await deps.mailer.send({ to: config.alertTo, from: config.from, ...r });
+      alerted = true;
+    } catch (e) {
+      deps.log('health: could not email the alert', e);
     }
   }
-  const remaining = await store.pendingCount(date, only);
-  return json(200, { date, slug, mode: config.emailMode, sent, failed, remaining, housekeeping, suppressed });
+  return json(200, { date, ok, problems, alerted, details });
 }
