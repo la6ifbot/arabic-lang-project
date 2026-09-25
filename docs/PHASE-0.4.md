@@ -1,16 +1,16 @@
 # Phase 0.4 — Sharing: report
 
-Live: https://durar.space (production deploys from `main`; this work is on `claude/new-session-id31u5`).
+Live: https://durar.space (production deploys from `main`, which now holds this phase: commit `9b2e286`, CI green).
 Preview with browser-only demo accounts: https://claude.ai/artifact/A71zLZPK1zRW3nWbferAHZ
 
 Legend: **[x]** done and verified · **[~]** built, waiting on the owner or on something I can't reach
 from here · **[ ]** not done
 
-> **Two things are still out of reach from this environment.** (1) The network policy still refuses
-> `durar.space`, `www.durar.space` and `arabic-lang-project.vercel.app` (HTTP 403 from the proxy).
-> Allowed-domain changes may only apply to a **new** session. So the live checks and live Lighthouse
-> are still to do. (2) GitHub lists only `claude/new-session-id31u5`: there's no `main` branch yet,
-> so this can't be merged to `main` from here. Both are under “Needs your input”.
+> **Still out of reach from this environment:** the network policy refuses `durar.space`,
+> `www.durar.space` and `arabic-lang-project.vercel.app` (HTTP 403 from the proxy). Allowed-domain
+> changes may only apply to a **new** session. So the live checks and live Lighthouse are still to do.
+> **Resolved:** the owner created `main` from this branch and made it the default branch, so this
+> phase is on `main` (`9b2e286`).
 
 ## Checklist
 
@@ -138,7 +138,7 @@ All 79 Playwright tests still pass.
 
 ## Needs your input
 
-1. **`main` branch:** GitHub shows only `claude/new-session-id31u5`. Please create `main` from it (GitHub → Branches → New branch → source `claude/new-session-id31u5`) or merge it into your `main`, so Vercel production (durar.space) gets this phase. Or allow this session to push `main` and I'll do it.
+1. ~~**`main` branch**~~: done. `main` is the default branch and holds this phase. From now on, each phase is merged from `claude/new-session-id31u5` into `main` (by you, or through a pull request I open).
 2. **Network access:** allow `durar.space`, `www.durar.space` and `arabic-lang-project.vercel.app` in this environment and **start a new session**. The current one still gets 403. Then I'll run the live check and live Lighthouse.
 3. **Real-phone test:** on an iPhone and an Android phone, open a word, tap Share, and share to **Instagram Stories** and **WhatsApp**. Check that the signature (دُرَر durar.space, bottom-right of the card) is visible and nothing is covered by Instagram's bars. If Instagram doesn't appear in the iPhone's share sheet, tell me. iOS sometimes hides it when a link is shared along with the image, and the fix is to send the image alone to image apps.
 4. **Domain day:** the remaining steps in [`DOMAIN-DAY.md`](DOMAIN-DAY.md).
