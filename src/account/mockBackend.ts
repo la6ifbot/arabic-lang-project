@@ -1,4 +1,5 @@
 import { MOCK_DB_KEY, MOCK_EMAIL_KEY } from './storageKeys';
+import { mergeProgress, type Progress } from '../../shared/mastery';
 import { AccountError, type AccountErrorCode, type AccountUser, type AuthChange, type Backend, type SavedPearl, type SubscriptionStatus } from './types';
 
 /**
@@ -21,6 +22,7 @@ interface MockDb {
   users: MockUser[];
   sessionUserId: string | null;
   saved: Record<string, SavedPearl[]>;
+  progress?: Record<string, Progress[]>;
   outbox: { to: string; kind: 'verify' | 'reset' }[];
 }
 
@@ -212,6 +214,34 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       store(db);
     },
 
+    async listProgress() {
+      await step('listProgress');
+      const db = load();
+      return [...(db.progress?.[current(db).id] ?? [])];
+    },
+
+    async saveProgress(rows) {
+      await step('saveProgress');
+      const db = load();
+      const id = current(db).id;
+      const byslug = new Map((db.progress?.[id] ?? []).map((p) => [p.slug, p]));
+      // The same rule as save_progress(): the latest review wins, lapses and times seen never go down.
+      for (const r of rows) {
+        const prev = byslug.get(r.slug);
+        const win = mergeProgress(prev, r)!;
+        byslug.set(r.slug, prev ? { ...win, lapses: Math.max(prev.lapses, r.lapses), timesSeen: Math.max(prev.timesSeen, r.timesSeen) } : r);
+      }
+      db.progress = { ...db.progress, [id]: [...byslug.values()] };
+      store(db);
+    },
+
+    async resetProgress() {
+      await step('resetProgress');
+      const db = load();
+      db.progress = { ...db.progress, [current(db).id]: [] };
+      store(db);
+    },
+
     async accessToken() {
       const db = load();
       const u = db.users.find((x) => x.id === db.sessionUserId);
@@ -239,6 +269,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       writeMockEmail(rest);
       db.users = db.users.filter((u) => u.id !== id);
       delete db.saved[id];
+      if (db.progress) delete db.progress[id]; // like the cascade from auth.users
       db.sessionUserId = null;
       store(db);
       emit('signed-out', null);

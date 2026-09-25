@@ -285,7 +285,7 @@ export async function deleteAccount() {
   await b.deleteAccount();
   clearPending();
   set({ status: 'signed-out', user: null, saved: {}, savedLoaded: false, confirmDelete: false });
-  announce('Your account and saved pearls have been deleted.');
+  announce('Your account, saved pearls and progress have been deleted.');
 }
 
 // ---------------------------------------------------------------------------------------------

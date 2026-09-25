@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { loadEmailToggle, openAuth, setEmailToggle, signOut, useAccount, useEmailToggle } from '../account/store';
 import { emailSignupEnabled } from '../lib/flags';
 import { navigate } from '../lib/router';
+import { openResetProgress } from '../state/dialogs';
 import { WORD_BY_SLUG } from '../lib/words';
 
 /** Account entry in the top-left corner: “Sign in”, or a small pearl that opens a menu. */
@@ -134,6 +135,9 @@ export function AccountMenu() {
             Sign out
           </button>
           <div className="acct-sep" role="separator" />
+          <button type="button" role="menuitem" className="acct-item" onClick={choose(openResetProgress)}>
+            Reset my progress…
+          </button>
           <button
             type="button"
             role="menuitem"

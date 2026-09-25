@@ -1,11 +1,12 @@
 import { useFrame } from '@react-three/fiber';
 import { gesture } from '../state/store';
 import { CAMERA_Z } from './layout';
+import { STILL } from './uniforms';
 
 /** A slow, breathing drift plus a whisper of pointer parallax — the viewer is floating too. */
 export function CameraRig({ reducedMotion }: { reducedMotion: boolean }) {
   useFrame(({ camera, clock }, dt) => {
-    const t = clock.elapsedTime;
+    const t = STILL ? 0 : clock.elapsedTime;
     const amp = reducedMotion ? 0.2 : 1;
     const tx = (Math.sin(t * 0.07) * 0.18 + gesture.px * 0.35) * amp;
     const ty = (Math.sin(t * 0.11 + 1.3) * 0.12 + gesture.py * 0.2) * amp;

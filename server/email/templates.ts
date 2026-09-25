@@ -101,6 +101,8 @@ function button(href: string, label: string) {
 /** The daily Pearl of the Day email. */
 export function renderDaily(opts: {
   word: EmailWord;
+  /** “A pearl to revisit”: a due word from the reader's progress (account holders only). */
+  revisit?: EmailWord;
   date: string;
   siteUrl: string;
   unsubscribeUrl: string;
@@ -115,6 +117,8 @@ export function renderDaily(opts: {
   const more = w.meanings.slice(1).join('; ');
   const subject = SUBJECTS[opts.subjectStyle ?? 'b'](w);
   const reason = 'You’re receiving this because you subscribed to the Pearl of the Day on Durar. One email a day, around 7:00 in Amsterdam.';
+  const rv = opts.revisit;
+  const rvUrl = rv ? `${siteUrl}/word/${rv.slug}` : '';
 
   const body = `
 <tr><td align="center" style="padding:0 0 18px;font-family:${FONT_EN};font-size:17px;font-style:italic;letter-spacing:1px;color:${C.soft};">
@@ -144,7 +148,14 @@ ${
 </td></tr>`
     : ''
 }
-<tr><td align="center" style="padding:30px 20px 4px;">${button(url, 'Open in Durar')}</td></tr>
+${
+  rv
+    ? `<tr><td class="px" align="center" style="padding:22px 40px 0;font-family:${FONT_EN};font-size:18px;line-height:1.5;color:${C.soft};">
+  <p style="margin:0;">A pearl to revisit: <a href="${esc(rvUrl)}" style="color:${C.ink};text-decoration:underline;"><span lang="ar" dir="rtl" style="font-family:${FONT_AR};font-size:22px;">${esc(rv.ar)}</span> (${esc(rv.translit)})</a> — ${esc(rv.meanings[0])}</p>
+</td></tr>
+`
+    : ''
+}<tr><td align="center" style="padding:30px 20px 4px;">${button(url, 'Open in Durar')}</td></tr>
 ${footer({ siteUrl, unsubscribeUrl: opts.unsubscribeUrl, contactEmail: opts.contactEmail, reason })}`;
 
   const text = [
@@ -159,6 +170,7 @@ ${footer({ siteUrl, unsubscribeUrl: opts.unsubscribeUrl, contactEmail: opts.cont
     ex ? ex.en : '',
     ex?.source ? `— ${ex.source}` : '',
     '',
+    rv ? `A pearl to revisit: ${rv.ar} (${rv.translit}) — ${rv.meanings[0]}: ${rvUrl}` : '',
     `Open in Durar: ${url}`,
     '',
     '—',

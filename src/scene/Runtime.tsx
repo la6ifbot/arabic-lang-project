@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
-import { sharedUniforms } from './uniforms';
+import { sharedUniforms, STILL } from './uniforms';
 
 const tmp = new THREE.Vector2();
 
@@ -21,7 +21,7 @@ export function Runtime({ maxDpr }: { maxDpr: number }) {
   }, [setDpr]);
 
   useFrame(({ clock }, dt) => {
-    sharedUniforms.uTime.value = clock.elapsedTime;
+    sharedUniforms.uTime.value = STILL ? 0 : clock.elapsedTime;
     gl.getDrawingBufferSize(tmp);
     sharedUniforms.uResolution.value.copy(tmp);
 

@@ -3,6 +3,7 @@
 export const WATER_GLSL = /* glsl */ `
   uniform vec2 uResolution;
   uniform float uTime;
+  uniform float uDeep;
 
   vec3 waterColor(vec2 uv) {
     vec3 deep = vec3(0.006, 0.022, 0.048);
@@ -18,6 +19,9 @@ export const WATER_GLSL = /* glsl */ `
     // Edges fall away into the deep.
     vec2 v = (uv - vec2(0.5, 0.62)) * vec2(aspect * 0.55, 1.0);
     col *= 1.0 - 0.6 * smoothstep(0.25, 1.1, length(v));
+    // Mastery: the sea deepens slowly as known words grow (never past its cap). Only the water
+    // changes; the focused card never mixes with it, so its contrast stays exactly the same.
+    col *= 1.0 - uDeep;
     return col;
   }
 `;

@@ -8,7 +8,7 @@ export function Backdrop() {
   const material = useMemo(
     () =>
       new THREE.ShaderMaterial({
-        uniforms: { uResolution: sharedUniforms.uResolution, uTime: sharedUniforms.uTime },
+        uniforms: { uResolution: sharedUniforms.uResolution, uTime: sharedUniforms.uTime, uDeep: sharedUniforms.uDeep },
         vertexShader: /* glsl */ `
           void main() { gl_Position = vec4(position.xy, 0.99999, 1.0); }
         `,

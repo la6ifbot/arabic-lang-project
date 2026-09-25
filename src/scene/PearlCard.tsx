@@ -4,10 +4,13 @@ import * as THREE from 'three';
 import { useAccount } from '../account/store';
 import { acquireCardTexture, releaseCardTexture } from './texturePool';
 import { WORD_BY_SLUG } from '../lib/words';
+import { depthOf } from '../progress/queue';
+import { useProgress } from '../state/progress';
 import { EXIT_MS, gesture, useDurar } from '../state/store';
 import { emitBubbles } from './Bubbles';
 import { createCardMaterial, createShaftMaterial } from './cardMaterial';
 import { CARD_H, CARD_W, hashSeed, smoothDamp, type Layout, type Pose } from './layout';
+import { STILL } from './uniforms';
 
 const CARD_GEOMETRY = new THREE.PlaneGeometry(CARD_W, CARD_H, 20, 28);
 const SHAFT_GEOMETRY = new THREE.PlaneGeometry(CARD_W * 1.7, 16);
@@ -36,14 +39,16 @@ interface Sim {
 
 interface Props {
   slug: string;
-  /** Position in the rotation queue; 0 = focused, -1 = departing (sinking away). */
+  /** Position in the rotation queue; 0 = focused, -1 = departing (sinking away), -2 = drifting. */
   index: number;
   departAt?: number;
+  /** Drifting slot, for known words out of the rotation. */
+  drift?: number;
   layout: Layout;
   reducedMotion: boolean;
 }
 
-export function PearlCard({ slug, index, departAt, layout, reducedMotion }: Props) {
+export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion }: Props) {
   const word = WORD_BY_SLUG.get(slug)!;
   const gl = useThree((s) => s.gl);
   const seed = useMemo(() => hashSeed(slug), [slug]);
@@ -65,22 +70,33 @@ export function PearlCard({ slug, index, departAt, layout, reducedMotion }: Prop
   const hovered = useRef(false);
   const indexRef = useRef(index);
   indexRef.current = index;
+  const driftRef = useRef(drift);
+  driftRef.current = drift;
 
   useFrame((state, rawDt) => {
     const g = group.current;
     if (!g) return;
     const dt = Math.min(rawDt, 0.25); // keeps near real-time pacing even on very slow devices
     const now = performance.now();
-    const t = state.clock.elapsedTime;
+    const t = STILL ? 0 : state.clock.elapsedTime;
     const { surfacing, learning } = useDurar.getState();
     const idx = indexRef.current;
+    const slot = driftRef.current;
+    // Mastery: each word sits at the depth of its box (unseen words mid-water).
+    const depth = depthOf(useProgress.getState().map[slug]?.box);
     const surf = surfacing && surfacing.slug === slug ? now - surfacing.at : -1;
     const rising = idx === 0 && surf >= 0 && surf < SURFACE_END;
 
     if (!sim.current) {
-      const start = rising ? layout.abyss(seed) : idx > 0 ? layout.slot(idx) : layout.focus();
+      const start = rising
+        ? layout.abyss(seed)
+        : slot !== undefined
+          ? layout.drift(slot, depth)
+          : idx > 0
+            ? layout.slot(idx, depth)
+            : layout.focus();
       const pose = { ...start };
-      if (!rising && idx > 0) pose.z -= 5; // emerge from the murk
+      if (!rising && idx !== 0) pose.z -= 5; // emerge from the murk
       sim.current = {
         pose,
         vel: Object.fromEntries(KEYS.map((k) => [k, { v: 0 }])) as Sim['vel'],
@@ -99,7 +115,7 @@ export function PearlCard({ slug, index, departAt, layout, reducedMotion }: Prop
 
     if (departAt !== undefined) {
       const k = (now - departAt) / EXIT_MS;
-      target = layout.sunk(s.pose.x);
+      target = layout.sunk(s.pose.x, depth);
       smooth = 1.2;
       opacityTarget = k < 0.35 ? 1 : 0;
     } else if (idx === 0) {
@@ -117,8 +133,12 @@ export function PearlCard({ slug, index, departAt, layout, reducedMotion }: Prop
         target = { ...target, x: dx, y: target.y - Math.abs(n) * 0.6 * (n > 0 ? 1 : -0.4), rz: -n * 0.5, ry: n * 0.9, rx: Math.abs(n) * 0.3 };
         smooth = 0.07;
       }
+    } else if (slot !== undefined) {
+      // Out of the rotation: sink (after a “known” swipe) or drift in, and stay low at its depth.
+      target = layout.drift(slot, depth);
+      smooth = 1.5;
     } else {
-      target = layout.slot(idx);
+      target = layout.slot(idx, depth);
       const lingering = learning && learning.slug === slug ? now - learning.at : -1;
       if (lingering >= 0 && lingering < LINGER_HOLD) {
         // Never blocks: the next card is already in focus and interactive while this one lingers.
@@ -152,7 +172,7 @@ export function PearlCard({ slug, index, departAt, layout, reducedMotion }: Prop
     for (const k of KEYS) s.pose[k] = smoothDamp(s.pose[k], target[k], s.vel[k], k === 's' ? smooth * 0.9 : smooth, dt);
     s.opacity += (opacityTarget - s.opacity) * (1 - Math.exp(-dt * (opacityTarget > s.opacity ? 1.6 : 2.2)));
     s.focus += (focusTarget - s.focus) * (1 - Math.exp(-dt * 2.2));
-    s.hover += ((hovered.current && idx > 0 ? 1 : 0) - s.hover) * (1 - Math.exp(-dt * 6));
+    s.hover += ((hovered.current && (idx > 0 || idx === -2) ? 1 : 0) - s.hover) * (1 - Math.exp(-dt * 6));
 
     g.position.set(s.pose.x, s.pose.y, s.pose.z);
     g.rotation.set(s.pose.rx, s.pose.ry, s.pose.rz);
@@ -193,13 +213,13 @@ export function PearlCard({ slug, index, departAt, layout, reducedMotion }: Prop
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    if (e.delta > 8 || indexRef.current <= 0) return;
+    if (e.delta > 8 || indexRef.current === 0 || indexRef.current === -1) return;
     useDurar.getState().surface(slug);
   };
   const onOver = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     hovered.current = true;
-    if (indexRef.current > 0) document.body.dataset.cursor = 'pointer';
+    if (indexRef.current > 0 || indexRef.current === -2) document.body.dataset.cursor = 'pointer';
   };
   const onOut = () => {
     hovered.current = false;

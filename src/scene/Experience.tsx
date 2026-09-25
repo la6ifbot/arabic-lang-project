@@ -9,6 +9,7 @@ import { CAMERA_FOV, CAMERA_Z } from './layout';
 import { Particles } from './Particles';
 import { Runtime } from './Runtime';
 import { SaveAnchor } from './SaveAnchor';
+import { SeaDepth } from './SeaDepth';
 import { useSwipeInput } from './useSwipeInput';
 
 export interface Quality {
@@ -59,6 +60,7 @@ export function Experience({
         }}
       >
         <Runtime maxDpr={quality.maxDpr} />
+        <SeaDepth reducedMotion={reducedMotion} />
         <CameraRig reducedMotion={reducedMotion} />
         <Backdrop />
         <CardField visibleCount={quality.visibleCards} reducedMotion={reducedMotion} />

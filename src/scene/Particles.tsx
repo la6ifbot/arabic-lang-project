@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
-import { sharedUniforms } from './uniforms';
+import { sharedUniforms, STILL } from './uniforms';
 
 /** Marine snow: slow, heavy particulate drifting upward on a gentle current. */
 export function Particles({ count, reducedMotion }: { count: number; reducedMotion: boolean }) {
@@ -61,5 +61,6 @@ export function Particles({ count, reducedMotion }: { count: number; reducedMoti
     return { geometry, material };
   }, [count, reducedMotion]);
 
+  if (STILL) return null;
   return <points geometry={geometry} material={material} frustumCulled={false} renderOrder={5} />;
 }

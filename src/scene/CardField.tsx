@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { isDue } from '../../shared/mastery';
+import { WORD_BY_SLUG } from '../lib/words';
+import { useProgress } from '../state/progress';
 import { EXIT_MS, useDurar } from '../state/store';
 import { Layout } from './layout';
 import { PearlCard } from './PearlCard';
@@ -7,6 +10,8 @@ import { PearlCard } from './PearlCard';
 export function CardField({ visibleCount, reducedMotion }: { visibleCount: number; reducedMotion: boolean }) {
   const order = useDurar((s) => s.order);
   const departures = useDurar((s) => s.departures);
+  const progress = useProgress((s) => s.map);
+  const drifting = useRef<string[]>([]);
   const layout = useMemo(() => new Layout(), []);
   const size = useThree((s) => s.size);
   layout.update(size.width, size.height);
@@ -34,14 +39,37 @@ export function CardField({ visibleCount, reducedMotion }: { visibleCount: numbe
   const now = performance.now();
   const visible = order.slice(0, Math.min(limit, visibleCount));
   const cards = visible.map((slug, i) => ({ slug, index: i, departAt: undefined as number | undefined }));
-  for (const d of departures) {
-    if (now - d.at < EXIT_MS && !visible.includes(d.slug)) cards.push({ slug: d.slug, index: -1, departAt: d.at });
+  const departing = departures.filter((d) => now - d.at < EXIT_MS && !visible.includes(d.slug));
+
+  // Known words that aren't due drift low in the background at their depth. The set is sticky, so
+  // a drifting pearl never pops out; a word just marked known takes a free place and sinks into it.
+  const maxDrift = visibleCount >= 10 ? 5 : 3;
+  const wall = Date.now();
+  const candidate = (slug: string) =>
+    !visible.includes(slug) && WORD_BY_SLUG.has(slug) && !!progress[slug] && !isDue(progress[slug], wall);
+  const kept = drifting.current.filter(candidate);
+  if (kept.length < maxDrift) {
+    const fresh = [
+      ...departing.map((d) => d.slug),
+      ...Object.values(progress)
+        .sort((a, b) => b.lastReviewedAt.localeCompare(a.lastReviewedAt))
+        .map((p) => p.slug),
+    ].filter((slug, i, all) => all.indexOf(slug) === i && !kept.includes(slug) && candidate(slug));
+    kept.push(...fresh.slice(0, maxDrift - kept.length));
+  }
+  drifting.current = kept;
+
+  for (const d of departing) {
+    if (!kept.includes(d.slug)) cards.push({ slug: d.slug, index: -1, departAt: d.at });
   }
 
   return (
     <group>
       {cards.map((c) => (
         <PearlCard key={c.slug} slug={c.slug} index={c.index} departAt={c.departAt} layout={layout} reducedMotion={reducedMotion} />
+      ))}
+      {kept.map((slug, i) => (
+        <PearlCard key={slug} slug={slug} index={-2} drift={i} layout={layout} reducedMotion={reducedMotion} />
       ))}
     </group>
   );
