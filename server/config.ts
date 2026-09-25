@@ -11,11 +11,17 @@ export interface Config {
   emailMode: EmailMode;
   sandboxTo: string[];
   from: string;
+  /** Where replies go (Reply-To), e.g. hello@durar.space. Null: replies go to the sender. */
+  replyTo: string | null;
+  /** Who the morning health check emails when something went wrong. */
+  alertTo: string | null;
   subjectStyle: 'a' | 'b' | 'c';
   tokenSecret: string;
   cronSecret: string | null;
   /** Amsterdam hour in which the daily email goes out. */
   sendHour: number;
+  /** Amsterdam hour in which the health check looks at today's run. */
+  healthHour: number;
   /** SES sending rate (emails per second); 1 in the SES sandbox. */
   ratePerSecond: number;
   supabaseUrl: string | null;
@@ -43,10 +49,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     emailMode: mode === 'live' || mode === 'dry-run' ? mode : 'sandbox',
     sandboxTo: list(env.EMAIL_SANDBOX_TO),
     from: env.EMAIL_FROM || 'Durar <no-reply@example.com>',
+    replyTo: env.EMAIL_REPLY_TO || null,
+    alertTo: env.ALERT_EMAIL || list(env.EMAIL_SANDBOX_TO)[0] || null,
     subjectStyle: style === 'a' || style === 'c' ? style : 'b', // b chosen by the owner
     tokenSecret: env.EMAIL_TOKEN_SECRET || '',
     cronSecret: env.CRON_SECRET || null,
     sendHour: Number(env.EMAIL_SEND_HOUR ?? 7),
+    healthHour: Number(env.EMAIL_HEALTH_HOUR ?? 8),
     ratePerSecond: Math.max(0.2, Number(env.SES_RATE_PER_SECOND ?? 1)),
     supabaseUrl: env.SUPABASE_URL || env.VITE_SUPABASE_URL || null,
     serviceKey: env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY || null,

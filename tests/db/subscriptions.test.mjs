@@ -215,3 +215,56 @@ describe('signed-in users and their own subscription', () => {
     assert.equal((await server(() => one(`select count(*)::int as n from public.subscribers`))).n, before - 1);
   });
 });
+
+describe('daily run log (monitoring)', () => {
+  const record = (p) =>
+    server(() =>
+      one(`select public.daily_run_record($1, 'bahr', 'sandbox', $2, $3, $4, $5, $6) as s`, [
+        '2026-11-02',
+        p.claimed,
+        p.sent,
+        p.failed,
+        p.remaining,
+        p.error ?? null,
+      ]),
+    );
+
+  test('only the server can read or write it', async () => {
+    await assert.rejects(as('anon', null, () => q(`select * from public.daily_runs`)), /permission denied/);
+    await assert.rejects(as('authenticated', alice, () => q(`select public.daily_health(current_date)`)), /permission denied/);
+    await assert.rejects(
+      as('authenticated', alice, () => q(`select public.daily_run_record(current_date, 'bahr', 'live', 0, 0, 0, 0)`)),
+      /permission denied/,
+    );
+  });
+
+  test('calls in the same window add up, and the status follows the latest call', async () => {
+    assert.equal((await record({ claimed: 10, sent: 10, failed: 0, remaining: 3 })).s, 'incomplete');
+    assert.equal((await record({ claimed: 3, sent: 2, failed: 1, remaining: 0 })).s, 'had_failures');
+    assert.equal((await record({ claimed: 0, sent: 0, failed: 0, remaining: null, error: 'Supabase daily_claim failed: 503' })).s, 'error');
+    const h = (await server(() => one(`select public.daily_health('2026-11-02') as h`))).h;
+    assert.deepEqual(
+      { ...h.run, started_at: undefined, finished_at: undefined },
+      {
+        run_date: '2026-11-02',
+        word_slug: 'bahr',
+        mode: 'sandbox',
+        claimed: 13,
+        sent: 12,
+        failed: 1,
+        remaining: 0,
+        invocations: 3,
+        status: 'error',
+        last_error: 'Supabase daily_claim failed: 503',
+        started_at: undefined,
+        finished_at: undefined,
+      },
+    );
+  });
+
+  test('a day with no run reads as null', async () => {
+    const h = (await server(() => one(`select public.daily_health('2026-11-03') as h`))).h;
+    assert.equal(h.run, null);
+    assert.deepEqual(h.sends, { sent: 0, failed: 0, reserved: 0 });
+  });
+});

@@ -5,6 +5,36 @@
  */
 export type RequestOutcome = 'rate_limited' | 'send_confirmation' | 'confirmed' | 'noop';
 
+export type RunStatus = 'complete' | 'had_failures' | 'incomplete' | 'error';
+
+/** One daily call's numbers; the database adds them to the day's row (see daily_run_record). */
+export interface RunRecord {
+  date: string;
+  slug: string;
+  mode: string;
+  claimed: number;
+  sent: number;
+  failed: number;
+  /** Null when the call failed before it could count. */
+  remaining: number | null;
+  error?: string | null;
+}
+
+export interface DayHealth {
+  run: {
+    run_date: string;
+    status: RunStatus;
+    claimed: number;
+    sent: number;
+    failed: number;
+    remaining: number | null;
+    invocations: number;
+    last_error: string | null;
+    finished_at: string;
+  } | null;
+  sends: { sent: number; failed: number; reserved: number };
+}
+
 export interface Store {
   request(p: { email: string; ipHash: string | null; userId: string | null; verified: boolean; tokenHash: string }): Promise<{
     outcome: RequestOutcome;
@@ -18,6 +48,8 @@ export interface Store {
   mark(subscriberId: string, date: string, status: 'sent' | 'failed', messageId?: string | null): Promise<void>;
   suppress(email: string, reason: 'bounce' | 'complaint'): Promise<boolean>;
   housekeeping(): Promise<Record<string, number>>;
+  recordRun(r: RunRecord): Promise<RunStatus>;
+  health(date: string): Promise<DayHealth>;
 }
 
 type Call = (fn: string, args: Record<string, unknown>, returnsSet: boolean) => Promise<unknown>;
@@ -48,6 +80,26 @@ function storeFrom(call: Call): Store {
     },
     suppress: async (email, reason) => Boolean(await call('subscription_suppress', { p_email: email, p_reason: reason }, false)),
     housekeeping: async () => (await call('subscriptions_housekeeping', {}, false)) as Record<string, number>,
+    recordRun: async (r) =>
+      (await call(
+        'daily_run_record',
+        {
+          p_date: r.date,
+          p_slug: r.slug,
+          p_mode: r.mode,
+          p_claimed: r.claimed,
+          p_sent: r.sent,
+          p_failed: r.failed,
+          p_remaining: r.remaining,
+          p_error: r.error ?? null,
+        },
+        false,
+      )) as RunStatus,
+    async health(date) {
+      const h = (await call('daily_health', { p_date: date }, false)) as DayHealth;
+      const n = (v: unknown) => Number(v ?? 0);
+      return { run: h.run, sends: { sent: n(h.sends.sent), failed: n(h.sends.failed), reserved: n(h.sends.reserved) } };
+    },
   };
 }
 
