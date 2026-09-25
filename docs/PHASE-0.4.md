@@ -1,26 +1,26 @@
 # Phase 0.4 — Sharing: report
 
-Live: https://durar.space (production deploys from `main`; this work is on `claude/new-session-id31u5`).
+Live: https://durar.space (production deploys from `main`). Checked live on 2026-09-25: production runs
+this phase, including the sharper card text.
 Preview with browser-only demo accounts: https://claude.ai/artifact/A71zLZPK1zRW3nWbferAHZ
 
 Legend: **[x]** done and verified · **[~]** built, waiting on the owner or on something I can't reach
 from here · **[ ]** not done
 
-> **Two things are still out of reach from this environment.** (1) The network policy still refuses
-> `durar.space`, `www.durar.space` and `arabic-lang-project.vercel.app` (HTTP 403 from the proxy).
-> Allowed-domain changes may only apply to a **new** session. So the live checks and live Lighthouse
-> are still to do. (2) GitHub lists only `claude/new-session-id31u5`: there's no `main` branch yet,
-> so this can't be merged to `main` from here. Both are under “Needs your input”.
+> **Live check, 2026-09-25** ([results](#live-check-results-2026-09-25)). Sharing, the SEO tags, the
+> sitemap and the Privacy contact all work on durar.space, and Lighthouse ran live. Three things need
+> you, all in Vercel: the Supabase key (sign-in is broken on the live site), `www.durar.space` (no
+> certificate) and the vercel.app redirect (302 instead of 308). See “Needs your input”.
 
 ## Checklist
 
 ### A. Carry-over from 0.3 and domain day
-- [~] **durar.space everywhere.** `SITE_URL` defaults to `https://durar.space` (then Vercel's production domain), so canonicals, `og:url`, `og:image`, the sitemap, `robots.txt`, email links and share links all use it. Checked on a simulated production build. **New:** `vercel.json` permanently redirects (308) `www.durar.space` and `arabic-lang-project.vercel.app` to `durar.space`, keeping the path. `/api/…` is left alone so an older scheduler URL keeps working. Preview URLs aren't redirected. Waiting on a live check.
+- [~] **durar.space everywhere.** `SITE_URL` defaults to `https://durar.space` (then Vercel's production domain), so canonicals, `og:url`, `og:image`, the sitemap, `robots.txt`, email links and share links all use it. Checked on a simulated production build. **New:** `vercel.json` permanently redirects (308) `www.durar.space` and `arabic-lang-project.vercel.app` to `durar.space`, keeping the path. `/api/…` is left alone so an older scheduler URL keeps working. Preview URLs aren't redirected. **Live:** the tags, sitemap and `robots.txt` are right. The two host redirects aren't yet (live check item 1).
 - [x] **Owner steps**, click by click: [`DOMAIN-DAY.md`](DOMAIN-DAY.md). Covers Vercel domains and `SITE_URL`, Supabase Site URL and redirects, Google sign-in (origins and the authorized domain `durar.space`), SES domain verification (DKIM, SPF, DMARC and custom MAIL FROM, written for Namecheap's Host field), the production-access request text, Supabase SMTP via SES, turning **Confirm email** back on, and going live. You said you'd do these later.
 - [x] **Subject style b** is the default: `Pearl of the Day: سَرَاب (sarāb)`. You can delete `EMAIL_SUBJECT_STYLE`.
 - [~] **`EMAIL_MODE=live` and `EMAIL_SIGNUP=on`:** both stay off until SES production access is approved and a test lands in the inbox (DOMAIN-DAY Part 7). No code change is needed.
-- [~] **Live verification** (sign-up with confirmation, Google, save, Library, delete account, subscribe → confirm → unsubscribe, Privacy contact): blocked by the network policy. The same flows pass in Playwright against the production build. The list below is ready for you or for my next session.
-- [~] **Live Lighthouse:** blocked for the same reason. The local production-build numbers are below.
+- [~] **Live verification:** run on 2026-09-25 (results under “Live check”). Share, the SEO tags and Privacy pass. Sign-up, Google, save and delete account fail on the live site, because Vercel holds placeholder text instead of the Supabase key. Subscribe waits for domain day.
+- [x] **Live Lighthouse:** run on 2026-09-25. The numbers are under “Quality bar”, after the local ones.
 - [x] **Inbox-test checklist:** below. Results go in the table once you have them.
 
 ### B. The share image
@@ -90,7 +90,24 @@ Phones don't wait for this: the image is drawn in idle time before the tap. On d
 | `/word/bahr` desktop | 68 | 100 | 100 | 100 |
 | `/word/bahr` mobile | 48–51 (two runs) | 100 | 100 | 100 |
 
-The same as in 0.3 (68 / 50). The live run on durar.space is still to do.
+The same as in 0.3 (68 / 50).
+
+### Lighthouse, live (https://durar.space, 2026-09-25)
+
+Lighthouse 13.5.0 and headless Chromium 141 with software WebGL, run from a cloud container through its
+network proxy. The proxy sometimes dropped a file (a 502 on a script or font; every response that
+came back from Vercel was a 200), so each run was checked and any run with a missing file was re-run.
+Three clean runs each:
+
+| Page | Performance | Accessibility | Best practices | SEO |
+| --- | --- | --- | --- | --- |
+| `/word/bahr` desktop | 64 · 65 · 66 | 100 | 100 | 100 |
+| `/word/bahr` mobile | 68 · 65 · 39 | 100 | 100 | 100 |
+
+Medians: desktop FCP 0.47 s, LCP 0.47 s, TBT 1.35 s, CLS 0 · mobile FCP 2.0 s, LCP 2.0 s, TBT 2.5 s,
+CLS 0. The mobile 39 is an outlier: its files came slowly through the proxy (first paint 4.3 s). Most of
+the blocking time is the 3D scene starting up (the `Experience` chunk and the main bundle), as in the
+local runs. Software WebGL makes that heavier than on a real device's GPU.
 
 ## Inbox test (for you)
 
@@ -117,6 +134,26 @@ Also check that Gmail and Apple Mail show their own “Unsubscribe” link near 
 7. Share on desktop: WhatsApp, Copy link, Download image.
 8. Lighthouse on `/word/bahr`, desktop and mobile.
 
+### Live check results (2026-09-25)
+
+Run from a cloud container with headless Chromium 141 through its proxy. Every request to Supabase
+was blocked in the browser, so nothing touched the production database.
+
+| # | Check | Result |
+| --- | --- | --- |
+| 1 | Host redirects | ✗ **`www.durar.space`:** there's no certificate for `www`. Vercel presents the `durar.space` certificate, so browsers show a security warning instead of redirecting. DNS is already right (`www` → `cname.vercel-dns.com`, no CAA limits). **`arabic-lang-project.vercel.app`:** lands on `https://durar.space/word/bahr`, keeping the path and query, but with a **302** (temporary), not 308, and `/api/…` is redirected too. That's a redirect set on Vercel's Domains page, which runs before `vercel.json`. |
+| 2 | Tags and sitemap | ✓ `canonical`, `og:url`, `og:image`, `twitter:image` and the JSON-LD `url` are all on `https://durar.space`. `/sitemap.xml`: 142 addresses, all `https://durar.space/…`, no `/library`. `robots.txt` points at it. The `og:image` loads (1200×630 PNG). |
+| 3 | Sign-up, Google | ✗ **Broken for every visitor.** Vercel's `VITE_SUPABASE_ANON_KEY` holds the text “the anon or publishable key from Supabase → Project Settings → API Keys” instead of the key. Browsers refuse to send that text (the `→` isn't allowed in a header), so **Create account** and **Sign in** say “We couldn’t reach the server”. **Continue with Google** starts correctly (`redirect_to=https://durar.space/word/bahr?durar=oauth`, PKCE), but its last step uses the same key, so it fails the same way. |
+| 4 | Save → My Pearls → remove → Delete account | ✗ Needs sign-in (3). |
+| 5 | Subscribe → confirm → unsubscribe | — Not on production yet, as planned: `EMAIL_SIGNUP` is off, so there's no subscribe link. DNS shows SES isn't set up yet (no DMARC record, no `mail.durar.space`). |
+| 6 | Privacy contact | ✓ “Write to hello@durar.space …”, with a mailto link. Region: “EU (Frankfurt, Germany)”. Mail for durar.space goes to Namecheap's forwarding; send `hello@` one test email to make sure it's forwarded. |
+| 7 | Share on desktop | ✓ **WhatsApp:** `https://wa.me/?text=…` with only `text`, the exact text and link, a new tab, `noopener noreferrer`. **Copy link:** the clipboard holds `https://durar.space/word/bahr`, “Link copied” shows, focus returns to Share. **Download image:** `durar-bahr.png`, 1080×1920, description `بَحْر (baḥr): sea`, signature present and pixel-identical to the test snapshot. The text-only view has the same menu and download. No console errors. |
+| 8 | Lighthouse | Desktop 64–66 · mobile 39–68 (median 65 both) · Accessibility, Best practices, SEO 100 on every run. Details under “Quality bar”. |
+
+Also checked: `/` opens on today's pearl (`mirah`), and a phone-sized load (Pixel 7) shows the scene and
+one Share icon on the card. If the daily-email scheduler still calls `arabic-lang-project.vercel.app`,
+that 302 stops it: DOMAIN-DAY Part 7, step 2 points it at durar.space.
+
 ## Follow-up: sharper card text
 
 You reported that the 3D card's text was blurred, and barely readable on a phone. Three causes, all fixed:
@@ -138,11 +175,12 @@ All 79 Playwright tests still pass.
 
 ## Needs your input
 
-1. **`main` branch:** GitHub shows only `claude/new-session-id31u5`. Please create `main` from it (GitHub → Branches → New branch → source `claude/new-session-id31u5`) or merge it into your `main`, so Vercel production (durar.space) gets this phase. Or allow this session to push `main` and I'll do it.
-2. **Network access:** allow `durar.space`, `www.durar.space` and `arabic-lang-project.vercel.app` in this environment and **start a new session**. The current one still gets 403. Then I'll run the live check and live Lighthouse.
-3. **Real-phone test:** on an iPhone and an Android phone, open a word, tap Share, and share to **Instagram Stories** and **WhatsApp**. Check that the signature (دُرَر durar.space, bottom-right of the card) is visible and nothing is covered by Instagram's bars. If Instagram doesn't appear in the iPhone's share sheet, tell me. iOS sometimes hides it when a link is shared along with the image, and the fix is to send the image alone to image apps.
-4. **Domain day:** the remaining steps in [`DOMAIN-DAY.md`](DOMAIN-DAY.md).
-5. **Inbox test:** the table above.
+1. **The Supabase key (sign-in is broken on the live site).** Vercel → `arabic-lang-project` → **Settings → Environment Variables** → `VITE_SUPABASE_ANON_KEY`. It holds the words “the anon or publishable key from Supabase → Project Settings → API Keys”. Replace them with the key itself: Supabase → **Project Settings → API Keys** → the **anon** key (starts with `eyJ`) or the **publishable** key (starts with `sb_publishable_`). Keep **Production** and **Preview** ticked → **Save** → **Deployments** → latest Production → **⋯ → Redeploy**. Then live check items 3–4 can run.
+2. **`www.durar.space`:** Vercel → **Settings → Domains**. If `www.durar.space` isn't listed: **Add** → `www.durar.space` → **Redirect to `durar.space`** (308). If it's listed with a warning, open it and follow Vercel's prompt. DNS is already right, so the certificate follows within minutes.
+3. **`arabic-lang-project.vercel.app`:** same page → **Edit** on it. It redirects to durar.space with a temporary 302, and because that runs before `vercel.json`, `/api/…` is redirected too. Set it back to serving **Production** (no redirect): `vercel.json` then sends pages to durar.space with a permanent 308 and leaves `/api/` alone. (If you keep the dashboard redirect, pick **308**, and make sure the scheduler points at durar.space: DOMAIN-DAY Part 7, step 2.)
+4. **Real-phone test:** on an iPhone and an Android phone, open a word, tap Share, and share to **Instagram Stories** and **WhatsApp**. Check that the signature (دُرَر durar.space, bottom-right of the card) is visible and nothing is covered by Instagram's bars. If Instagram doesn't appear in the iPhone's share sheet, tell me. iOS sometimes hides it when a link is shared along with the image, and the fix is to send the image alone to image apps.
+5. **Domain day:** the remaining steps in [`DOMAIN-DAY.md`](DOMAIN-DAY.md).
+6. **Inbox test:** the table above.
 
 ## Still open
 
