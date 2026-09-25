@@ -136,6 +136,13 @@ All 79 Playwright tests still pass.
 - `vercel.json`: the host redirects.
 - Tests: `tests/share.spec.ts`, `tests/share-mobile.spec.ts`, `tests/share-helpers.ts`, `tests/unit/share.test.ts`, `tests/unit/storyLayout.test.ts`. The snapshots under `tests/*-snapshots/` are test references (about 0.3 MB), not site images.
 
+## API environment (2026-09-25)
+
+- [x] **Server variables in Vercel Production:** `SUPABASE_SERVICE_ROLE_KEY` and `EMAIL_TOKEN_SECRET` are now set (Production only). Before, Vercel had only the four `VITE_*` variables, so every `/api/…` function failed at start-up (`server/deps.ts`) and `https://durar.space/api/cron/daily` returned **500**. `SUPABASE_URL` falls back to `VITE_SUPABASE_URL`.
+- [x] **Redeployed** Production (deployment `dpl_EphG64bwyqnzX5TwEq4WWswtawLv`, READY).
+- [x] **Verified live:** `GET https://durar.space/api/cron/daily` with no `Authorization` header, and with a wrong one, now returns **401** `{"error":"unauthorized"}` (checked 4×). `www.durar.space/api/…` redirects (308) to `durar.space`.
+- [ ] Still unset: `CRON_SECRET` (without it the cron route always answers 401, so the daily email can't run yet) and the SES variables (emails are logged, not sent). See [`EMAIL-SETUP.md`](EMAIL-SETUP.md) and [`DOMAIN-DAY.md`](DOMAIN-DAY.md).
+
 ## Needs your input
 
 1. **`main` branch:** GitHub shows only `claude/new-session-id31u5`. Please create `main` from it (GitHub → Branches → New branch → source `claude/new-session-id31u5`) or merge it into your `main`, so Vercel production (durar.space) gets this phase. Or allow this session to push `main` and I'll do it.
