@@ -216,3 +216,13 @@ because this sandbox's Chromium can't validate certificates through its network 
 Signed in on durar.space, swipe two words, then open My Pearls on another device or browser. The two
 words should be there with their depth. Then, signed out in a private window, swipe one word, sign in,
 and check it appears in My Pearls too.
+
+## Follow-up: Arabic font (2026-09-26)
+
+Words with a shadda (رَحَّالَة, مَشْرَبِيَّة, خَطّ and 8 more of the 140) showed a squashed, misplaced
+mark: Markazi Text draws shadda + fatha badly. The data was fine. At the owner's choice the site now
+uses **Noto Naskh Arabic** everywhere Markazi was: the 3D cards, the text-only view, the story image,
+the static card images (all 141 re-rendered) and the emails. Headwords got a little more line height
+so tall stacks like the damma over ط in طُمَأْنِينَة don't touch the transliteration. Fonts are not
+JavaScript, so first-paint JS is unchanged; the two Arabic weights are 52 KB and 57 KB (woff2),
+self-hosted like before.

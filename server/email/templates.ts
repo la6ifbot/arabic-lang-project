@@ -35,7 +35,7 @@ const C = {
 
 const FONT_EN = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
 const FONT_UI = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-const FONT_AR = "'Markazi Text', 'Geeza Pro', 'Noto Naskh Arabic', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif";
+const FONT_AR = "'Noto Naskh Arabic', 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif";
 
 export const SUBJECTS: Record<SubjectStyle, (w: EmailWord) => string> = {
   a: (w) => `دُرَّةُ اليَوْم · ${w.ar} — ${w.meanings[0]}`,

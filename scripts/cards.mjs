@@ -16,7 +16,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'public/cards');
 const MANIFEST = join(OUT, 'manifest.json');
 /** Bump when the template changes to re-render everything. */
-const TEMPLATE_VERSION = 4;
+const TEMPLATE_VERSION = 5;
 
 export const SIZES = {
   og: { width: 1200, height: 630, scale: 1 },
@@ -38,8 +38,8 @@ function fontFaces() {
   const f = (pkg, file) => `url(data:font/woff2;base64,${readFileSync(join(ROOT, 'node_modules/@fontsource', pkg, 'files', file)).toString('base64')}) format('woff2')`;
   const AR = 'U+0600-06FF,U+0750-077F,U+08A0-08FF,U+FB50-FDFF,U+FE70-FEFF';
   return `
-    @font-face{font-family:Markazi;font-weight:600;src:${f('markazi-text', 'markazi-text-arabic-600-normal.woff2')};unicode-range:${AR}}
-    @font-face{font-family:Markazi;font-weight:600;src:${f('markazi-text', 'markazi-text-latin-600-normal.woff2')};unicode-range:U+0000-024F}
+    @font-face{font-family:Naskh;font-weight:600;src:${f('noto-naskh-arabic', 'noto-naskh-arabic-arabic-600-normal.woff2')};unicode-range:${AR}}
+    @font-face{font-family:Naskh;font-weight:600;src:${f('noto-naskh-arabic', 'noto-naskh-arabic-latin-600-normal.woff2')};unicode-range:U+0000-024F}
     @font-face{font-family:Cormorant;font-weight:500;src:${f('cormorant-garamond', 'cormorant-garamond-latin-500-normal.woff2')};unicode-range:U+0000-00FF,U+2000-206F}
     @font-face{font-family:Cormorant;font-weight:500;src:${f('cormorant-garamond', 'cormorant-garamond-latin-ext-500-normal.woff2')};unicode-range:U+0100-02FF,U+1E00-1EFF}
     @font-face{font-family:Cormorant;font-weight:500;font-style:italic;src:${f('cormorant-garamond', 'cormorant-garamond-latin-500-italic.woff2')};unicode-range:U+0000-00FF,U+2000-206F}
@@ -69,7 +69,7 @@ function pageHtml(fonts) {
       background:conic-gradient(from 210deg,#f6d8ff,#c8fff4,#fff4d8,#d8e8ff,#ffd8ec,#c8fff4,#f6d8ff);
       -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.8}
     .tr{font:italic 500 calc(var(--u)*34px)/1 Cormorant;letter-spacing:.06em;color:rgba(214,232,236,.82);margin-bottom:calc(var(--u)*22px)}
-    .ar{font:600 calc(var(--u)*170px)/1.3 Markazi;color:#f4efe3;direction:rtl;white-space:nowrap;
+    .ar{font:600 calc(var(--u)*160px)/1.6 Naskh;color:#f4efe3;direction:rtl;white-space:nowrap;
       text-shadow:0 0 calc(var(--u)*30px) rgba(170,235,240,.35)}
     .rule{position:relative;width:32%;height:calc(var(--u)*1.6px);margin:calc(var(--u)*6px) 0 calc(var(--u)*22px);
       background:linear-gradient(90deg,transparent,rgba(220,240,240,.6),transparent)}

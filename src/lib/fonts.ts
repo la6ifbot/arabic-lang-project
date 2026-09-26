@@ -1,5 +1,5 @@
-import '@fontsource/markazi-text/arabic-400.css';
-import '@fontsource/markazi-text/arabic-600.css';
+import '@fontsource/noto-naskh-arabic/arabic-400.css';
+import '@fontsource/noto-naskh-arabic/arabic-600.css';
 import '@fontsource/aref-ruqaa/arabic-700.css';
 import '@fontsource/cormorant-garamond/latin-500.css';
 import '@fontsource/cormorant-garamond/latin-ext-500.css';
@@ -10,8 +10,8 @@ import '@fontsource/ibm-plex-sans-arabic/latin-400.css';
 import '@fontsource/ibm-plex-sans-arabic/arabic-500.css';
 import '@fontsource/ibm-plex-sans-arabic/latin-500.css';
 
-/** Markazi Text: a refined Naskh whose diacritics sit snugly on their letters, even at display sizes. */
-export const FONT_AR = '"Markazi Text"';
+/** Noto Naskh Arabic: a formal print Naskh that places stacked marks (shadda + fatha) correctly. */
+export const FONT_AR = '"Noto Naskh Arabic"';
 export const FONT_EN = '"Cormorant Garamond"';
 
 let ready: Promise<void> | null = null;
