@@ -39,10 +39,18 @@ Built in PR #2 (merged). Most of this track is owner steps; the code parts are d
   - Live once you run both SQL files (production already serves this code).
 - [~] **A9. Rotate `CRON_SECRET`.** The steps are in [`OPERATIONS.md`](OPERATIONS.md) §4. No longer blocked:
   production serves `main` now.
-- [~] **A10. Live checks.** Production now serves `main`. `www.durar.space` and
-  `arabic-lang-project.vercel.app` both redirect to `durar.space` with a **308**, keeping the path
-  (checked live). The account and email flows are with the Email go-live thread; the mastery checks are
-  below under “Live check”. Live Lighthouse: see below.
+- [x] **A10. Live checks** (the Email go-live thread, 2026-09-26 on `30baa7c`, read-only). All of these passed:
+  - **Redirects:** `www.durar.space`, `arabic-lang-project.vercel.app` and `http://durar.space` all redirect with a **308** (one hop) to `https://durar.space/…`.
+  - **Canonicals:** `/word/bahr` has its canonical, `og:url` and JSON-LD on durar.space, and `og:image` is a 1200×630 PNG.
+  - **Sitemap:** 142 URLs, all on durar.space and all returning 200 with a self-canonical, and `robots.txt` points to it.
+  - **Privacy contact:** the Privacy page shows `hello@durar.space`.
+  - **Desktop Share menu:** WhatsApp, Copy link and Download image all work, and Escape returns focus.
+  - **axe:** zero violations on `/`, `/word/bahr`, `/privacy` and `/library`.
+  - **Also checked:** security headers, no horizontal scroll on a Pixel 7, and the Share target at 44×44.
+- [~] **A10, the flows that need a real account or inbox** (sign-up with confirm, Google, save → My Pearls → delete account, subscribe → confirm → unsubscribe) are with you, in the Email go-live thread.
+- **Two notes from those checks:**
+  - `www.durar.space/api/…` redirects too. That's Vercel's domain-level redirect, and the scheduler uses the apex, so it doesn't matter. The doc wording is fixed in PR #6.
+  - Unknown paths get Vercel's bare text 404 rather than a Durar page. The status is right for SEO; a styled 404 page is a small later choice.
 - [x] **A11. [`OPERATIONS.md`](OPERATIONS.md):** every environment variable (names only, and where each
   is set), the cron schedule, checking a run, rotating secrets, switching between sandbox and live, the
   “morning email didn't arrive” runbook, and email authentication.
@@ -164,15 +172,22 @@ Measured side by side with `main` before Track B, `/word/bahr`, two runs each:
 Performance under software WebGL is dominated by the 3D scene's main-thread time, and it varies by a few
 points between runs.
 
-**Live Lighthouse is still to do.** PageSpeed Insights' shared daily quota was used up (HTTP 429), and
-this sandbox's Chromium can't validate certificates through its network proxy, so a direct run failed.
-You can run it in a minute: [PageSpeed Insights for `/word/bahr`](https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fdurar.space%2Fword%2Fbahr),
-or ask me to try again tomorrow.
+### Lighthouse live on durar.space (`/word/bahr`, 2026-09-26, 3 runs each, median)
+
+| | Performance | Accessibility | Best practices | SEO |
+| --- | --- | --- | --- | --- |
+| Desktop | 67 (runs 94, 66, 67) | 100 | 100 (96 in two runs) | 100 |
+| Mobile | 65 (runs 37, 65, 67) | 100 | 100 | 100 |
+
+- **Desktop medians:** LCP 0.46 s, TBT 0.98 s, CLS 0.
+- **Mobile medians:** LCP 1.96 s, TBT 2.41 s, CLS 0.
+- **Best practices 96:** two desktop runs saw two font requests fail with a 502 through the sandbox proxy. None of 22 later fetches failed.
+- **Treat Performance as a lower bound.** These runs used software WebGL with no GPU, and every request went through the sandbox proxy. Most of the cost is running the 3D scene's JS. Vercel Speed Insights or CrUX would give real-visitor numbers.
 
 ## Live check (durar.space, 2026-09-26, as a signed-out visitor)
 
 The page was driven in headless Chromium; its requests were fetched with certificate checks by Node,
-because of the sandbox proxy above.
+because this sandbox's Chromium can't validate certificates through its network proxy.
 
 - [x] `/word/bahr` opens with **بَحْر** focused. A right swipe is announced “Marked known · returns in 3 days” and stored in the browser as box 2.
 - [x] After a reload the word is still in box 2.
@@ -205,4 +220,3 @@ because of the sandbox proxy above.
 ## After the migrations (Claude)
 
 - Check signed-in progress live: a swipe saved to the account, and a guest's progress merging on sign-in.
-- Live Lighthouse on `/word/bahr`, if you haven't run it.
