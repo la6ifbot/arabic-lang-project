@@ -12,6 +12,11 @@ something goes wrong. Secret **values** never go in this file, in chats, or in t
 - **DNS:** Namecheap. `hello@durar.space` forwards to the owner through Namecheap Email Forwarding.
 - **Scheduler:** Supabase `pg_cron` + `pg_net`. There is no Vercel cron.
 
+**Where things stand (26 September 2026):** the domain is verified in SES (Frankfurt) and the daily
+email goes out from `Durar <pearl@durar.space>` with SPF, DKIM and DMARC passing. SES is still in
+its sandbox (production access requested 26 September), so `EMAIL_MODE` is unset (sandbox),
+`EMAIL_SIGNUP` is `off`, and Supabase Auth still uses its built-in sender. Going live is §5.
+
 ## 1. Environment variables
 
 ### Vercel → Settings → Environment Variables (Production)
@@ -26,7 +31,7 @@ Variables are read when a deployment is built or starts, never live.
 | `CRON_SECRET` | The password pg_cron sends to `/api/cron/daily` and `/api/cron/health`. Must match the Supabase vault secret `durar_cron_secret`. | Sensitive |
 | `SES_ACCESS_KEY_ID` | IAM user `durar-email-sender`, send-only policy `DurarSendEmailOnly`. | Sensitive |
 | `SES_SECRET_ACCESS_KEY` | Same IAM user. | Sensitive |
-| `EMAIL_FROM` | The sender, `Durar <pearl@durar.space>` once the domain is verified in SES. | Plain |
+| `EMAIL_FROM` | The sender: `Durar <pearl@durar.space>`. Must be on an identity verified in SES. | Plain |
 | `EMAIL_REPLY_TO` | Where replies go: `hello@durar.space`. Unset: replies go to the sender. | Plain |
 | `EMAIL_MODE` | `sandbox` (default when unset), `live` or `dry-run`. See §5. | Plain |
 | `EMAIL_SANDBOX_TO` | Comma-separated addresses that sandbox mode may email. The owner's Gmail. | Plain |
@@ -60,21 +65,23 @@ Vercel sets `VERCEL_ENV`, `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL` itsel
 | **Authentication → Emails → SMTP Settings** | SES SMTP user name and password (separate from the API keys above), host `email-smtp.eu-central-1.amazonaws.com`, port 587, sender `pearl@durar.space`, name `Durar`. |
 | **Authentication → Emails → Templates** | Confirm sign-up and Reset password, pasted from `supabase/auth-templates/`. |
 | **Authentication → Sign In / Providers → Email** | **Confirm email** on. |
-| **Authentication → URL Configuration** | Site URL `https://durar.space`, redirect URLs for `https://durar.space/**`. |
+| **Authentication → URL Configuration** | Site URL `https://durar.space`; Redirect URLs `https://durar.space/**` and `https://www.durar.space/**`. Without these, sign-up and reset emails link to `localhost`. |
 
 ### AWS
 
 | Where | What |
 | --- | --- |
-| IAM user `durar-email-sender` | Access key used by Vercel (`SES_*`). Policy `DurarSendEmailOnly` (+ `ses:ListSuppressedDestinations`). |
+| IAM user `durar-email-sender` | Access key used by Vercel (`SES_*`). Policy `DurarSendEmailOnly`. Adding `ses:ListSuppressedDestinations` lets the daily job mark bounces in `subscribers`; without it the job logs a warning and carries on. |
 | SES → SMTP settings | The SMTP credentials used by Supabase Auth (an IAM user named `ses-smtp-user.…`). |
-| SES → Identities | `durar.space` (Easy DKIM) and the owner's Gmail address. |
+| SES → Identities | `durar.space` (Easy DKIM, verified 26 September 2026) and the owner's Gmail address, both in **Frankfurt**. The console may open in another region (e.g. Stockholm): switch to Frankfurt first, because identities, sandbox status and production access are per region. |
 
 ### Namecheap → durar.space → Advanced DNS
 
 The 3 SES DKIM `CNAME` records (`…._domainkey`), DMARC `TXT` at `_dmarc`, Email Forwarding for
 `hello@`, and **exactly one** SPF `TXT` record at `@` (Namecheap's forwarding one). Never add a
-second `v=spf1` record at `@`.
+second `v=spf1` record at `@`. There is no custom MAIL FROM (`mail.durar.space`): its MX record
+would need Namecheap's Custom MX mode, which switches off the `hello@` forwarding. DMARC passes
+through DKIM without it.
 
 ## 2. The schedule
 
@@ -204,6 +211,8 @@ morning with no alert and no email usually means step 1 or 3.
 ## 7. Email authentication
 
 Gmail → open the email → ⋮ → **Show original**: `SPF`, `DKIM` and `DMARC` should all say `PASS`.
+Last checked 26 September 2026 with `?test=1`: all three `PASS`, DKIM signed by `durar.space`,
+delivered to the inbox, and Gmail showed its one-click **Unsubscribe** link.
 DKIM passes for `durar.space` (the three CNAMEs), DMARC passes through DKIM, and SPF passes for
 SES's own envelope domain. DMARC is `p=none` with reports to `hello@durar.space`; tighten it to
 `p=quarantine` once the reports have been clean for a few weeks.
