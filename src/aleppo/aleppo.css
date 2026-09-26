@@ -41,6 +41,11 @@ button {
   color: inherit;
 }
 
+/* Components set their own display; `hidden` must still win. */
+[hidden] {
+  display: none !important;
+}
+
 .c-app {
   position: fixed;
   inset: 0;
@@ -254,9 +259,6 @@ button {
   box-shadow: 0 18px 50px rgba(10, 5, 0, 0.35);
   animation: c-rise 0.5s var(--ease);
 }
-.c-info[hidden] {
-  display: none;
-}
 .c-info-close {
   position: absolute;
   top: 8px;
@@ -417,9 +419,6 @@ button {
   background: var(--gold);
   border-color: var(--gold);
 }
-.c-toggle[hidden] {
-  display: none;
-}
 
 /* ---------- Labels in the scene ---------- */
 .c-labels {
@@ -428,9 +427,6 @@ button {
   z-index: 2;
   overflow: hidden;
   pointer-events: none;
-}
-.c-labels[hidden] {
-  display: none;
 }
 .c-label {
   position: absolute;
@@ -537,9 +533,6 @@ button {
 }
 
 /* ---------- Without WebGL: the citadel in words ---------- */
-.c-fallback[hidden] {
-  display: none;
-}
 .c-app[data-mode='text'] {
   overflow-y: auto;
   background: linear-gradient(180deg, #2b2a3e 0%, #5d4636 55%, var(--ground) 100%);
