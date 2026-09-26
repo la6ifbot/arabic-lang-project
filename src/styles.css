@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-ar: 'Markazi Text', 'IBM Plex Sans Arabic', serif;
-  --font-callig: 'Aref Ruqaa', 'Markazi Text', serif;
+  --font-ar: 'Noto Naskh Arabic', 'IBM Plex Sans Arabic', serif;
+  --font-callig: 'Aref Ruqaa', 'Noto Naskh Arabic', serif;
   --font-ui: 'IBM Plex Sans Arabic', system-ui, sans-serif;
   --font-en: 'Cormorant Garamond', Georgia, serif;
 }
@@ -1224,7 +1224,7 @@ a.acct-item {
 }
 .wd-ar {
   margin: 0.1em 0 0;
-  font: 600 clamp(3.6rem, 13vw, 5.6rem) / 1.35 var(--font-ar);
+  font: 600 clamp(3.6rem, 13vw, 5.6rem) / 1.6 var(--font-ar);
   color: var(--ink);
   text-shadow: 0 0 24px rgba(170, 235, 240, 0.35);
 }

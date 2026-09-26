@@ -117,7 +117,7 @@ function blocks(word: Word, measure: Measure, s: number): Block[] {
   let head = 236 * s;
   const w = measure(word.ar, headFont(head), true, 0);
   if (w > CONTENT.headWidth) head = Math.max(118 * s, (head * CONTENT.headWidth) / w);
-  add(word.ar, head, '600', FONT_AR, INK, { rtl: true, lineHeight: 1.32, gap: 6 * s, glow: true, maxWidth: CONTENT.headWidth });
+  add(word.ar, head, '600', FONT_AR, INK, { rtl: true, lineHeight: 1.55, gap: 6 * s, glow: true, maxWidth: CONTENT.headWidth });
 
   const [primary, ...more] = word.meanings;
   add(primary, 62 * s, '500', FONT_EN, INK, { lineHeight: 1.2, gap: RULE_SPACE(s).before + RULE_SPACE(s).after });

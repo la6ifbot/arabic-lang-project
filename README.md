@@ -100,9 +100,9 @@ tests/db/                node:test Row Level Security suite against real Postgre
 Evaluated **Amiri, Noto Naskh Arabic, Scheherazade New, Markazi Text and Aref Ruqaa** at display
 sizes with full diacritics:
 
-- **Markazi Text** (cards, 400/600): an elegant contemporary Naskh. Its diacritics sit close to
-  their letters even at 250 px. Amiri placed marks far above short letters like د and ر, so a
-  vowelled headword looked broken.
+- **Noto Naskh Arabic** (cards, headwords and examples, 400/600): a formal print Naskh. It stacks
+  shadda with its vowel correctly (رَحَّالَة, مَشْرَبِيَّة). Markazi Text, the first choice, drew
+  shadda + fatha as a squashed, misplaced mark, and Amiri placed marks far above short letters.
 - **Aref Ruqaa** (wordmark only): calligraphic Ruqʿa, for the “signature” feel.
 - **Cormorant Garamond** (English meanings/translations) and **IBM Plex Sans Arabic** (UI chrome,
   covers both scripts).

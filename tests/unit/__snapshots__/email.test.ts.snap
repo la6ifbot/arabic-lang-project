@@ -23,7 +23,7 @@ exports[`confirmation email > matches the snapshot, and carries the confirm link
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
 
 <tr><td align="center" style="padding:8px 0 18px;">
-  <p lang="ar" dir="rtl" style="margin:0;font-family:'Markazi Text', 'Geeza Pro', 'Noto Naskh Arabic', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-size:44px;line-height:1.3;color:#f4efe3;">دُرَر</p>
+  <p lang="ar" dir="rtl" style="margin:0;font-family:'Noto Naskh Arabic', 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-size:44px;line-height:1.3;color:#f4efe3;">دُرَر</p>
 </td></tr>
 <tr><td class="px" align="center" style="padding:0 40px;">
   <p style="margin:0 0 10px;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:28px;line-height:1.25;color:#f4efe3;">One tap to confirm</p>
@@ -74,7 +74,7 @@ exports[`daily email > matches the snapshot > html 1`] = `
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
 
 <tr><td align="center" style="padding:0 0 18px;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:17px;font-style:italic;letter-spacing:1px;color:#c8dde2;">
-  <span lang="ar" dir="rtl" style="font-family:'Markazi Text', 'Geeza Pro', 'Noto Naskh Arabic', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-style:normal;font-size:21px;color:#f4efe3;">دُرَّةُ اليَوْم</span>
+  <span lang="ar" dir="rtl" style="font-family:'Noto Naskh Arabic', 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-style:normal;font-size:21px;color:#f4efe3;">دُرَّةُ اليَوْم</span>
   &nbsp;·&nbsp; Pearl of the Day &nbsp;·&nbsp; Thursday 24 September
 </td></tr>
 <tr><td align="center" style="padding:0 0 26px;">
@@ -90,7 +90,7 @@ exports[`daily email > matches the snapshot > html 1`] = `
 <tr><td class="px" align="center" style="padding:26px 40px 0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0b2a36" style="background:#0b2a36;border-radius:16px;">
     <tr><td align="center" style="padding:20px 24px;">
-      <p lang="ar" dir="rtl" style="margin:0 0 8px;font-family:'Markazi Text', 'Geeza Pro', 'Noto Naskh Arabic', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-size:24px;line-height:1.7;color:#f4efe3;direction:rtl;unicode-bidi:embed;">أنا البحر في أحشائه الدر كامن</p>
+      <p lang="ar" dir="rtl" style="margin:0 0 8px;font-family:'Noto Naskh Arabic', 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-size:24px;line-height:1.7;color:#f4efe3;direction:rtl;unicode-bidi:embed;">أنا البحر في أحشائه الدر كامن</p>
       <p style="margin:0;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:18px;font-style:italic;line-height:1.45;color:#c8dde2;">I am the sea; in its depths the pearls lie hidden.</p>
       <p style="margin:6px 0 0;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:14px;color:#8fb0b8;">— Hafez Ibrahim, speaking as the Arabic language</p>
     </td></tr>
@@ -158,7 +158,7 @@ exports[`daily email > “A pearl to revisit”: one line under the main card, l
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;">
 
 <tr><td align="center" style="padding:0 0 18px;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:17px;font-style:italic;letter-spacing:1px;color:#c8dde2;">
-  <span lang="ar" dir="rtl" style="font-family:'Markazi Text', 'Geeza Pro', 'Noto Naskh Arabic', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-style:normal;font-size:21px;color:#f4efe3;">دُرَّةُ اليَوْم</span>
+  <span lang="ar" dir="rtl" style="font-family:'Noto Naskh Arabic', 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-style:normal;font-size:21px;color:#f4efe3;">دُرَّةُ اليَوْم</span>
   &nbsp;·&nbsp; Pearl of the Day &nbsp;·&nbsp; Thursday 24 September
 </td></tr>
 <tr><td align="center" style="padding:0 0 26px;">
@@ -174,14 +174,14 @@ exports[`daily email > “A pearl to revisit”: one line under the main card, l
 <tr><td class="px" align="center" style="padding:26px 40px 0;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0b2a36" style="background:#0b2a36;border-radius:16px;">
     <tr><td align="center" style="padding:20px 24px;">
-      <p lang="ar" dir="rtl" style="margin:0 0 8px;font-family:'Markazi Text', 'Geeza Pro', 'Noto Naskh Arabic', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-size:24px;line-height:1.7;color:#f4efe3;direction:rtl;unicode-bidi:embed;">أنا البحر في أحشائه الدر كامن</p>
+      <p lang="ar" dir="rtl" style="margin:0 0 8px;font-family:'Noto Naskh Arabic', 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-size:24px;line-height:1.7;color:#f4efe3;direction:rtl;unicode-bidi:embed;">أنا البحر في أحشائه الدر كامن</p>
       <p style="margin:0;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:18px;font-style:italic;line-height:1.45;color:#c8dde2;">I am the sea; in its depths the pearls lie hidden.</p>
       <p style="margin:6px 0 0;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:14px;color:#8fb0b8;">— Hafez Ibrahim, speaking as the Arabic language</p>
     </td></tr>
   </table>
 </td></tr>
 <tr><td class="px" align="center" style="padding:22px 40px 0;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:18px;line-height:1.5;color:#c8dde2;">
-  <p style="margin:0;">A pearl to revisit: <a href="https://durar.example/word/sarab" style="color:#f4efe3;text-decoration:underline;"><span lang="ar" dir="rtl" style="font-family:'Markazi Text', 'Geeza Pro', 'Noto Naskh Arabic', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-size:22px;">سَرَاب</span> (sarāb)</a> — mirage</p>
+  <p style="margin:0;">A pearl to revisit: <a href="https://durar.example/word/sarab" style="color:#f4efe3;text-decoration:underline;"><span lang="ar" dir="rtl" style="font-family:'Noto Naskh Arabic', 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif;font-size:22px;">سَرَاب</span> (sarāb)</a> — mirage</p>
 </td></tr>
 <tr><td align="center" style="padding:30px 20px 4px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
   <tr><td align="center" bgcolor="#dff0ef" style="border-radius:999px;background:#dff0ef;">
