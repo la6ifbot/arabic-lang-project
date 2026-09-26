@@ -2,9 +2,8 @@
 
 Live: https://durar.space, **deployed from `main`** since 2026-09-26 12:18 UTC (you switched Vercel's
 production branch; deployment of `30baa7c`, READY). Both tracks are merged to `main` (PR #2 and PR #3).
-The two database migrations are **not run yet** (checked live: Supabase answers “table not found” for
-`word_progress` and `daily_runs`). Until they are, signed-in progress saves retry quietly, the email goes
-out without the revisit line, and the daily run isn't logged.
+You ran the three database files on 2026-09-26 at about 15:19 UTC. Checked live: `word_progress` now
+exists, and visitors who aren't signed in are refused, as intended.
 
 Legend: **[x]** done and verified · **[~]** built, waiting on the owner or on something I can't reach from here ·
 **[ ]** not done
@@ -60,7 +59,7 @@ Built in PR #2 (merged). Most of this track is owner steps; the code parts are d
 Built in PR #3 (merged).
 
 ### B1. Data
-- [~] **Migration** `supabase/migrations/20260926000000_word_progress.sql` (owner action 3):
+- [x] **Migration** `supabase/migrations/20260926000000_word_progress.sql` (run by you on 2026-09-26):
   - The `word_progress` table has the columns asked for, primary key (`user_id`, `word_slug`), the slug-format check, `box` limited to 1–5, and an index on (`user_id`, `due_at`).
   - A cap of 5000 rows per user, enforced by a trigger. A user at the cap can still update words they already have.
 - [x] **RLS:** each user can read and write only their own rows. Anon gets no grants. Rows delete on cascade with `auth.users`.
@@ -195,18 +194,13 @@ because this sandbox's Chromium can't validate certificates through its network 
 - [x] **Reset my progress…** clears the browser copy, and the Library shows its empty state.
 - [x] The Privacy page covers progress and the revisit line.
 - [x] No script errors on any of these pages.
-- [~] Signed-in progress and the merge on sign-in wait on the `word_progress` migration.
+- [~] Signed-in progress and the merge on sign-in need a real account. The table is now in place (see “After the migrations”).
 
 ## Needs your input (owner actions, in order)
 
 1. ~~Switch Vercel's production branch to `main`.~~ Done 2026-09-26.
 2. **Subscribe yourself and confirm** (A1). Then `EMAIL_SIGNUP` goes off.
-3. **Supabase SQL Editor: run three files,** each pasted whole and run on its own:
-   - `supabase/migrations/20260925120000_email_monitoring.sql`;
-   - `supabase/setup/health-check-cron.sql`;
-   - `supabase/migrations/20260926000000_word_progress.sql`. To check it, run `select count(*) from word_progress;`, which should return 0.
-
-   You can run these before or after the switch. Until the progress table exists, signed-in saves retry quietly and the email goes out without the revisit line.
+3. ~~Run the three Supabase SQL files.~~ Done 2026-09-26.
 4. **After the next 07:00 Amsterdam window, run the two SQL checks** (A2) and share the output.
 5. **Answer the MAIL FROM card, then add the Namecheap DNS records** (A3). Never add a second SPF record at the root.
 6. **Submit the SES production-access request** (A5).
@@ -217,6 +211,8 @@ because this sandbox's Chromium can't validate certificates through its network 
    - the phone share test;
    - a real-phone speed check, including the sea with many known words.
 
-## After the migrations (Claude)
+## After the migrations (you, two minutes)
 
-- Check signed-in progress live: a swipe saved to the account, and a guest's progress merging on sign-in.
+Signed in on durar.space, swipe two words, then open My Pearls on another device or browser. The two
+words should be there with their depth. Then, signed out in a private window, swipe one word, sign in,
+and check it appears in My Pearls too.
