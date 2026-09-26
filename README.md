@@ -74,6 +74,7 @@ public/cards/            card images (social previews + email), rendered by scri
 supabase/migrations/     versioned SQL: saved_pearls, subscribers, daily_sends, RLS, functions
 supabase/setup/          one-off owner SQL (pg_cron schedule for the daily email)
 scripts/prerender.mjs    post-build: static HTML + OG/Twitter/JSON-LD for every word; noindex /library
+aleppo.html, src/aleppo/ the 3D Citadel of Aleppo at /aleppo (plain three.js, its own build: vite.aleppo.config.ts)
 tests/                   Playwright e2e (desktop, mobile touch, no-WebGL, accounts, axe a11y)
 tests/db/                node:test Row Level Security suite against real PostgreSQL
 ```
@@ -147,6 +148,29 @@ All fonts are self-hosted via Fontsource (SIL Open Font License), with no third-
   idle. The tap then shares at once.
 - Links are always the canonical `https://durar.space/word/<slug>` (from `SITE_URL`). Text:
   `سَرَاب (sarāb) — mirage · a pearl from Durar`, or a “Today's pearl” version for the Pearl of the Day.
+
+## The Citadel of Aleppo (`/aleppo`)
+
+A standalone 3D model of the Citadel of Aleppo (قلعة حلب) in plain three.js, with every part named in
+Arabic. It isn't linked from the sea yet. Open `/aleppo` (`npm run dev`, then
+http://localhost:5173/aleppo), or link straight to a place: `/aleppo#bridge`.
+
+- **Built from measurements, not a model file.** The mound is an ellipse 285 × 160 m on top, 50 m
+  above the city, with a concave stone glacis down to a 20 m moat floor. On it: the curtain wall and
+  its towers, the entrance block with the Throne Hall, the bridge on seven arches (they shrink as the
+  glacis rises) and the lower tower, the Great Mosque and its 21 m minaret, the barracks, the theatre,
+  Abraham's shrine, the palace ruins, the north tower, and the old city around it. Everything is
+  generated in `src/aleppo/` from the plan in `layout.ts`.
+- **Stone.** Ashlar textures drawn on a canvas at load (walls and glacis, each with a bump map). UVs are
+  in metres, so courses line up at the same heights everywhere. A shader patch adds eroded earth patches to the
+  glacis and the warm floodlighting at night.
+- **Time of day.** Four moments named with Durar's words: فَجْر dawn, ضُحًى morning, شَفَق sunset,
+  لَيْل night (stars, a crescent moon, floodlights, lit windows and city lights).
+- **Light on the device.** It renders only while something moves, redraws the shadow map only when the
+  light moves, drops pixel ratio if frame rate stays low, and phones get a smaller city. Reduced motion
+  means no auto-orbit and instant camera moves. Without WebGL the page describes the citadel in words.
+- **Its own build.** `vite.aleppo.config.ts` runs after the main build and writes into `dist/`, so the
+  sea's chunks and first paint are unchanged. Tests: `tests/aleppo.spec.ts`, `tests/aleppo-nowebgl.spec.ts`.
 
 ## Word data
 

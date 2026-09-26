@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1d150e" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Citadel of Aleppo · قلعة حلب — Durar</title>
+    <meta name="description" content="Walk around a 3D model of the Citadel of Aleppo (قلعة حلب): the stone glacis, the moat, the seven-arch bridge, the great gate and the minaret, from dawn to night, with every part named in Arabic." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Durar · درر" />
+    <meta property="og:title" content="Citadel of Aleppo · قلعة حلب" />
+    <meta property="og:description" content="A 3D model of the Citadel of Aleppo, every part named in Arabic." />
+    <meta name="twitter:card" content="summary" />
+    <style>
+      /* Critical paint before any JS: dusk over Aleppo, and the name. */
+      html,body{margin:0;height:100%;overflow:hidden;background:#1d150e}
+      body{background:linear-gradient(180deg,#34466f 0%,#9a7a78 48%,#e9a978 64%,#3b2b1d 64.2%,#1d150e 100%)}
+      .c-boot{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2rem;color:#f7efe2;pointer-events:none;z-index:30;transition:opacity 1.4s cubic-bezier(.37,0,.18,1)}
+      .c-boot span{font:700 3.2rem/1.3 'Aref Ruqaa','Noto Naskh Arabic',serif;text-shadow:0 2px 24px rgba(40,20,5,.5)}
+      .c-boot p{margin:0;font:italic 500 1.15rem/1.3 'Cormorant Garamond',Georgia,serif;letter-spacing:.14em;color:rgba(247,239,226,.8)}
+      .c-boot[data-gone]{opacity:0}
+    </style>
+  </head>
+  <body>
+    <div class="c-app" id="citadel">
+      <div
+        class="c-stage"
+        id="stage"
+        tabindex="0"
+        role="application"
+        aria-roledescription="3D model"
+        aria-label="The Citadel of Aleppo in 3D"
+        aria-describedby="keys"
+      ></div>
+      <div class="c-labels" id="labels" aria-hidden="true"></div>
+
+      <header class="c-head">
+        <h1 class="c-title">
+          <span class="c-title-ar" lang="ar" dir="rtl">قَلْعَة حَلَب</span>
+          <span class="c-title-en">The Citadel of Aleppo</span>
+        </h1>
+        <p class="c-facts">Mound 450&nbsp;×&nbsp;325&nbsp;m, 50&nbsp;m high · moat 22&nbsp;m deep · a bridge on 7&nbsp;arches</p>
+        <p class="c-facts c-note">A stylised model: sizes follow published measurements, details are simplified.</p>
+      </header>
+
+      <a class="c-home" id="home" href="/"><span lang="ar">دُرَر</span> Durar</a>
+
+      <nav class="c-places" aria-label="Places">
+        <ul id="places"></ul>
+      </nav>
+
+      <section class="c-info" id="info" hidden aria-label="About this place">
+        <button class="c-info-close" id="info-close" type="button" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
+        </button>
+        <div id="info-body" aria-live="polite"></div>
+      </section>
+
+      <div class="c-bar">
+        <div class="c-times" id="times" role="group" aria-label="Time of day"></div>
+        <div class="c-toggles">
+          <button class="c-toggle" id="orbit" type="button">Auto-orbit</button>
+          <button class="c-toggle" id="labels-toggle" type="button">Labels</button>
+        </div>
+      </div>
+
+      <p class="c-hint" id="hint" aria-hidden="true"></p>
+      <p class="c-sr" id="keys">Arrow keys turn and tilt the view; plus and minus zoom. Pick a place from the list to fly to it.</p>
+
+      <article class="c-fallback" id="fallback" hidden></article>
+    </div>
+
+    <div class="c-boot" id="boot" aria-hidden="true">
+      <span lang="ar">قَلْعَة حَلَب</span>
+      <p>The Citadel of Aleppo</p>
+    </div>
+    <noscript>
+      <p style="position:fixed;inset:auto 0 2rem;color:#f7efe2;font-family:serif;text-align:center">This 3D model needs JavaScript.</p>
+    </noscript>
+    <script type="module" src="/src/aleppo/main.ts"></script>
+  </body>
+</html>
