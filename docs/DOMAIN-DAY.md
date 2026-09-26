@@ -19,8 +19,10 @@ a full name, you get `mail.durar.space.durar.space`, which doesn't work.
 3. Next to **www.durar.space**, choose **Edit → Redirect to `durar.space`** (308) → Save. One address
    means one canonical, which matters for search engines. (The site's `vercel.json` also sends
    `www.durar.space` and `arabic-lang-project.vercel.app` to `durar.space` with a permanent 308, so
-   both are covered even if this setting is missed. Only `/api/…` is left alone there, so an older
-   scheduler address keeps working. Preview addresses are not redirected.)
+   both are covered even if this setting is missed. `vercel.json` leaves `/api/…` alone, so an older
+   scheduler address on `arabic-lang-project.vercel.app` keeps working. The Domains redirect in this
+   step covers every path, `/api/…` on `www` included, so schedulers must call
+   `https://durar.space/api/…` directly. Preview addresses are not redirected.)
 4. **Settings → Environment Variables → Add**:
    - `SITE_URL` = `https://durar.space`, ticking **Production** and **Preview** (previews should
      also point canonicals and email links at the real site).

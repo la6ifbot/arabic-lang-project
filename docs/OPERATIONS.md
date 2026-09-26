@@ -3,7 +3,9 @@
 How the live site and the daily email run, where every setting lives, and what to do when
 something goes wrong. Secret **values** never go in this file, in chats, or in the repository.
 
-- **Site:** https://durar.space, deployed by Vercel from `main` (project `arabic-lang-project`).
+- **Site:** https://durar.space, deployed by Vercel from `main` (project `arabic-lang-project`;
+  Settings → Environments → Production → Branch Tracking must say `main`). Every merge to `main`
+  builds and ships Production; other branches get preview URLs.
   `www.durar.space` and `arabic-lang-project.vercel.app` redirect to it with a 308.
 - **Database and sign-in:** Supabase (project `kjujvlresqniylxhrojo`).
 - **Email:** Amazon SES, region **eu-central-1 (Frankfurt)**, domain `durar.space`.
