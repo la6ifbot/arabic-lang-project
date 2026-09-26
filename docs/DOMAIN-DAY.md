@@ -135,7 +135,8 @@ Back in SES → **Identities → durar.space**. Within minutes to an hour, **DKI
 **Verified**. If it's still pending after a few hours, check the Host fields for a doubled `.durar.space`.
 
 ### 4d · Request production access (leave the sandbox)
-1. SES → **Account dashboard** → **Request production access** (or **Get set up → Request production access**).
+1. SES (region **Frankfurt**) → **Get set up** → scroll to the last card → **Request production access**.
+   The button only works once the domain from 4a shows **Verified**.
 2. **Mail type: Marketing** (a daily, opt-in newsletter counts as marketing to AWS).
 3. **Website URL**: `https://durar.space`
 4. **Use case description** (paste and adjust):
@@ -145,12 +146,12 @@ Back in SES → **Identities → durar.space**. Within minutes to an hour, **DKI
    > and an example sentence. We send only to subscribers who confirmed through double opt-in (a
    > confirmation link sent on sign-up); unconfirmed sign-ups are deleted after 7 days. Every email has
    > a visible unsubscribe link plus List-Unsubscribe and List-Unsubscribe-Post (RFC 8058 one-click)
-   > headers. We read the SES account suppression list every day and never email bounced or
-   > complaining addresses again. We don't buy or import lists and don't use open or click tracking.
+   > headers. Bounced and complaining addresses are never emailed again (SES account-level
+   > suppression list). We don't buy or import lists and don't use open or click tracking.
    > Expected volume at launch: under 100 emails a day, growing slowly; sending is spread over one
-   > hour each morning (07:00–08:00 Europe/Amsterdam). The sending domain durar.space has DKIM, a
-   > custom MAIL FROM domain with SPF, and DMARC. Email is also used for account confirmation and
-   > password-reset messages (via Supabase Auth SMTP).
+   > hour each morning (07:00–08:00 Europe/Amsterdam). The sending domain durar.space is verified
+   > with Easy DKIM (2048-bit) and has a DMARC record. Email is also used for account confirmation
+   > and password-reset messages (via Supabase Auth SMTP).
 
 5. **Additional contacts**: your email. **Preferred language**: English. Tick the acknowledgement → **Submit**.
 6. AWS replies by email, usually within 24 hours. Answer any follow-up questions the same way.
@@ -197,7 +198,7 @@ Accounts created while confirmation was off stay as they are.
 ## Part 7 · The daily email, then going live
 
 1. Vercel → Environment Variables (Production + Preview):
-   - `EMAIL_FROM` = `Durar <pearls@durar.space>`
+   - `EMAIL_FROM` = `Durar <pearl@durar.space>`
    - Delete `EMAIL_SUBJECT_STYLE` if you added it. **b** is now the default (“Pearl of the Day: سَرَاب (sarāb)”).
    - Keep `EMAIL_MODE` = `sandbox` for now, and `EMAIL_SANDBOX_TO` = your address.
    - **Don't** add `EMAIL_SIGNUP` yet.
@@ -212,7 +213,7 @@ Accounts created while confirmation was off stay as they are.
    (Haven't run it yet? Run `supabase/setup/daily-email-cron.sql`; it now uses `durar.space`.)
 3. Send yourself a test:
    `curl -H "Authorization: Bearer <CRON_SECRET>" "https://durar.space/api/cron/daily?test=1"`
-   It should land in your **inbox** (not spam) from `pearls@durar.space`. Check it in Gmail
+   It should land in your **inbox** (not spam) from `pearl@durar.space`. Check it in Gmail
    web/iOS/Android (also dark mode), Apple Mail and Outlook (checklist: `EMAIL-SETUP.md` §5).
 4. **Only when production access is approved *and* that test landed in the inbox:**
    - `EMAIL_MODE` = `live`
