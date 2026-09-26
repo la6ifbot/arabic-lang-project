@@ -1,11 +1,12 @@
 # Phase 0.5 — Email go-live + Mastery: report
 
-Live: https://durar.space. **Production still deploys from `claude/new-session-id31u5`, not `main`**, so
-nothing from this phase is live yet. Both tracks are merged to `main` (PR #2 and PR #3), with CI green.
-Switching Vercel's production branch counts as a production change, so it waits on your yes (owner
-action 1).
+Live: https://durar.space, **deployed from `main`** since 2026-09-26 12:18 UTC (you switched Vercel's
+production branch; deployment of `30baa7c`, READY). Both tracks are merged to `main` (PR #2 and PR #3).
+The two database migrations are **not run yet** (checked live: Supabase answers “table not found” for
+`word_progress` and `daily_runs`). Until they are, signed-in progress saves retry quietly, the email goes
+out without the revisit line, and the daily run isn't logged.
 
-Legend: **[x]** done and verified · **[~]** built, waiting on the owner or on the production switch ·
+Legend: **[x]** done and verified · **[~]** built, waiting on the owner or on something I can't reach from here ·
 **[ ]** not done
 
 ## Track A: Email go-live & operations
@@ -14,7 +15,7 @@ Built in PR #2 (merged). Most of this track is owner steps; the code parts are d
 
 - [~] **A1. Owner subscribes, then the button goes off.** Steps sent in the Email go-live thread (sign in
   with Google, then the account menu's email toggle). Turning `EMAIL_SIGNUP` off and redeploying comes
-  after, and needs the production switch.
+  after.
 - [~] **A2. First scheduled run.** Waits on the first 07:00 Amsterdam run after you subscribe, plus the
   output of the two SQL checks.
 - [~] **A3. SES domain.** Waits on your MAIL FROM choice. Namecheap only allows an MX record on
@@ -35,11 +36,13 @@ Built in PR #2 (merged). Most of this track is owner steps; the code parts are d
   - The daily function records a summary per day: claimed, sent, failed, remaining, and a status of complete, had_failures, incomplete or error. A failure to record never stops the email.
   - `/api/cron/health` (needs `CRON_SECRET`) emails the owner when today's run is missing, errored, left people waiting, or had failed sends. It acts only in the 08:00 Amsterdam hour, and `?dry=1` tests it without sending.
   - Schedule: `supabase/setup/health-check-cron.sql`.
-  - Live once you run both SQL files and production switches.
-- [~] **A9. Rotate `CRON_SECRET`.** The steps are in [`OPERATIONS.md`](OPERATIONS.md) §4. Waits on the
-  production switch.
-- [~] **A10. Live checks and live Lighthouse.** Wait on the production switch. `durar.space` is now
-  reachable from here, so they can run as soon as `main` is live.
+  - Live once you run both SQL files (production already serves this code).
+- [~] **A9. Rotate `CRON_SECRET`.** The steps are in [`OPERATIONS.md`](OPERATIONS.md) §4. No longer blocked:
+  production serves `main` now.
+- [~] **A10. Live checks.** Production now serves `main`. `www.durar.space` and
+  `arabic-lang-project.vercel.app` both redirect to `durar.space` with a **308**, keeping the path
+  (checked live). The account and email flows are with the Email go-live thread; the mastery checks are
+  below under “Live check”. Live Lighthouse: see below.
 - [x] **A11. [`OPERATIONS.md`](OPERATIONS.md):** every environment variable (names only, and where each
   is set), the cron schedule, checking a run, rotating secrets, switching between sandbox and live, the
   “morning email didn't arrive” runbook, and email authentication.
@@ -159,11 +162,29 @@ Measured side by side with `main` before Track B, `/word/bahr`, two runs each:
 | Mobile, after B | 44, 43 | 100 | 100 | 100 |
 
 Performance under software WebGL is dominated by the 3D scene's main-thread time, and it varies by a few
-points between runs. The live run on durar.space follows the production switch.
+points between runs.
+
+**Live Lighthouse is still to do.** PageSpeed Insights' shared daily quota was used up (HTTP 429), and
+this sandbox's Chromium can't validate certificates through its network proxy, so a direct run failed.
+You can run it in a minute: [PageSpeed Insights for `/word/bahr`](https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fdurar.space%2Fword%2Fbahr),
+or ask me to try again tomorrow.
+
+## Live check (durar.space, 2026-09-26, as a signed-out visitor)
+
+The page was driven in headless Chromium; its requests were fetched with certificate checks by Node,
+because of the sandbox proxy above.
+
+- [x] `/word/bahr` opens with **بَحْر** focused. A right swipe is announced “Marked known · returns in 3 days” and stored in the browser as box 2.
+- [x] After a reload the word is still in box 2.
+- [x] `/library` shows “1 in the deep · 0 still learning · 0 saved” and the “kept in this browser only” banner.
+- [x] **Reset my progress…** clears the browser copy, and the Library shows its empty state.
+- [x] The Privacy page covers progress and the revisit line.
+- [x] No script errors on any of these pages.
+- [~] Signed-in progress and the merge on sign-in wait on the `word_progress` migration.
 
 ## Needs your input (owner actions, in order)
 
-1. **Say yes to switching Vercel's production branch to `main`** (asked in the Email go-live thread). Nothing from this phase is live until then.
+1. ~~Switch Vercel's production branch to `main`.~~ Done 2026-09-26.
 2. **Subscribe yourself and confirm** (A1). Then `EMAIL_SIGNUP` goes off.
 3. **Supabase SQL Editor: run three files,** each pasted whole and run on its own:
    - `supabase/migrations/20260925120000_email_monitoring.sql`;
@@ -181,8 +202,7 @@ points between runs. The live run on durar.space follows the production switch.
    - the phone share test;
    - a real-phone speed check, including the sea with many known words.
 
-## After the production switch (Claude)
+## After the migrations (Claude)
 
-- Live checks from [`PHASE-0.4.md`](PHASE-0.4.md) (A10), plus these mastery checks: a swipe survives a reload, the Library shows the counts, and reset keeps saved pearls.
-- Confirm `arabic-lang-project.vercel.app` redirects with a 308.
-- Live Lighthouse on `/word/bahr`.
+- Check signed-in progress live: a swipe saved to the account, and a guest's progress merging on sign-in.
+- Live Lighthouse on `/word/bahr`, if you haven't run it.
