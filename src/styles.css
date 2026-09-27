@@ -579,6 +579,7 @@ body[data-cursor='pointer'] .scene {
   z-index: 1;
 }
 .save {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -649,6 +650,11 @@ body[data-cursor='pointer'] .scene {
   filter: drop-shadow(0 0 8px rgba(170, 235, 240, 0.55));
 }
 .save-error {
+  /* Out of the flow, so it isn't squeezed to the pearl's 44px column beside Share. */
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: max-content;
   max-width: 220px;
   margin: 4px 0 0;
   padding: 8px 10px;
