@@ -713,6 +713,108 @@ a.acct-item {
   opacity: 0;
 }
 
+/* ---------- How it works (top-left “?”) ---------- */
+.help {
+  /* The box hangs from the whole corner, so it stays on screen on phones too. */
+  position: static;
+}
+.help-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--glass-edge);
+  background: rgba(8, 34, 46, 0.3);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--ink-soft);
+  font: 500 0.95rem/1 var(--font-ui);
+  cursor: pointer;
+  transition:
+    color 0.5s var(--ease-water),
+    border-color 0.5s var(--ease-water);
+}
+.help-btn:hover,
+.help-btn:focus-visible,
+.help-btn[aria-expanded='true'] {
+  color: var(--ink);
+  border-color: rgba(190, 240, 240, 0.4);
+  outline: none;
+}
+.help-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.3);
+}
+.help-box {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: min(300px, calc(100vw - 36px));
+  padding: 16px 18px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--glass-edge);
+  background:
+    radial-gradient(120% 60% at 30% 0%, rgba(80, 160, 170, 0.16), transparent 70%),
+    rgba(6, 28, 38, 0.9);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  animation: fade 0.4s var(--ease-water);
+  z-index: 20;
+}
+.help-box[hidden] {
+  display: none;
+}
+.help-title {
+  margin: 0 0 10px;
+  font: 500 1.25rem/1.2 var(--font-en);
+}
+.help-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.help-key {
+  color: var(--ink);
+  font-weight: 500;
+}
+.help-about {
+  margin-top: 12px;
+  padding: 10px 0 0;
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--glass-edge);
+  background: none;
+  color: var(--ink-soft);
+  font: 500 0.84rem/1.2 var(--font-ui);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.help-about:hover,
+.help-about:focus-visible {
+  color: var(--ink);
+  outline: none;
+}
+.help-about:focus-visible {
+  box-shadow: 0 3px 0 -1px rgba(127, 214, 214, 0.5);
+}
+
+@media (hover: none) {
+  .help-kbd {
+    display: none;
+  }
+}
+
 /* ---------- Dialogs ---------- */
 .modal-backdrop {
   position: fixed;
@@ -1096,7 +1198,7 @@ a.acct-item {
     display: none;
   }
   .search {
-    width: calc(100vw - 186px);
+    width: calc(100vw - 226px);
   }
   .search-kbd {
     display: none;

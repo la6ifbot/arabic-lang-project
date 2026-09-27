@@ -13,6 +13,7 @@ import { startProgress } from './state/progress';
 import { useDurar } from './state/store';
 import { AccountMenu } from './ui/AccountMenu';
 import { CardActions } from './ui/CardActions';
+import { HelpBox } from './ui/HelpBox';
 import { Announcer } from './ui/Announcer';
 import { PearlLabel } from './ui/PearlLabel';
 import { ProgressNote } from './ui/ProgressNote';
@@ -31,6 +32,7 @@ const SubscribeModal = lazy(() => import('./ui/SubscribeModal'));
 const AuthModal = lazy(() => import('./ui/AuthModal'));
 const DeleteAccountDialog = lazy(() => import('./ui/DeleteAccountDialog'));
 const ResetProgressDialog = lazy(() => import('./ui/ResetProgressDialog'));
+const AboutModal = lazy(() => import('./ui/AboutModal'));
 
 class SceneBoundary extends Component<{ fallback: ReactNode; onError: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -54,6 +56,7 @@ export function App() {
   const confirmDelete = useAccount((s) => s.confirmDelete);
   const subscribeOpen = useDialogs((s) => s.subscribe);
   const resetOpen = useDialogs((s) => s.resetProgress);
+  const aboutOpen = useDialogs((s) => s.about);
 
   // Auth redirects (email links, Google) must be handled right away, wherever they land.
   useEffect(() => {
@@ -86,6 +89,7 @@ export function App() {
         {confirmDelete && <DeleteAccountDialog />}
         {subscribeOpen && <SubscribeModal />}
         {resetOpen && <ResetProgressDialog />}
+        {aboutOpen && <AboutModal />}
       </Suspense>
     </>
   );
@@ -186,6 +190,7 @@ function Sea() {
           <span className="brand-en">Durar</span>
         </a>
         <AccountMenu />
+        <HelpBox />
       </header>
 
       {use3D && <PearlLabel />}

@@ -182,6 +182,26 @@ test.describe('fallbacks & accessibility', () => {
     await expect(page.locator('[data-testid=scene] canvas')).toBeVisible();
   });
 
+  test('the “?” opens How it works, and “What is Durar?” opens the About window', async ({ page }) => {
+    await page.goto('/');
+    await waitForScene(page);
+    const help = page.getByRole('button', { name: 'How it works' });
+    await expect(page.getByTestId('help-box')).toBeHidden();
+    await help.click();
+    await expect(help).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.getByRole('region', { name: 'How it works' })).toContainText('Swipe right');
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('help-box')).toBeHidden();
+    await expect(help).toBeFocused();
+
+    await help.click();
+    await page.getByRole('button', { name: 'What is Durar?' }).click();
+    const about = page.getByRole('dialog', { name: 'What is Durar?' });
+    await expect(about).toContainText('means “pearls”');
+    await about.getByRole('button', { name: 'Start exploring' }).click();
+    await expect(about).toBeHidden();
+  });
+
   test('the live region announces the focused word', async ({ page }) => {
     await page.goto('/');
     const region = focused(page);
