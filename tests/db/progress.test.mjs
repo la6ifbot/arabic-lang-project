@@ -185,14 +185,19 @@ describe('email revisit candidates', () => {
         [sub, bob, loner],
       ),
     );
-    const past = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    // A fixed "now", so words saved earlier in this file with fixed dates don't fall due as the calendar moves on.
+    const now = Date.parse('2026-09-25T12:00:00Z');
+    const at = (days) => new Date(now + days * 86_400_000).toISOString();
+    const past = at(-3);
     await save(bob, [
       { ...row('sabr', 2, past), due_at: past },
-      { ...row('ward', 4, past), due_at: new Date(Date.now() - 86_400_000).toISOString() },
-      { ...row('amal', 5, past), due_at: new Date(Date.now() + 86_400_000).toISOString() },
+      { ...row('ward', 4, past), due_at: at(-1) },
+      { ...row('amal', 5, past), due_at: at(1) },
     ]);
-    await assert.rejects(user(bob, () => q(`select * from public.revisit_candidates(array[$1]::uuid[])`, [sub])), /permission denied/);
-    const { rows } = await server(() => q(`select subscriber_id, word_slug from public.revisit_candidates(array[$1, $2]::uuid[])`, [sub, loner]));
+    await assert.rejects(user(bob, () => q(`select * from public.revisit_candidates(array[$1]::uuid[], $2)`, [sub, at(0)])), /permission denied/);
+    const { rows } = await server(() =>
+      q(`select subscriber_id, word_slug from public.revisit_candidates(array[$1, $2]::uuid[], $3)`, [sub, loner, at(0)]),
+    );
     assert.deepEqual(
       rows.map((r) => [r.subscriber_id, r.word_slug]),
       [

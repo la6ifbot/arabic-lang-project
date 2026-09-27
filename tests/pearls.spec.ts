@@ -41,6 +41,10 @@ test.describe('save to My Pearls', () => {
     await saveButton(page).click();
     await expect(saveButton(page)).toHaveAttribute('aria-pressed', 'false');
     await expect(page.locator('.save-error')).toContainText('Couldn’t save بَدْر.');
+    // The note reads as a few lines, not squeezed into the pearl's narrow column.
+    const note = (await page.locator('.save-error').boundingBox())!;
+    expect(note.width).toBeGreaterThan(150);
+    expect(note.x).toBeGreaterThanOrEqual(0);
     await expect(status(page)).toContainText('Couldn’t save بَدْر');
   });
 
