@@ -68,9 +68,9 @@ Vercel sets `VERCEL_ENV`, `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL` itsel
 | **Vault** `durar_cron_secret` | The same value as `CRON_SECRET` in Vercel. |
 | **Authentication → Emails → SMTP Settings** | SES SMTP user name (`AKIA…`) and password (separate from the API keys above), host `email-smtp.eu-central-1.amazonaws.com`, port 587, sender `pearl@durar.space`, name `Durar`. Set up 28 September 2026. Never switch Custom SMTP off: that resets both templates to Supabase's defaults and drops the email limit to 2 an hour. |
 | **Authentication → Rate Limits** | **Rate limit for sending emails**: the default 30 an hour, plenty at launch and a brake if someone abuses the sign-up form. |
-| **Authentication → Emails → Templates** | **Confirm sign up** (subject `Confirm your Durar account`) and **Reset password** (subject `Reset your Durar password`), pasted into **Body → Source** from `supabase/auth-templates/`. Their links are built from `{{ .SiteURL }}` and `{{ .TokenHash }}`, so **Site URL** under URL Configuration must stay exactly `https://durar.space`. |
+| **Authentication → Emails → Templates** | **Confirm sign up** (subject `Confirm your Durar account`) and **Reset password** (subject `Reset your Durar password`), pasted into **Body → Source** from `supabase/auth-templates/`. Their links are built from `{{ .SiteURL }}` and `{{ .TokenHash }}`, so **Site URL** under URL Configuration must stay exactly `https://durar.space`. Never build them from `{{ .RedirectTo }}`: a sign-in link sent to any other address would let that site sign in as the person. |
 | **Authentication → Sign In / Providers → User Signups** | **Confirm email** on (since 28 September 2026). |
-| **Authentication → URL Configuration** | Site URL `https://durar.space`; Redirect URLs `https://durar.space/**` and `https://www.durar.space/**`. Without these, sign-up and reset emails link to `localhost`. |
+| **Authentication → URL Configuration** | Site URL `https://durar.space`; Redirect URLs `https://durar.space/**` and `https://www.durar.space/**`. The Site URL is where the sign-up and reset emails link to; the Redirect URLs are for Google sign-in. |
 
 ### AWS
 

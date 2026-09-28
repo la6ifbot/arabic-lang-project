@@ -14,6 +14,7 @@ const TITLES: Record<AuthDialog['mode'], string> = {
   'reset-sent': 'Check your inbox',
   'verify-sent': 'Check your inbox',
   reset: 'Choose a new password',
+  verified: 'Email confirmed',
 };
 
 const CONTACT = import.meta.env.VITE_CONTACT_EMAIL;
@@ -149,11 +150,23 @@ export default function AuthModal() {
           <>
             <p className="modal-text">
               If there’s an account for <strong>{dialog.email}</strong>, a link to choose a new password is on its way.
-              Open it in this browser.
             </p>
             <div className="modal-actions">
               <button type="button" className="btn btn-primary" onClick={() => setAuthMode('signin')} data-autofocus>
                 Back to sign in
+              </button>
+            </div>
+          </>
+        )}
+
+        {mode === 'verified' && (
+          <>
+            <p className="modal-text">
+              Welcome to Durar. You’re signed in{dialog.email ? <> as <strong>{dialog.email}</strong></> : null}.
+            </p>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-primary" onClick={closeAuth} data-autofocus>
+                Continue
               </button>
             </div>
           </>
@@ -185,6 +198,15 @@ export default function AuthModal() {
           <form className="auth-form" onSubmit={submit} noValidate>
             {mode === 'forgot' && (
               <p className="modal-text">Enter your email and we’ll send you a link to choose a new password.</p>
+            )}
+            {mode === 'reset' && dialog.email && (
+              <>
+                <p className="modal-text">
+                  For <strong>{dialog.email}</strong>.
+                </p>
+                {/* Lets password managers file the new password under the right account. */}
+                <input type="email" name="username" autoComplete="username" value={dialog.email} readOnly hidden />
+              </>
             )}
             {mode !== 'reset' && (
               <div className="field">

@@ -1,6 +1,7 @@
 import { MOCK_DB_KEY, MOCK_EMAIL_KEY } from './storageKeys';
 import { mergeProgress, type Progress } from '../../shared/mastery';
-import { AccountError, type AccountErrorCode, type AccountUser, type AuthChange, type Backend, type SavedPearl, type SubscriptionStatus } from './types';
+import { AccountError, type AccountErrorCode, type AccountUser, type AuthChange, type Backend, type EmailLinkResult, type SavedPearl, type SubscriptionStatus } from './types';
+import { isEmailLink, readAuthUrl, urlNotice } from './urlState';
 
 /**
  * In-browser stand-in for Supabase, used by the Playwright suite and the offline preview build.
@@ -24,6 +25,8 @@ interface MockDb {
   saved: Record<string, SavedPearl[]>;
   progress?: Record<string, Progress[]>;
   outbox: { to: string; kind: 'verify' | 'reset' }[];
+  /** The one-time links in those emails, like Supabase's token hashes. */
+  links?: { hash: string; to: string; kind: 'verify' | 'reset'; used?: boolean }[];
 }
 
 type Op = keyof Backend;
@@ -47,6 +50,14 @@ function store(db: MockDb) {
 }
 
 const toUser = (u: MockUser): AccountUser => ({ id: u.id, email: u.email, provider: u.provider });
+
+/** Sends an auth email; a newer link of the same kind replaces the older ones, as in Supabase. */
+function sendEmail(db: MockDb, to: string, kind: 'verify' | 'reset') {
+  db.outbox.push({ to, kind });
+  db.links ??= [];
+  for (const l of db.links) if (l.to === to && l.kind === kind) l.used = true;
+  db.links.push({ hash: crypto.randomUUID().replace(/-/g, ''), to, kind });
+}
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Backend {
@@ -77,14 +88,10 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       if (u) u.verified = true;
       store(db);
     },
-    /** Acts as the user opening a password-reset link: a recovery session starts. */
-    recover(email: string) {
-      const db = load();
-      const u = db.users.find((x) => x.email === email.toLowerCase());
-      if (!u) return;
-      db.sessionUserId = u.id;
-      store(db);
-      emit('password-recovery', toUser(u));
+    /** The address of the newest link emailed to `email`, as the templates build it. */
+    link(email: string, kind: 'verify' | 'reset') {
+      const l = load().links?.filter((x) => x.to === email.toLowerCase() && x.kind === kind).pop();
+      return l ? `/?durar=${kind}&token_hash=${l.hash}` : null;
     },
     /** The next call to `op` fails with `code` (default: network). */
     failNext(op: Op, code: AccountErrorCode = 'network') {
@@ -101,8 +108,24 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
     async init() {
       await step('init');
       const db = load();
+      // Opening an emailed link, like supabaseBackend's verifyOtp: single use, starts a session.
+      const urlState = readAuthUrl();
+      let emailLink: EmailLinkResult | null = null;
+      if (isEmailLink(urlState)) {
+        const link = db.links?.find((l) => l.hash === urlState.tokenHash && l.kind === urlState.intent && !l.used);
+        const owner = link && db.users.find((x) => x.email === link.to);
+        if (link && owner) {
+          for (const l of db.links!) if (l.to === link.to) l.used = true;
+          if (link.kind === 'verify') owner.verified = true;
+          db.sessionUserId = owner.id;
+          store(db);
+          emit(link.kind === 'reset' ? 'password-recovery' : 'signed-in', toUser(owner));
+          emailLink = 'ok';
+        } else emailLink = 'failed';
+      }
       const u = db.users.find((x) => x.id === db.sessionUserId);
-      return { user: u ? toUser(u) : null };
+      const user = u ? toUser(u) : null;
+      return { user, notice: emailLink ? urlNotice(urlState, emailLink, user) : undefined };
     },
 
     onChange(cb) {
@@ -127,7 +150,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
         emit('signed-in', toUser(user));
         return { needsVerification: false };
       }
-      db.outbox.push({ to: e, kind: 'verify' });
+      sendEmail(db, e, 'verify');
       store(db);
       return { needsVerification: true };
     },
@@ -170,7 +193,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       const db = load();
       if (db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
       // Same answer whether or not the address exists, like the real service.
-      if (db.users.some((u) => u.email === email.trim().toLowerCase())) db.outbox.push({ to: email.trim().toLowerCase(), kind: 'reset' });
+      if (db.users.some((u) => u.email === email.trim().toLowerCase())) sendEmail(db, email.trim().toLowerCase(), 'reset');
       store(db);
     },
 
@@ -188,7 +211,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       await step('resendVerification');
       const db = load();
       if (db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
-      db.outbox.push({ to: email.trim().toLowerCase(), kind: 'verify' });
+      sendEmail(db, email.trim().toLowerCase(), 'verify');
       store(db);
     },
 
