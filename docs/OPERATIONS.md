@@ -12,34 +12,38 @@ something goes wrong. Secret **values** never go in this file, in chats, or in t
 - **DNS:** Namecheap. `hello@durar.space` forwards to the owner through Namecheap Email Forwarding.
 - **Scheduler:** Supabase `pg_cron` + `pg_net`. There is no Vercel cron.
 
-**Where things stand (26 September 2026):** the domain is verified in SES (Frankfurt) and the daily
-email goes out from `Durar <pearl@durar.space>` with SPF, DKIM and DMARC passing. SES is still in
-its sandbox (production access requested 26 September), so `EMAIL_MODE` is unset (sandbox),
-`EMAIL_SIGNUP` is `off`, and Supabase Auth still uses its built-in sender. Going live is §5.
+**Where things stand (28 September 2026):** email is live. SES production access in Frankfurt was
+approved on 28 September (50,000 emails a day, 14 a second). Since 17:10 UTC that day
+`EMAIL_MODE=live` and `EMAIL_SIGNUP=on`, so anyone can subscribe and every confirmed subscriber gets
+the 07:00 email from `Durar <pearl@durar.space>`, with SPF, DKIM and DMARC passing. Supabase Auth's
+sign-up and password emails go through SES SMTP from the same sender, in the Durar design, and
+**Confirm email** is on. `CRON_SECRET` was last rotated on 28 September.
 
 ## 1. Environment variables
 
 ### Vercel → Settings → Environment Variables (Production)
 
 After changing any of these: **Deployments → ⋯ on the latest Production deployment → Redeploy**.
-Variables are read when a deployment is built or starts, never live.
+Variables are read when a deployment is built or starts, never live. Vercel's **Type** is **Secret**
+(can't be read back; older screens called it *Sensitive*) or **Config** (older: *Plain*). An existing
+variable can't be turned into a Secret: delete it and add it again.
 
 | Name | What it does | Type |
 | --- | --- | --- |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server access to the database (bypasses RLS). | Sensitive |
-| `EMAIL_TOKEN_SECRET` | Signs unsubscribe links and hashes IPs for rate limiting. 32+ characters. | Sensitive |
-| `CRON_SECRET` | The password pg_cron sends to `/api/cron/daily` and `/api/cron/health`. Must match the Supabase vault secret `durar_cron_secret`. | Sensitive |
-| `SES_ACCESS_KEY_ID` | IAM user `durar-email-sender`, send-only policy `DurarSendEmailOnly`. | Sensitive |
-| `SES_SECRET_ACCESS_KEY` | Same IAM user. | Sensitive |
-| `EMAIL_FROM` | The sender: `Durar <pearl@durar.space>`. Must be on an identity verified in SES. | Plain |
-| `EMAIL_REPLY_TO` | Where replies go: `hello@durar.space`. Unset: replies go to the sender. | Plain |
-| `EMAIL_MODE` | `sandbox` (default when unset), `live` or `dry-run`. See §5. | Plain |
-| `EMAIL_SANDBOX_TO` | Comma-separated addresses that sandbox mode may email. The owner's Gmail. | Plain |
-| `EMAIL_SIGNUP` | `on` shows the subscribe button and the account-menu toggle, `off` hides them. **Build-time**: needs a redeploy. The API itself keeps working either way. | Plain |
-| `VITE_SUPABASE_URL` | Supabase project URL, for the browser and the server. | Plain |
-| `VITE_SUPABASE_ANON_KEY` | Supabase public (anon) key, for the browser. Public by design. | Plain |
-| `VITE_CONTACT_EMAIL` | The contact address shown on the Privacy page and in emails. | Plain |
-| `VITE_DATA_REGION` | The data region named on the Privacy page. | Plain |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server access to the database (bypasses RLS). | Secret |
+| `EMAIL_TOKEN_SECRET` | Signs unsubscribe links and hashes IPs for rate limiting. 32+ characters. | Secret |
+| `CRON_SECRET` | The password pg_cron sends to `/api/cron/daily` and `/api/cron/health`. Must match the Supabase vault secret `durar_cron_secret`. | Secret |
+| `SES_ACCESS_KEY_ID` | IAM user `durar-email-sender`, send-only policy `DurarSendEmailOnly`. | Secret |
+| `SES_SECRET_ACCESS_KEY` | Same IAM user. | Secret |
+| `EMAIL_FROM` | The sender: `Durar <pearl@durar.space>`. Must be on an identity verified in SES. | Config |
+| `EMAIL_REPLY_TO` | Where replies go: `hello@durar.space`. Unset: replies go to the sender. | Config |
+| `EMAIL_MODE` | `sandbox` (default when unset), `live` or `dry-run`. See §5. | Config |
+| `EMAIL_SANDBOX_TO` | Comma-separated addresses that sandbox mode may email. The owner's Gmail. | Config |
+| `EMAIL_SIGNUP` | `on` shows the subscribe button and the account-menu toggle, `off` hides them. **Build-time**: needs a redeploy. The API itself keeps working either way. | Config |
+| `VITE_SUPABASE_URL` | Supabase project URL, for the browser and the server. | Config |
+| `VITE_SUPABASE_ANON_KEY` | Supabase public (anon) key, for the browser. Public by design. | Config |
+| `VITE_CONTACT_EMAIL` | The contact address shown on the Privacy page and in emails. | Config |
+| `VITE_DATA_REGION` | The data region named on the Privacy page. | Config |
 
 Optional, with working defaults (leave unset unless you mean to change them):
 
@@ -47,7 +51,7 @@ Optional, with working defaults (leave unset unless you mean to change them):
 | --- | --- | --- |
 | `ALERT_EMAIL` | first `EMAIL_SANDBOX_TO` address | Who the morning health check emails. |
 | `SES_REGION` | `eu-central-1` | SES region. |
-| `SES_RATE_PER_SECOND` | `1` | Sending pace. Raise to what SES grants after production access (e.g. `10`). |
+| `SES_RATE_PER_SECOND` | `1` | Sending pace of the daily email. Keep it at 1 while the list is small: Amazon was told the daily send is paced at 1 per second. Each sending call handles about 45 emails, so the six 07:xx calls cover roughly 250 subscribers. Raise it (SES allows up to 14) before the list gets near that. |
 | `EMAIL_SEND_HOUR` | `7` | Amsterdam hour the daily email goes out. |
 | `EMAIL_HEALTH_HOUR` | `8` | Amsterdam hour the health check looks at today's run. |
 | `EMAIL_SUBJECT_STYLE` | `b` | Subject line style (a, b or c). |
@@ -62,18 +66,19 @@ Vercel sets `VERCEL_ENV`, `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL` itsel
 | --- | --- |
 | **Vault** (`vault.secrets`) `durar_daily_url` | `https://durar.space/api/cron/daily`. The health job derives its URL from this one. |
 | **Vault** `durar_cron_secret` | The same value as `CRON_SECRET` in Vercel. |
-| **Authentication → Emails → SMTP Settings** | SES SMTP user name and password (separate from the API keys above), host `email-smtp.eu-central-1.amazonaws.com`, port 587, sender `pearl@durar.space`, name `Durar`. |
-| **Authentication → Emails → Templates** | Confirm sign-up and Reset password, pasted from `supabase/auth-templates/`. |
-| **Authentication → Sign In / Providers → Email** | **Confirm email** on. |
+| **Authentication → Emails → SMTP Settings** | SES SMTP user name (`AKIA…`) and password (separate from the API keys above), host `email-smtp.eu-central-1.amazonaws.com`, port 587, sender `pearl@durar.space`, name `Durar`. Set up 28 September 2026. Never switch Custom SMTP off: that resets both templates to Supabase's defaults and drops the email limit to 2 an hour. |
+| **Authentication → Rate Limits** | **Rate limit for sending emails**: the default 30 an hour, plenty at launch and a brake if someone abuses the sign-up form. |
+| **Authentication → Emails → Templates** | **Confirm sign up** (subject `Confirm your Durar account`) and **Reset password** (subject `Reset your Durar password`), pasted into **Body → Source** from `supabase/auth-templates/`. |
+| **Authentication → Sign In / Providers → User Signups** | **Confirm email** on (since 28 September 2026). |
 | **Authentication → URL Configuration** | Site URL `https://durar.space`; Redirect URLs `https://durar.space/**` and `https://www.durar.space/**`. Without these, sign-up and reset emails link to `localhost`. |
 
 ### AWS
 
 | Where | What |
 | --- | --- |
-| IAM user `durar-email-sender` | Access key used by Vercel (`SES_*`). Policy `DurarSendEmailOnly`. Adding `ses:ListSuppressedDestinations` lets the daily job mark bounces in `subscribers`; without it the job logs a warning and carries on. |
-| SES → SMTP settings | The SMTP credentials used by Supabase Auth (an IAM user named `ses-smtp-user.…`). |
-| SES → Identities | `durar.space` (Easy DKIM, verified 26 September 2026) and the owner's Gmail address, both in **Frankfurt**. The console may open in another region (e.g. Stockholm): switch to Frankfurt first, because identities, sandbox status and production access are per region. |
+| IAM user `durar-email-sender` | Access key used by Vercel (`SES_*`). Policy `DurarSendEmailOnly`, plus the inline policy `DurarReadSuppressionList` (`ses:ListSuppressedDestinations`), which lets the daily job mark bounces and complaints in `subscribers`. Without it the job logs a warning and carries on. |
+| SES → SMTP settings | The SMTP credentials used by Supabase Auth (an IAM user named `ses-smtp-user.…`), made with **IAM SMTP credentials**, not *Mail Manager SMTP* (a paid extra we don't use). |
+| SES → Identities | `durar.space` (Easy DKIM, verified 26 September 2026; production access approved 28 September) and the owner's Gmail address, both in **Frankfurt**. The console may open in another region (e.g. Stockholm): switch to Frankfurt first, because identities, sandbox status and production access are per region. |
 
 ### Namecheap → durar.space → Advanced DNS
 
@@ -149,22 +154,28 @@ Do rotations **outside 05:00–07:30 UTC** so no scheduled call lands mid-change
    select vault.update_secret((select id from vault.secrets where name = 'durar_cron_secret'), encode(extensions.gen_random_bytes(32), 'hex'));
    select decrypted_secret from vault.decrypted_secrets where name = 'durar_cron_secret';
    ```
-2. Copy the value from the result. Vercel → Environment Variables → `CRON_SECRET` → edit → paste →
-   tick **Sensitive** → Save → Redeploy.
-3. Check: the old value now gets `401`, and `…/api/cron/health?dry=1` with the new one gets `200`.
+2. Copy the value from the result. Vercel → Environment Variables → `CRON_SECRET` → **Delete**, then
+   add it again with the new value, **Type: Secret**, **Production** → Save → Redeploy. From step 1
+   until the redeploy is Ready, both the morning email and its 08:15 alarm get `401`, so do it in one go.
+3. Check from the SQL Editor (the value never leaves Supabase; nothing is sent):
+   ```sql
+   select net.http_get(url := (select decrypted_secret from vault.decrypted_secrets where name = 'durar_daily_url') || '?dry=1', headers := jsonb_build_object('Authorization', 'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'durar_cron_secret')), timeout_milliseconds := 30000);
+   ```
+   After about 30 seconds: `select status_code, content from net._http_response order by created desc limit 1;`
+   `200` means Vercel and the vault match (`401`: they don't; redo step 2). The content also shows `"mode"`.
 
 **`EMAIL_TOKEN_SECRET`:** rotating it breaks every unsubscribe link in emails already sent (they
-show “invalid”). Only rotate it if it leaked. New value: any 48+ random characters, Sensitive, redeploy.
+show “invalid”). Only rotate it if it leaked. New value: any 48+ random characters, Type Secret, redeploy.
 
 **SES access key** (`SES_ACCESS_KEY_ID` / `SES_SECRET_ACCESS_KEY`): IAM → Users →
 `durar-email-sender` → Security credentials → **Create access key** → update both Vercel variables
-(Sensitive) → Redeploy → `?test=1` works → back in IAM, **Deactivate** then **Delete** the old key.
+(Type Secret) → Redeploy → `?test=1` works → back in IAM, **Deactivate** then **Delete** the old key.
 
 **SES SMTP password** (Supabase Auth emails): SES → SMTP settings → Create SMTP credentials →
 paste into Supabase SMTP Settings → test a password reset → delete the old IAM SMTP user.
 
 **Supabase service role key:** Supabase → Project Settings → API Keys → roll the key → update
-`SUPABASE_SERVICE_ROLE_KEY` in Vercel (Sensitive) → Redeploy.
+`SUPABASE_SERVICE_ROLE_KEY` in Vercel (Type Secret) → Redeploy.
 
 ## 5. Sandbox and live
 
@@ -174,12 +185,23 @@ paste into Supabase SMTP Settings → test a password reset → delete the old I
 | `live` | Every confirmed subscriber. Needs SES production access. |
 | `dry-run` | Nobody. The daily call only counts and renders; the health check is skipped. |
 
-**Going live** (only after SES production access is approved and the inbox test passes):
-`EMAIL_MODE=live`, `EMAIL_SIGNUP=on`, optionally `SES_RATE_PER_SECOND` to the granted rate →
-Redeploy → `?dry=1` shows `"mode":"live"`.
+**Going live** (done 28 September 2026): `EMAIL_MODE=live` (Type Config), `EMAIL_SIGNUP=on` →
+Redeploy → `?dry=1` shows `"mode":"live"` (the SQL check in §4 step 3). Keep `EMAIL_SANDBOX_TO`: the
+health alarm goes to its first address unless `ALERT_EMAIL` is set.
 
 **Back to sandbox** (e.g. a complaint spike): `EMAIL_MODE=sandbox` and `EMAIL_SIGNUP=off` →
-Redeploy. Subscribers stay confirmed; nothing is lost.
+Redeploy. Subscribers stay confirmed; nothing is lost. Don't use Vercel's **Instant Rollback** to a
+deployment from before the last `CRON_SECRET` rotation: it still has the old value.
+
+**Weekly (promised to Amazon in the production access request):** SES (Frankfurt) → **Account
+dashboard** → reputation metrics. Bounce rate must stay under 2% and complaint rate under 0.1%;
+above either, go **back to sandbox** and find the cause before switching live again. Amazon was
+also told: double opt-in only, one-click unsubscribe, the account-level suppression list on for
+bounces and complaints, the daily job syncing that list, and no open or click tracking.
+
+**Sign-up and reset links** only work in the browser where they were requested (Supabase PKCE).
+Opened elsewhere, a sign-up link still confirms the account (the site asks the person to sign in),
+but a reset link fails with a note to ask for a new one.
 
 ## 6. If a morning email doesn't arrive
 
