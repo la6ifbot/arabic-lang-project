@@ -3,7 +3,7 @@ import { dialog, expect, LAYLA, saveButton, seed, signInViaDialog, status, test,
 type Mock = {
   __durarMock: {
     verify(email: string): void;
-    recover(email: string): void;
+    link(email: string, kind: 'verify' | 'reset'): string | null;
     failNext(op: string, code?: string): void;
     outbox(): { to: string; kind: string }[];
   };
@@ -94,19 +94,78 @@ test.describe('accounts: sign up, sign in, sign out', () => {
     await expect(dialog(page).getByRole('heading')).toHaveText('Check your inbox');
     expect(await page.evaluate(() => (window as unknown as Mock).__durarMock.outbox())).toContainEqual({ to: LAYLA.email, kind: 'reset' });
 
-    // Opening the emailed link starts a recovery session.
-    await page.evaluate((email) => (window as unknown as Mock).__durarMock.recover(email), LAYLA.email);
+    // Opening the emailed link (in this or any other browser) starts a recovery session.
+    const link = await page.evaluate((email) => (window as unknown as Mock).__durarMock.link(email, 'reset'), LAYLA.email);
+    await page.goto(link!);
     await expect(dialog(page).getByRole('heading')).toHaveText('Choose a new password');
+    await expect(dialog(page)).toContainText(`For ${LAYLA.email}.`);
+    await expect(page).not.toHaveURL(/token_hash|durar=/);
     await dialog(page).getByLabel('New password').fill('a brand new tide');
     await dialog(page).getByRole('button', { name: 'Save new password' }).click();
     await expect(dialog(page)).toHaveCount(0);
     await expect(status(page)).toContainText('password has been changed');
+    // The form doesn't come back once the saved pearls have loaded.
+    await page.waitForTimeout(500);
+    await expect(dialog(page)).toHaveCount(0);
 
     await page.getByTestId('account-button').click();
     await page.getByRole('menuitem', { name: 'Sign out' }).click();
     await page.getByTestId('sign-in').click();
     await signInViaDialog(page, LAYLA.email, 'a brand new tide');
     await expect(page.getByTestId('account-button')).toBeVisible();
+  });
+
+  test('a confirmation link opened from the email signs in and keeps the pearl', async ({ page }) => {
+    await page.goto('/word/hanin');
+    await waitForSea(page);
+    await saveButton(page).click();
+    await dialog(page).getByRole('button', { name: 'Create an account' }).click();
+    await dialog(page).getByLabel('Email').fill('new.diver@example.com');
+    await dialog(page).getByLabel('Password', { exact: true }).fill('a sea of words');
+    await dialog(page).getByRole('button', { name: 'Create account' }).click();
+    await expect(dialog(page).getByRole('heading')).toHaveText('Check your inbox');
+    const link = await page.evaluate(() => (window as unknown as Mock).__durarMock.link('new.diver@example.com', 'verify'));
+    expect(link).toMatch(/^\/\?durar=verify&token_hash=\w+$/);
+
+    await page.goto(link!);
+    await expect(dialog(page).getByRole('heading')).toHaveText('Email confirmed');
+    await expect(dialog(page)).toContainText('signed in as new.diver@example.com');
+    await expect(page).not.toHaveURL(/token_hash|durar=/);
+    await dialog(page).getByRole('button', { name: 'Continue' }).click();
+    await expect(dialog(page)).toHaveCount(0);
+    await expect(page.getByTestId('account-button')).toBeVisible();
+    await expect(page.getByTestId('focused-word')).toHaveAttribute('data-slug', 'hanin');
+    await expect(saveButton(page)).toHaveAttribute('aria-pressed', 'true');
+
+    // Opening the same link again while signed in needs no message.
+    await page.goto(link!);
+    await expect(page.getByTestId('account-button')).toBeVisible();
+    await expect(page).not.toHaveURL(/token_hash|durar=/);
+    await expect(dialog(page)).toHaveCount(0);
+  });
+
+  test('a used reset link says so, and asks for a new one', async ({ page }) => {
+    await seed(page);
+    await page.goto('/');
+    await waitForSea(page);
+    await page.getByTestId('sign-in').click();
+    await dialog(page).getByRole('button', { name: 'Forgot your password?' }).click();
+    await dialog(page).getByLabel('Email').fill(LAYLA.email);
+    await dialog(page).getByRole('button', { name: 'Send reset link' }).click();
+    await expect(dialog(page).getByRole('heading')).toHaveText('Check your inbox');
+    const first = await page.evaluate((email) => (window as unknown as Mock).__durarMock.link(email, 'reset'), LAYLA.email);
+    // Asking again replaces the first link, as with Supabase.
+    await dialog(page).getByRole('button', { name: 'Back to sign in' }).click();
+    await dialog(page).getByRole('button', { name: 'Forgot your password?' }).click();
+    await dialog(page).getByLabel('Email').fill(LAYLA.email);
+    await dialog(page).getByRole('button', { name: 'Send reset link' }).click();
+    await expect(dialog(page).getByRole('heading')).toHaveText('Check your inbox');
+
+    await page.goto(first!);
+    await expect(dialog(page).getByRole('heading')).toHaveText('Reset your password');
+    await expect(dialog(page).getByRole('alert')).toContainText('expired or was already used');
+    await expect(page).not.toHaveURL(/token_hash|durar=/);
+    await expect(page.getByTestId('sign-in')).toBeVisible();
   });
 
   test('Continue with Google signs in', async ({ page }) => {

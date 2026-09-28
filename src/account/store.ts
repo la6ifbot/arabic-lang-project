@@ -6,10 +6,10 @@ import { accountsMode, hasStoredSession, loadBackend } from './backend';
 import { friendlyMessage } from './errors';
 import { PENDING_SAVE_KEY } from './storageKeys';
 import type { AccountUser, AuthChange, Backend, SubscriptionStatus, UrlNotice } from './types';
-import { cleanAuthUrl, hasAuthCallback } from './urlState';
+import { cleanAuthUrl, hasAuthCallback, isEmailLink, readAuthUrl } from './urlState';
 
 export type AccountStatus = 'off' | 'loading' | 'signed-out' | 'signed-in';
-export type AuthMode = 'signin' | 'signup' | 'forgot' | 'reset' | 'verify-sent' | 'reset-sent';
+export type AuthMode = 'signin' | 'signup' | 'forgot' | 'reset' | 'verify-sent' | 'reset-sent' | 'verified';
 
 export interface AuthDialog {
   mode: AuthMode;
@@ -111,21 +111,30 @@ let booting: Promise<Backend | null> | null = null;
 export function bootAccounts(): Promise<Backend | null> {
   if (accountsMode === 'off') return Promise.resolve(null);
   booting ??= (async () => {
+    // An email link whose check never reached the server stays in the address bar, so a reload
+    // can try it again.
+    let keepUrl = false;
     try {
       const backend = await loadBackend();
       backend.onChange(onAuthChange);
       const { user, notice } = await backend.init();
+      keepUrl = notice === 'link-offline';
+      if (!keepUrl) cleanAuthUrl(); // before anything else, so a reload can't reuse a spent link
       if (user) await signedIn(user, backend);
       else set({ status: 'signed-out', user: null });
-      if (notice) showNotice(notice);
+      if (notice) showNotice(notice, user);
       return backend;
     } catch (e) {
       console.warn('Durar: accounts unavailable right now.', e);
       set({ status: 'signed-out' });
+      if (isEmailLink(readAuthUrl())) {
+        keepUrl = true;
+        set({ auth: { mode: 'signin', error: LINK_OFFLINE } }); // not openAuth(): it would boot again
+      }
       booting = null; // allow a retry on the next action
       return null;
     } finally {
-      cleanAuthUrl();
+      if (!keepUrl) cleanAuthUrl();
     }
   })();
   return booting;
@@ -144,10 +153,11 @@ function onAuthChange(change: AuthChange, user: AccountUser | null) {
     return;
   }
   if (!user) return;
-  void (async () => {
-    await signedIn(user, await loadBackend());
-    if (change === 'password-recovery') openAuth('reset');
-  })();
+  // Another tab (or an email link opened elsewhere) signed in: its "Check your inbox" is done.
+  if (get().auth?.mode === 'verify-sent') set({ auth: null });
+  // A password-recovery session opens "Choose a new password" through init's 'recovery' notice,
+  // in the tab that opened the link only.
+  void (async () => signedIn(user, await loadBackend()))();
 }
 
 let loadingSavedFor: string | null = null;
@@ -155,6 +165,11 @@ let loadingSavedFor: string | null = null;
 async function signedIn(user: AccountUser, backend: Backend) {
   const s = get();
   const sameUser = s.user?.id === user.id && s.savedLoaded;
+  if (s.user && s.user.id !== user.id) {
+    // Switched accounts without signing out (an email link for another account): start clean.
+    set({ saved: {}, savedLoaded: false });
+    useEmailToggle.setState({ state: 'unknown' });
+  }
   set({ status: 'signed-in', user });
   if (!sameUser && loadingSavedFor !== user.id) {
     loadingSavedFor = user.id;
@@ -185,10 +200,20 @@ async function savePending(backend: Backend) {
   await persistSave(slug, backend);
 }
 
-function showNotice(notice: UrlNotice) {
+const LINK_OFFLINE = 'We couldn’t check that link just now. Check your connection, then reload this page to try it again.';
+
+function showNotice(notice: UrlNotice, user: AccountUser | null) {
+  const email = user?.email ?? undefined;
   switch (notice) {
     case 'recovery':
-      openAuth('reset');
+      openAuth('reset', { email });
+      break;
+    case 'verified':
+      openAuth('verified', { email });
+      announce('Your email is confirmed. You’re signed in.');
+      break;
+    case 'link-offline':
+      openAuth('signin', { error: LINK_OFFLINE });
       break;
     case 'verified-sign-in':
       openAuth('signin', { notice: 'Your email is confirmed. Sign in to continue.' });
@@ -200,7 +225,7 @@ function showNotice(notice: UrlNotice) {
       break;
     case 'reset-link-invalid':
       openAuth('forgot', {
-        error: 'That reset link has expired, or it was opened in a different browser. Request a new one below.',
+        error: 'That reset link has expired or was already used. Request a new one below.',
       });
       break;
     case 'oauth-failed':

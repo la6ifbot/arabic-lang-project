@@ -16,7 +16,17 @@ export interface SavedPearl {
 export type AuthChange = 'signed-in' | 'signed-out' | 'password-recovery';
 
 /** Something the auth redirect left in the URL that the UI should explain. */
-export type UrlNotice = 'verified-sign-in' | 'verify-link-invalid' | 'reset-link-invalid' | 'oauth-failed' | 'recovery';
+export type UrlNotice =
+  | 'verified'
+  | 'verified-sign-in'
+  | 'verify-link-invalid'
+  | 'reset-link-invalid'
+  | 'link-offline'
+  | 'oauth-failed'
+  | 'recovery';
+
+/** What checking a link from one of our auth emails gave. */
+export type EmailLinkResult = 'ok' | 'failed' | 'offline';
 
 export type AccountErrorCode =
   | 'invalid_credentials'

@@ -7,9 +7,9 @@ import {
   type User,
 } from '@supabase/supabase-js';
 import { asProgress, type Progress } from '../../shared/mastery';
-import { AccountError, type AccountErrorCode, type AccountUser, type Backend, type SubscriptionStatus, type UrlNotice } from './types';
+import { AccountError, type AccountErrorCode, type AccountUser, type Backend, type EmailLinkResult, type SubscriptionStatus } from './types';
 import { SESSION_STORAGE_KEY } from './storageKeys';
-import { readAuthUrl } from './urlState';
+import { isEmailLink, readAuthUrl, urlNotice } from './urlState';
 
 const toUser = (u: User): AccountUser => ({
   id: u.id,
@@ -81,13 +81,24 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
     kind: 'supabase',
 
     async init() {
+      // A link from our email templates: verify it here, so it works in any browser.
+      let emailLink: EmailLinkResult | null = null;
+      if (isEmailLink(urlState)) {
+        try {
+          // Let the client finish loading any stored session first, so it can't overwrite this one.
+          await client.auth.initialize();
+          const type = urlState.intent === 'reset' ? 'recovery' : 'email';
+          const { error } = await client.auth.verifyOtp({ token_hash: urlState.tokenHash!, type });
+          // A failure is an expired or used link (maybe opened first by a mail scanner), unless the
+          // network failed: then the link is still good, and a reload tries again.
+          emailLink = !error ? 'ok' : isAuthRetryableFetchError(error) ? 'offline' : 'failed';
+        } catch {
+          emailLink = 'offline';
+        }
+      }
       const { data } = await client.auth.getSession();
       const user = data.session ? toUser(data.session.user) : null;
-      let notice: UrlNotice | undefined;
-      if (urlState.intent === 'reset') notice = user ? 'recovery' : 'reset-link-invalid';
-      else if (urlState.error) notice = urlState.intent === 'verify' ? 'verify-link-invalid' : 'oauth-failed';
-      else if (urlState.hasCode && !user) notice = urlState.intent === 'verify' ? 'verified-sign-in' : 'oauth-failed';
-      return { user, notice };
+      return { user, notice: urlNotice(urlState, emailLink, user) };
     },
 
     onChange(cb) {
