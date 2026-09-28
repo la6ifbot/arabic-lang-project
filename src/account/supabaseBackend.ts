@@ -81,10 +81,26 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
     kind: 'supabase',
 
     async init() {
+      // A link from our email templates: verify it here, so it works in any browser.
+      let emailLink: 'ok' | 'failed' | null = null;
+      if (urlState.tokenHash && (urlState.intent === 'verify' || urlState.intent === 'reset')) {
+        try {
+          // Let the client finish loading any stored session first, so it can't overwrite this one.
+          await client.auth.initialize();
+          const type = urlState.intent === 'reset' ? 'recovery' : 'email';
+          const { error } = await client.auth.verifyOtp({ token_hash: urlState.tokenHash, type });
+          emailLink = error ? 'failed' : 'ok'; // expired, already used, or opened by a link scanner
+        } catch {
+          emailLink = 'failed';
+        }
+      }
       const { data } = await client.auth.getSession();
       const user = data.session ? toUser(data.session.user) : null;
       let notice: UrlNotice | undefined;
-      if (urlState.intent === 'reset') notice = user ? 'recovery' : 'reset-link-invalid';
+      if (emailLink) {
+        if (urlState.intent === 'reset') notice = emailLink === 'ok' && user ? 'recovery' : 'reset-link-invalid';
+        else if (emailLink === 'failed') notice = 'verify-link-invalid';
+      } else if (urlState.intent === 'reset') notice = user ? 'recovery' : 'reset-link-invalid';
       else if (urlState.error) notice = urlState.intent === 'verify' ? 'verify-link-invalid' : 'oauth-failed';
       else if (urlState.hasCode && !user) notice = urlState.intent === 'verify' ? 'verified-sign-in' : 'oauth-failed';
       return { user, notice };

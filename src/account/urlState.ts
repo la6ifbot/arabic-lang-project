@@ -2,12 +2,18 @@
  * Auth redirects come back to the site with a marker we add (`durar=verify|reset|oauth`) and, from
  * Supabase, either `code` (PKCE) or an error. Read them once at startup, before the client consumes
  * the URL, so the UI can explain what happened.
+ *
+ * The sign-up and reset emails (supabase/auth-templates) link straight here with
+ * `durar=verify|reset&token_hash=…` instead. The site verifies the hash itself, so the link works in
+ * any browser, not only the one that asked for it (a PKCE `code` needs that browser's verifier).
  */
 export type AuthIntent = 'verify' | 'reset' | 'oauth';
 
 export interface AuthUrlState {
   intent: AuthIntent | null;
   hasCode: boolean;
+  /** From the email templates; only meaningful with intent `verify` or `reset`. */
+  tokenHash: string | null;
   error: string | null;
 }
 
@@ -20,20 +26,21 @@ export function readAuthUrl(): AuthUrlState {
   return {
     intent: intent === 'verify' || intent === 'reset' || intent === 'oauth' ? intent : null,
     hasCode: q.has('code'),
+    tokenHash: q.get('token_hash') || null,
     error: q.get('error_description') ?? h.get('error_description') ?? q.get('error') ?? h.get('error'),
   };
 }
 
 export function hasAuthCallback(): boolean {
   const s = readAuthUrl();
-  return s.intent !== null || s.hasCode || s.error !== null;
+  return s.intent !== null || s.hasCode || s.tokenHash !== null || s.error !== null;
 }
 
-/** Removes our marker and any auth error params, keeping the path (e.g. /word/bahr). */
+/** Removes our marker, the email's token hash and any auth error params, keeping the path (e.g. /word/bahr). */
 export function cleanAuthUrl() {
   const url = new URL(window.location.href);
   let changed = false;
-  for (const k of [AUTH_PARAM, 'error', 'error_code', 'error_description']) {
+  for (const k of [AUTH_PARAM, 'token_hash', 'error', 'error_code', 'error_description']) {
     if (url.searchParams.has(k)) {
       url.searchParams.delete(k);
       changed = true;

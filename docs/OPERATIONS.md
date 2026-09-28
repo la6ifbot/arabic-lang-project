@@ -68,7 +68,7 @@ Vercel sets `VERCEL_ENV`, `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL` itsel
 | **Vault** `durar_cron_secret` | The same value as `CRON_SECRET` in Vercel. |
 | **Authentication → Emails → SMTP Settings** | SES SMTP user name (`AKIA…`) and password (separate from the API keys above), host `email-smtp.eu-central-1.amazonaws.com`, port 587, sender `pearl@durar.space`, name `Durar`. Set up 28 September 2026. Never switch Custom SMTP off: that resets both templates to Supabase's defaults and drops the email limit to 2 an hour. |
 | **Authentication → Rate Limits** | **Rate limit for sending emails**: the default 30 an hour, plenty at launch and a brake if someone abuses the sign-up form. |
-| **Authentication → Emails → Templates** | **Confirm sign up** (subject `Confirm your Durar account`) and **Reset password** (subject `Reset your Durar password`), pasted into **Body → Source** from `supabase/auth-templates/`. |
+| **Authentication → Emails → Templates** | **Confirm sign up** (subject `Confirm your Durar account`) and **Reset password** (subject `Reset your Durar password`), pasted into **Body → Source** from `supabase/auth-templates/`. Their links are built from `{{ .SiteURL }}` and `{{ .TokenHash }}`, so **Site URL** under URL Configuration must stay exactly `https://durar.space`. |
 | **Authentication → Sign In / Providers → User Signups** | **Confirm email** on (since 28 September 2026). |
 | **Authentication → URL Configuration** | Site URL `https://durar.space`; Redirect URLs `https://durar.space/**` and `https://www.durar.space/**`. Without these, sign-up and reset emails link to `localhost`. |
 
@@ -199,9 +199,11 @@ above either, go **back to sandbox** and find the cause before switching live ag
 also told: double opt-in only, one-click unsubscribe, the account-level suppression list on for
 bounces and complaints, the daily job syncing that list, and no open or click tracking.
 
-**Sign-up and reset links** only work in the browser where they were requested (Supabase PKCE).
-Opened elsewhere, a sign-up link still confirms the account (the site asks the person to sign in),
-but a reset link fails with a note to ask for a new one.
+**Sign-up and reset links** work in any browser or device. The templates link to
+`https://durar.space/?durar=verify|reset&token_hash=…` and the site checks the hash itself
+(`src/account/supabaseBackend.ts`), instead of Supabase's default link, which only works in the
+browser that asked for it. Each link works once, for 1 hour. If a link says it expired the first time
+it's opened, a mail scanner (Outlook's, for example) probably opened it first: sign in, or ask again.
 
 ## 6. If a morning email doesn't arrive
 
