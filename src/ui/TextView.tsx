@@ -42,12 +42,14 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
     return () => window.clearTimeout(id);
   }, [glint]);
 
-  // Card follows the finger/mouse while dragging.
+  // Card follows the finger/mouse while dragging, and grows with a pinch.
   useAnimationFrame(() => {
     const el = card.current;
     if (!el) return;
     const dx = gesture.dragPx;
-    el.style.transform = dx ? `translateX(${dx}px) rotate(${dx * 0.02}deg)` : '';
+    const z = gesture.zoom;
+    const transform = (dx ? `translateX(${dx}px) rotate(${dx * 0.02}deg)` : '') + (z !== 1 ? ` scale(${z})` : '');
+    if (el.style.transform !== transform.trim()) el.style.transform = transform.trim();
   });
 
   return (

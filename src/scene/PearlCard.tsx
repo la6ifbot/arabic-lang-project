@@ -120,8 +120,9 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
       opacityTarget = k < 0.35 ? 1 : 0;
     } else if (idx === 0) {
       target = layout.focus();
+      target.s *= gesture.zoom;
       focusTarget = 1;
-      smooth = 0.95;
+      smooth = gesture.pinching ? 0.08 : 0.95;
       if (rising) {
         smooth = surf < SURFACE_HOLD ? 40 : 1.15;
         focusTarget = surf < SURFACE_HOLD + 900 ? 0 : 1;

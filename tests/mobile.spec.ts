@@ -48,3 +48,37 @@ test.describe('mobile save', () => {
     await expect(page.getByTestId('focused-word')).toHaveAttribute('data-slug', 'najm');
   });
 });
+
+async function pinch(page: Page, cx: number, cy: number, from: number, to: number) {
+  const cdp = await page.context().newCDPSession(page);
+  const pts = (d: number) => [
+    { x: cx - d / 2, y: cy, id: 0 },
+    { x: cx + d / 2, y: cy, id: 1 },
+  ];
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pts(from) });
+  for (let i = 1; i <= 10; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pts(from + ((to - from) * i) / 10) });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
+test('pinch out enlarges the card, pinch in shrinks it back, and it never swipes', async ({ page }) => {
+  await page.goto('/');
+  await waitForScene(page);
+  const { width, height } = page.viewportSize()!;
+  const scene = page.getByTestId('scene');
+  const start = await focusedSlug(page);
+  await pinch(page, width / 2, height / 2, 80, 240);
+  await expect(scene).toHaveAttribute('data-zoom', '1.80');
+  // Stays big after the fingers lift, and the page itself didn't zoom or swipe.
+  await page.waitForTimeout(300);
+  await expect(scene).toHaveAttribute('data-zoom');
+  expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
+  await expect(focused(page)).toHaveAttribute('data-slug', start);
+  await pinch(page, width / 2, height / 2, 240, 60);
+  await expect(scene).not.toHaveAttribute('data-zoom');
+  // A swipe still works afterwards.
+  await touchSwipe(page, width * 0.25, width * 0.9, height / 2);
+  await expect(focused(page)).not.toHaveAttribute('data-slug', start);
+});
