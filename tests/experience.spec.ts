@@ -202,6 +202,37 @@ test.describe('fallbacks & accessibility', () => {
     await expect(about).toBeHidden();
   });
 
+  test.describe('a first visit', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
+
+    test('opens How it works by itself once, then only from the “?”', async ({ page }) => {
+      await page.goto('/');
+      await waitForScene(page);
+      const help = page.getByRole('button', { name: 'How it works' });
+      await expect(page.getByTestId('help-box')).toBeVisible();
+      await expect(help).toHaveAttribute('aria-expanded', 'true');
+      // Using the sea closes it, and the swipe still works.
+      const before = await focusedSlug(page);
+      await page.keyboard.press('ArrowRight');
+      await expect.poll(() => focusedSlug(page)).not.toBe(before);
+      await page.mouse.click(720, 600);
+      await expect(page.getByTestId('help-box')).toBeHidden();
+
+      await page.reload();
+      await waitForScene(page);
+      await page.waitForTimeout(500);
+      await expect(page.getByTestId('help-box')).toBeHidden();
+      await help.click();
+      await expect(page.getByTestId('help-box')).toBeVisible();
+    });
+
+    test('stays closed when arriving from an email link', async ({ page }) => {
+      await page.goto('/?durar=verify&error=access_denied&error_description=Email+link+is+invalid+or+has+expired');
+      await page.waitForTimeout(2500);
+      await expect(page.getByTestId('help-box')).toBeHidden();
+    });
+  });
+
   test('the live region announces the focused word', async ({ page }) => {
     await page.goto('/');
     const region = focused(page);

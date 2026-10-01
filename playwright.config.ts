@@ -18,6 +18,8 @@ export default defineConfig({
     baseURL: 'http://localhost:4173',
     launchOptions: { executablePath, args },
     trace: 'retain-on-failure',
+    // Every test starts as a returning visitor, so “How it works” doesn't open over what it checks.
+    storageState: { cookies: [], origins: [{ origin: 'http://localhost:4173', localStorage: [{ name: 'durar-help-seen', value: '1' }] }] },
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }, testIgnore: /mobile\.spec\.ts/ },

@@ -1,9 +1,33 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { accountsMode } from '../account/backend';
+import { HELP_SEEN_KEY } from '../account/storageKeys';
+import { hasAuthCallback } from '../account/urlState';
 import { openAbout } from '../state/dialogs';
 
-/** “?” in the top-left corner: a small box with how to use the sea, and a way into “What is Durar?”. */
-export function HelpBox() {
+// Read at startup: the site tidies the link's parameters away before the sea is ready.
+const cameFromLink = hasAuthCallback();
+
+function seen() {
+  try {
+    return localStorage.getItem(HELP_SEEN_KEY) !== null;
+  } catch {
+    return true; // storage blocked: don't open it on every visit
+  }
+}
+
+function markSeen() {
+  try {
+    localStorage.setItem(HELP_SEEN_KEY, '1');
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/**
+ * “?” in the top-left corner: a small box with how to use the sea, and a way into “What is Durar?”.
+ * On a first visit it opens by itself once the sea is ready (`ready`); after that, only from the “?”.
+ */
+export function HelpBox({ ready = false }: { ready?: boolean }) {
   const [open, setOpen] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -11,7 +35,15 @@ export function HelpBox() {
   const titleId = useId();
 
   useEffect(() => {
+    // Not over a dialog or an email/sign-in link landing: those visitors came for something else.
+    if (!ready || seen() || document.body.dataset.modal || cameFromLink) return;
+    markSeen();
+    setOpen(true);
+  }, [ready]);
+
+  useEffect(() => {
     if (!open) return;
+    markSeen();
     const onDown = (e: PointerEvent) => {
       if (!box.current?.contains(e.target as Node) && !button.current?.contains(e.target as Node)) setOpen(false);
     };
