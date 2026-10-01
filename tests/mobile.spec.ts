@@ -64,6 +64,8 @@ async function pinch(page: Page, cx: number, cy: number, from: number, to: numbe
 }
 
 test('pinch out enlarges the card, up/down drags pan it, pinch in shrinks it back', async ({ page }) => {
+  // Several touch gestures on a software-rendered scene: slow on CI runners.
+  test.slow();
   await page.goto('/');
   await waitForScene(page);
   const { width, height } = page.viewportSize()!;
