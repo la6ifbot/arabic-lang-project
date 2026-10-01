@@ -2,10 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { accountsMode } from '../account/backend';
 import { HELP_SEEN_KEY } from '../account/storageKeys';
 import { hasAuthCallback } from '../account/urlState';
+import { slugFromLocation } from '../lib/router';
 import { openAbout } from '../state/dialogs';
 
-// Read at startup: the site tidies the link's parameters away before the sea is ready.
-const cameFromLink = hasAuthCallback();
+// Read at startup, before the site tidies the URL. A shared word link (/word/<slug>) is never
+// covered: the box waits for a later visit. So does an email or sign-in link landing.
+const cameFromLink = hasAuthCallback() || slugFromLocation() !== null;
 
 function seen() {
   try {
@@ -35,7 +37,7 @@ export function HelpBox({ ready = false }: { ready?: boolean }) {
   const titleId = useId();
 
   useEffect(() => {
-    // Not over a dialog or an email/sign-in link landing: those visitors came for something else.
+    // Not over a dialog or a linked word: those visitors came for something else.
     if (!ready || seen() || document.body.dataset.modal || cameFromLink) return;
     markSeen();
     setOpen(true);

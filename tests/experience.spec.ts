@@ -226,6 +226,18 @@ test.describe('fallbacks & accessibility', () => {
       await expect(page.getByTestId('help-box')).toBeVisible();
     });
 
+    test('never covers a shared word, and opens on the next visit instead', async ({ page }) => {
+      await page.goto('/word/bahr');
+      await waitForScene(page);
+      await page.waitForTimeout(500);
+      await expect(page.getByTestId('help-box')).toBeHidden();
+      await expect(focused(page)).toHaveAttribute('data-slug', 'bahr');
+
+      await page.goto('/');
+      await waitForScene(page);
+      await expect(page.getByTestId('help-box')).toBeVisible();
+    });
+
     test('stays closed when arriving from an email link', async ({ page }) => {
       await page.goto('/?durar=verify&error=access_denied&error_description=Email+link+is+invalid+or+has+expired');
       await page.waitForTimeout(2500);
