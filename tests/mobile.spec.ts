@@ -56,44 +56,49 @@ async function pinch(page: Page, cx: number, cy: number, from: number, to: numbe
     { x: cx + d / 2, y: cy, id: 1 },
   ];
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pts(from) });
-  for (let i = 1; i <= 10; i++) {
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pts(from + ((to - from) * i) / 10) });
+  for (let i = 1; i <= 5; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: pts(from + ((to - from) * i) / 5) });
     await page.waitForTimeout(16);
   }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 
-test('pinch out enlarges the card, up/down drags pan it, pinch in shrinks it back', async ({ page }) => {
-  // Several touch gestures on a software-rendered scene: slow on CI runners.
-  test.slow();
-  await page.goto('/');
-  await waitForScene(page);
-  const { width, height } = page.viewportSize()!;
-  const scene = page.getByTestId('scene');
-  const start = await focusedSlug(page);
-  await pinch(page, width / 2, height / 2, 80, 240);
-  await expect(scene).toHaveAttribute('data-zoom', '1.80');
-  // Stays big after the fingers lift, and the page itself didn't zoom or swipe.
-  await page.waitForTimeout(300);
-  await expect(scene).toHaveAttribute('data-zoom');
-  expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
-  await expect(focused(page)).toHaveAttribute('data-slug', start);
-  // Dragging up and down on the enlarged card moves it to show its top and bottom, never a swipe.
-  const cdp = await page.context().newCDPSession(page);
-  for (const [from, to] of [[height * 0.3, height * 0.8], [height * 0.8, height * 0.2]]) {
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: width / 2, y: from }] });
-    for (let i = 1; i <= 10; i++) {
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: width / 2 + i * 3, y: from + ((to - from) * i) / 10 }] });
-      await page.waitForTimeout(16);
+test.describe('pinch zoom', () => {
+  // An enlarged card fills the screen, which CI's software WebGL renders slowly at the phone's
+  // full pixel density (starving the tests running alongside); the gestures don't depend on it.
+  test.use({ deviceScaleFactor: 1 });
+
+  test('pinch out enlarges the card, up/down drags pan it, pinch in shrinks it back', async ({ page }) => {
+    test.slow();
+    await page.goto('/');
+    await waitForScene(page);
+    const { width, height } = page.viewportSize()!;
+    const scene = page.getByTestId('scene');
+    const start = await focusedSlug(page);
+    await pinch(page, width / 2, height / 2, 80, 240);
+    await expect(scene).toHaveAttribute('data-zoom', '1.80');
+    // Stays big after the fingers lift, and the page itself didn't zoom or swipe.
+    await page.waitForTimeout(300);
+    await expect(scene).toHaveAttribute('data-zoom');
+    expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
+    await expect(focused(page)).toHaveAttribute('data-slug', start);
+    // Dragging up and down on the enlarged card moves it to show its top and bottom, never a swipe.
+    const cdp = await page.context().newCDPSession(page);
+    for (const [from, to] of [[height * 0.3, height * 0.8], [height * 0.8, height * 0.2]]) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: width / 2, y: from }] });
+      for (let i = 1; i <= 5; i++) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: width / 2 + i * 6, y: from + ((to - from) * i) / 5 }] });
+        await page.waitForTimeout(16);
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     }
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-  }
-  await page.waitForTimeout(300);
-  await expect(focused(page)).toHaveAttribute('data-slug', start);
-  await expect(scene).toHaveAttribute('data-zoom', '1.80');
-  await pinch(page, width / 2, height / 2, 240, 60);
-  await expect(scene).not.toHaveAttribute('data-zoom');
-  // A swipe still works afterwards.
-  await touchSwipe(page, width * 0.25, width * 0.9, height / 2);
-  await expect(focused(page)).not.toHaveAttribute('data-slug', start);
+    await page.waitForTimeout(300);
+    await expect(focused(page)).toHaveAttribute('data-slug', start);
+    await expect(scene).toHaveAttribute('data-zoom', '1.80');
+    await pinch(page, width / 2, height / 2, 240, 60);
+    await expect(scene).not.toHaveAttribute('data-zoom');
+    // A swipe still works afterwards.
+    await touchSwipe(page, width * 0.25, width * 0.9, height / 2);
+    await expect(focused(page)).not.toHaveAttribute('data-slug', start);
+  });
 });
