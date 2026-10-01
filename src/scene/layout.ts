@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { CARD_ASPECT } from '../lib/cardTexture';
 import { UNSEEN_DEPTH } from '../progress/queue';
+import { ZOOM_FIT } from '../lib/zoom';
 
 export const CARD_H = 3;
 export const CARD_W = CARD_H * CARD_ASPECT;
@@ -8,8 +9,6 @@ export const CAMERA_Z = 9;
 export const CAMERA_FOV = 38;
 
 const GOLDEN = 2.399963;
-/** Share of the screen width a zoomed card's widest line may cover. */
-export const ZOOM_FIT = 0.92;
 
 export interface Pose {
   x: number;

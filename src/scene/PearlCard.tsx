@@ -6,7 +6,7 @@ import { acquireCardTexture, releaseCardTexture } from './texturePool';
 import { WORD_BY_SLUG } from '../lib/words';
 import { depthOf } from '../progress/queue';
 import { useProgress } from '../state/progress';
-import { EXIT_MS, gesture, MAX_ZOOM, useDurar } from '../state/store';
+import { EXIT_MS, gesture, MAX_ZOOM, setMaxZoom, setPan, useDurar } from '../state/store';
 import { emitBubbles } from './Bubbles';
 import { createCardMaterial, createShaftMaterial } from './cardMaterial';
 import { CARD_H, CARD_W, hashSeed, smoothDamp, type Layout, type Pose } from './layout';
@@ -121,13 +121,12 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
     } else if (idx === 0) {
       target = layout.focus();
       // Zoom only as far as this card's widest line still fits across the screen.
-      gesture.maxZoom = layout.fitZoom(texture.userData.textWidth ?? 0.8, MAX_ZOOM);
-      gesture.zoom = Math.min(gesture.zoom, gesture.maxZoom);
+      setMaxZoom(layout.fitZoom(texture.userData.textWidth ?? 0.8, MAX_ZOOM));
       target.s *= gesture.zoom;
       // An enlarged card can be dragged up/down, but only until its top or bottom edge is in view.
       const worldPerPx = (layout.halfH(0) * 2) / state.size.height;
       const maxPan = Math.max(0, (CARD_H * target.s) / 2 - layout.halfH(0) * 0.8) / worldPerPx;
-      gesture.panPx = Math.max(-maxPan, Math.min(maxPan, gesture.panPx));
+      setPan(Math.max(-maxPan, Math.min(maxPan, gesture.panPx)));
       target.y -= gesture.panPx * worldPerPx;
       focusTarget = 1;
       smooth = gesture.pinching ? 0.08 : 0.95;

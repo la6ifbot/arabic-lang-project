@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAccount } from '../account/store';
 import { WORD_BY_SLUG } from '../lib/words';
 import { progressLabel, useProgress } from '../state/progress';
-import { gesture, MAX_ZOOM, useDurar } from '../state/store';
-import { ZOOM_FIT } from '../scene/layout';
+import { gesture, setMaxZoom, setPan, useDurar, ZOOM_FIT } from '../state/store';
 import { useSwipeInput } from '../scene/useSwipeInput';
 import { CardActions } from './CardActions';
 import { PearlLabel } from './PearlLabel';
@@ -48,16 +47,13 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
     const el = card.current;
     if (!el) return;
     const dx = gesture.dragPx;
-    if (gesture.pinching || gesture.zoom > 1) {
-      // Zoom only as far as the card's text still fits across the screen.
-      const cs = getComputedStyle(el);
-      const text = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-      gesture.maxZoom = Math.min(MAX_ZOOM, Math.max(1, (window.innerWidth * ZOOM_FIT) / Math.max(text, 1)));
-      gesture.zoom = Math.min(gesture.zoom, gesture.maxZoom);
-    }
+    // Zoom only as far as the card's text still fits across the screen.
+    const cs = getComputedStyle(el);
+    const text = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    setMaxZoom((window.innerWidth * ZOOM_FIT) / Math.max(text, 1));
     const z = gesture.zoom;
     const maxPan = ((z - 1) * el.offsetHeight) / 2;
-    gesture.panPx = Math.max(-maxPan, Math.min(maxPan, gesture.panPx));
+    setPan(Math.max(-maxPan, Math.min(maxPan, gesture.panPx)));
     const transform = (dx ? `translateX(${dx}px) rotate(${dx * 0.02}deg)` : '') + (z !== 1 ? ` translateY(${gesture.panPx}px) scale(${z})` : '');
     if (el.style.transform !== transform.trim()) el.style.transform = transform.trim();
   });

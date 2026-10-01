@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { gesture, MAX_ZOOM, MIN_ZOOM, useDurar } from '../state/store';
+import { gesture, MIN_ZOOM, setZoom, useDurar } from '../state/store';
 import type { SwipeDir } from '../types';
 
 const isTyping = (el: EventTarget | null) =>
@@ -20,14 +20,7 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       onFirstUse?.();
     };
     const threshold = () => Math.min(170, el.clientWidth * 0.2);
-    const setZoom = (z: number) => {
-      gesture.zoom = Math.min(MAX_ZOOM, gesture.maxZoom, Math.max(MIN_ZOOM, z));
-      if (gesture.zoom > MIN_ZOOM) el.dataset.zoom = gesture.zoom.toFixed(2);
-      else {
-        delete el.dataset.zoom;
-        gesture.panPx = 0;
-      }
-    };
+    gesture.el = el;
     // A new card in focus starts at its normal size.
     const unsubscribe = useDurar.subscribe((s, prev) => {
       if (s.order[0] !== prev.order[0]) setZoom(1);
@@ -80,7 +73,13 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       gesture.py = -((e.clientY / window.innerHeight) * 2 - 1);
       if (fingers.has(e.pointerId)) {
         fingers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        if (pinch && fingers.size === 2) setZoom((pinch.zoom * spread()) / pinch.dist);
+        if (pinch && fingers.size === 2) {
+          const d = Math.max(1, spread());
+          const want = (pinch.zoom * d) / pinch.dist;
+          setZoom(want);
+          // Held at the limit: restart the pinch from here, so bringing the fingers back responds at once.
+          if (gesture.zoom !== want) pinch = { dist: d, zoom: gesture.zoom };
+        }
       }
       if (e.pointerId !== pointerId) return;
       const dx = e.clientX - startX;
@@ -181,7 +180,12 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
     };
     const gchange = (e: Event) => {
       e.preventDefault();
-      if (fingers.size < 2) setZoom(gestureStart * (e as WebKitGesture).scale);
+      if (fingers.size >= 2) return;
+      const scale = (e as WebKitGesture).scale;
+      const want = gestureStart * scale;
+      setZoom(want);
+      // Held at the limit: re-base, so reversing the pinch responds at once.
+      if (gesture.zoom !== want && scale > 0) gestureStart = gesture.zoom / scale;
     };
 
     // ---- Keyboard ---------------------------------------------------------------------------
@@ -206,6 +210,7 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
     el.addEventListener('gesturechange', gchange);
     return () => {
       unsubscribe();
+      if (gesture.el === el) gesture.el = null;
       el.removeEventListener('gesturestart', gstart);
       el.removeEventListener('gesturechange', gchange);
       gesture.pinching = false;
