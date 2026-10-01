@@ -1,7 +1,7 @@
 # Phase 0.5 — Email go-live + Mastery: report
 
 Live: https://durar.space, **deployed from `main`** since 2026-09-26 12:18 UTC (you switched Vercel's
-production branch; deployment of `30baa7c`, READY). Both tracks are merged to `main` (PR #2 and PR #3).
+production branch; deployment of `30baa7c`, READY). Both tracks are merged to `main` (PR #2, PR #3 and PR #12), and both are done.
 You ran the three database files on 2026-09-26 at about 15:19 UTC. Checked live: `word_progress` now
 exists, and visitors who aren't signed in are refused, as intended.
 
@@ -10,34 +10,34 @@ Legend: **[x]** done and verified · **[~]** built, waiting on the owner or on s
 
 ## Track A: Email go-live & operations
 
-Built in PR #2 (merged). Most of this track is owner steps; the code parts are done.
+Built in PR #2 and finished in PR #12 (both merged). **Track A is done:** you confirmed in the project
+chat on 2026-10-01 that every step is complete and the site works. Summary from the Email go-live thread:
 
-- [~] **A1. Owner subscribes, then the button goes off.** Steps sent in the Email go-live thread (sign in
-  with Google, then the account menu's email toggle). Turning `EMAIL_SIGNUP` off and redeploying comes
-  after.
-- [~] **A2. First scheduled run.** Waits on the first 07:00 Amsterdam run after you subscribe, plus the
-  output of the two SQL checks.
-- [~] **A3. SES domain.** Waits on your MAIL FROM choice. Namecheap only allows an MX record on
-  `mail.durar.space` through “Custom MX”, which would switch off the `hello@durar.space` forwarding. The
-  recommendation is to skip the custom MAIL FROM: DKIM and DMARC still pass. The DNS steps follow
-  your answer.
-- [~] **A4. Sender switch.** Code done: `EMAIL_REPLY_TO` adds a Reply-To to the daily and confirmation
-  emails. Setting `EMAIL_FROM=Durar <pearl@durar.space>` and `EMAIL_REPLY_TO=hello@durar.space` waits on
-  A3. SPF, DKIM and DMARC are not tested yet, because the sender hasn't switched.
-- [~] **A5. SES production access.** Follows A3. The request text is in
-  [`DOMAIN-DAY.md`](DOMAIN-DAY.md) §4d. Expect a manual review, usually about a day.
-- [~] **A6. Auth emails through SES.** The templates are done:
-  `supabase/auth-templates/confirm-signup.html` and `reset-password.html`, in the Durar look. SMTP
-  credentials, Supabase SMTP and turning **Confirm email** on are owner steps after A3.
-- [~] **A7. Go live.** Waits on A5's approval and the inbox test.
-- [~] **A8. Monitoring.** Built and tested:
+- [x] **A1. Owner subscribed.** You subscribed and confirmed on 26 Sep. `EMAIL_SIGNUP` was off during the
+  sandbox period and has been on since 28 Sep 17:08 UTC.
+- [x] **A2. Scheduled runs.** The 07:00 Amsterdam run delivered every day from 27 Sep to 1 Oct: each email
+  came from `pearl@durar.space` and reached the Inbox at 05:00 UTC. No alarm was sent.
+- [x] **A3. SES domain.** `durar.space` is verified in Frankfurt (eu-central-1) with Easy DKIM since
+  26 Sep 18:31 UTC. DMARC is `p=none`, with reports to `hello@durar.space`. The custom MAIL FROM was
+  skipped on purpose and can be added later.
+- [x] **A4. Sender switch.** `EMAIL_FROM` is `Durar <pearl@durar.space>` and `EMAIL_REPLY_TO` is
+  `hello@durar.space`, since 26 Sep 19:23 UTC. In Gmail, SPF, DKIM (`d=durar.space`) and DMARC all pass,
+  the email lands in the Inbox, and one-click Unsubscribe shows.
+- [x] **A5. SES production access.** Amazon approved it in Frankfurt on 28 Sep 13:12 UTC (50,000 a day,
+  14 a second). `SES_RATE_PER_SECOND` stays at 1, as Amazon was told.
+- [x] **A6. Auth emails through SES.** Supabase sends through SES SMTP (port 587, sender
+  `pearl@durar.space`), with both Durar templates pasted and **Confirm email** on. Since PR #12 the links
+  go to `durar.space/?durar=verify|reset&token_hash=…` and the site verifies them itself, so they work in
+  any browser or device. You re-pasted both templates and tested sign-up, reset and subscribe with a
+  second address.
+- [x] **A7. Live.** `EMAIL_MODE=live` since 28 Sep 17:08 UTC, and production was redeployed. The subscribe
+  button is back on durar.space, and the scheduler's dry run returned `"mode":"live"`.
+- [x] **A8. Monitoring.** Unchanged: the 08:15 health check emails an alarm to `EMAIL_SANDBOX_TO`, because
+  `ALERT_EMAIL` is not set. No alarms so far.
   - Migration `supabase/migrations/20260925120000_email_monitoring.sql`: a `daily_runs` table, `daily_run_record()`, `daily_health()` and a 60-day cleanup.
-  - The daily function records a summary per day: claimed, sent, failed, remaining, and a status of complete, had_failures, incomplete or error. A failure to record never stops the email.
-  - `/api/cron/health` (needs `CRON_SECRET`) emails the owner when today's run is missing, errored, left people waiting, or had failed sends. It acts only in the 08:00 Amsterdam hour, and `?dry=1` tests it without sending.
-  - Schedule: `supabase/setup/health-check-cron.sql`.
-  - Live once you run both SQL files (production already serves this code).
-- [~] **A9. Rotate `CRON_SECRET`.** The steps are in [`OPERATIONS.md`](OPERATIONS.md) §4. No longer blocked:
-  production serves `main` now.
+  - `/api/cron/health` (needs `CRON_SECRET`) emails the owner when today's run is missing, errored, left people waiting, or had failed sends.
+- [x] **A9. `CRON_SECRET` rotated** on 28 Sep. The vault and Vercel values match (the scheduler's check
+  returned 200). That the old secret now gets a 401 was not tested separately.
 - [x] **A10. Live checks** (the Email go-live thread, 2026-09-26 on `30baa7c`, read-only). All of these passed:
   - **Redirects:** `www.durar.space`, `arabic-lang-project.vercel.app` and `http://durar.space` all redirect with a **308** (one hop) to `https://durar.space/…`.
   - **Canonicals:** `/word/bahr` has its canonical, `og:url` and JSON-LD on durar.space, and `og:image` is a 1200×630 PNG.
@@ -46,13 +46,16 @@ Built in PR #2 (merged). Most of this track is owner steps; the code parts are d
   - **Desktop Share menu:** WhatsApp, Copy link and Download image all work, and Escape returns focus.
   - **axe:** zero violations on `/`, `/word/bahr`, `/privacy` and `/library`.
   - **Also checked:** security headers, no horizontal scroll on a Pixel 7, and the Share target at 44×44.
-- [~] **A10, the flows that need a real account or inbox** (sign-up with confirm, Google, save → My Pearls → delete account, subscribe → confirm → unsubscribe) are with you, in the Email go-live thread.
+- [x] **A10, the flows that need a real account or inbox.** You did these yourself. On 28 Sep, made-up
+  email links reached Supabase's real verify step and got the right "expired or already used" message.
 - **Two notes from those checks:**
   - `www.durar.space/api/…` redirects too. That's Vercel's domain-level redirect, and the scheduler uses the apex, so it doesn't matter. The doc wording is fixed in PR #6.
   - Unknown paths get Vercel's bare text 404 rather than a Durar page. The status is right for SEO; a styled 404 page is a small later choice.
 - [x] **A11. [`OPERATIONS.md`](OPERATIONS.md):** every environment variable (names only, and where each
   is set), the cron schedule, checking a run, rotating secrets, switching between sandbox and live, the
-  “morning email didn't arrive” runbook, and email authentication.
+  “morning email didn't arrive” runbook, and email authentication. Since PR #12 it describes email as
+  live (as of 28 Sep), matches the current Vercel, Supabase and AWS screens, and covers the scheduler
+  check (§4) and the weekly SES reputation check promised to Amazon.
 
 ## Track B: Mastery
 
@@ -196,20 +199,14 @@ because this sandbox's Chromium can't validate certificates through its network 
 - [x] No script errors on any of these pages.
 - [~] Signed-in progress and the merge on sign-in need a real account. The table is now in place (see “After the migrations”).
 
-## Needs your input (owner actions, in order)
+## Needs your input (owner actions)
 
-1. ~~Switch Vercel's production branch to `main`.~~ Done 2026-09-26.
-2. **Subscribe yourself and confirm** (A1). Then `EMAIL_SIGNUP` goes off.
-3. ~~Run the three Supabase SQL files.~~ Done 2026-09-26.
-4. **After the next 07:00 Amsterdam window, run the two SQL checks** (A2) and share the output.
-5. **Answer the MAIL FROM card, then add the Namecheap DNS records** (A3). Never add a second SPF record at the root.
-6. **Submit the SES production-access request** (A5).
-7. **Set up SES SMTP credentials and Supabase SMTP, paste the two templates, and turn Confirm email on** (A6).
-8. **Rotate `CRON_SECRET`** (A9, [`OPERATIONS.md`](OPERATIONS.md) §4).
-9. **After going live** (A7):
-   - the inbox test (the table in [`PHASE-0.4.md`](PHASE-0.4.md));
-   - the phone share test;
-   - a real-phone speed check, including the sea with many known words.
+Nothing is left for Phase 0.5. Two open items belong elsewhere:
+
+- **Google sign-in** fails with "Unsupported provider: provider is not enabled". It has its own thread,
+  "Google sign-in".
+- **Optional later:** a custom MAIL FROM (A3), and setting `ALERT_EMAIL` if alarms should go somewhere
+  other than `EMAIL_SANDBOX_TO` (A8).
 
 ## After the migrations (you, two minutes)
 
