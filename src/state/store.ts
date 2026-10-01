@@ -160,4 +160,13 @@ export const gesture = {
   /** Pointer position in normalized device coords, for subtle camera parallax. */
   px: 0,
   py: 0,
+  /** Pinch zoom of the focused card (1 = normal size); kept until pinched back or the card changes. */
+  zoom: 1,
+  /** True while two fingers are on the card, so it follows them without easing lag. */
+  pinching: false,
+  /** Vertical offset of an enlarged card, in CSS pixels (drag up/down to see its top and bottom). */
+  panPx: 0,
 };
+
+export const MIN_ZOOM = 1;
+export const MAX_ZOOM = 1.8;

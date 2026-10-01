@@ -17,8 +17,9 @@ export function SaveAnchor() {
     if (!el) return;
     corner.set(CARD_W / 2, CARD_H / 2, 0).applyMatrix4(focusedCard.matrix).project(camera);
     // Whole pixels, written only on change: the control drifts with its pearl but doesn't shimmer.
-    const x = Math.round(((corner.x + 1) / 2) * size.width);
-    const y = Math.round(((1 - corner.y) / 2) * size.height);
+    // Kept on screen (and below the search bar) when a pinched-up card runs past the edges.
+    const x = Math.min(size.width - 4, Math.round(((corner.x + 1) / 2) * size.width));
+    const y = Math.max(gesture.zoom > 1 ? 60 : 0, Math.round(((1 - corner.y) / 2) * size.height));
     const settled = focusedCard.focus > 0.6 && focusedCard.opacity > 0.6 && Math.abs(gesture.dragPx) < 12;
     const transform = `translate3d(${x}px, ${y}px, 0)`;
     if (el.style.transform !== transform) el.style.transform = transform;

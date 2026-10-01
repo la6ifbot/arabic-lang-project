@@ -1360,11 +1360,11 @@ a.acct-item {
 }
 .wd-ex-ar {
   margin: 0;
-  font: 400 1.6rem/1.5 var(--font-ar);
+  font: 400 1.95rem/1.5 var(--font-ar);
 }
 .wd-ex-en {
   margin: 0.1rem 0 0;
-  font: italic 500 1.02rem/1.35 var(--font-en);
+  font: italic 500 1.2rem/1.35 var(--font-en);
   color: var(--ink-soft);
 }
 .wd-ex-src {

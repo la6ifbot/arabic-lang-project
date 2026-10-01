@@ -120,8 +120,14 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
       opacityTarget = k < 0.35 ? 1 : 0;
     } else if (idx === 0) {
       target = layout.focus();
+      target.s *= gesture.zoom;
+      // An enlarged card can be dragged up/down, but only until its top or bottom edge is in view.
+      const worldPerPx = (layout.halfH(0) * 2) / state.size.height;
+      const maxPan = Math.max(0, (CARD_H * target.s) / 2 - layout.halfH(0) * 0.8) / worldPerPx;
+      gesture.panPx = Math.max(-maxPan, Math.min(maxPan, gesture.panPx));
+      target.y -= gesture.panPx * worldPerPx;
       focusTarget = 1;
-      smooth = 0.95;
+      smooth = gesture.pinching ? 0.08 : 0.95;
       if (rising) {
         smooth = surf < SURFACE_HOLD ? 40 : 1.15;
         focusTarget = surf < SURFACE_HOLD + 900 ? 0 : 1;

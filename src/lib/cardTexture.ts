@@ -32,7 +32,14 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): st
   return lines;
 }
 
-function layoutBody(ctx: CanvasRenderingContext2D, word: Word, W: number, scale: number, maxExamples: number): Line[] {
+function layoutBody(
+  ctx: CanvasRenderingContext2D,
+  word: Word,
+  W: number,
+  scale: number,
+  maxExamples: number,
+  exScale = 1,
+): Line[] {
   const maxW = W * 0.8;
   const out: Line[] = [];
   const push = (text: string, size: number, font: string, color: string, rtl: boolean, gapBefore: number) => {
@@ -44,13 +51,14 @@ function layoutBody(ctx: CanvasRenderingContext2D, word: Word, W: number, scale:
   };
 
   const s = (n: number) => Math.round(n * scale * (W / 900));
+  const e = (n: number) => Math.round(n * scale * exScale * (W / 900));
   const [primary, ...secondary] = word.meanings;
   push(primary, s(50), `500 {s} ${FONT_EN}`, INK, false, 0);
   if (secondary.length) push(secondary.join('; '), s(36), `italic 500 {s} ${FONT_EN}`, INK_SOFT, false, s(10));
 
   word.examples.slice(0, maxExamples).forEach((ex, i) => {
-    push(ex.ar, s(52), `400 {s} ${FONT_AR}`, INK, true, s(i === 0 ? 70 : 46));
-    push(ex.en, s(33), `italic 500 {s} ${FONT_EN}`, INK_SOFT, false, s(10));
+    push(ex.ar, e(52), `400 {s} ${FONT_AR}`, INK, true, s(i === 0 ? 70 : 46));
+    push(ex.en, e(33), `italic 500 {s} ${FONT_EN}`, INK_SOFT, false, e(12));
     if (ex.source) push(`— ${ex.source}`, s(26), `500 {s} ${FONT_EN}`, INK_FAINT, false, s(4));
   });
   return out;
@@ -112,10 +120,20 @@ export function drawCard(canvas: HTMLCanvasElement, word: Word) {
   const top = oy + 90 * u;
   const bottom = H - 110 * u;
   let lines: Line[] = [];
+  let fit = { scale: 0.72, maxEx: 1 };
   outer: for (let maxEx = 3; maxEx >= 1; maxEx--) {
     for (let scale = 1; scale >= 0.72; scale -= 0.04) {
       lines = layoutBody(ctx, word, W, scale, maxEx);
+      fit = { scale, maxEx };
       if (top + blockHeight(lines) <= bottom) break outer;
+    }
+  }
+  // Then let the example sentence and its translation grow into whatever room is left.
+  for (let exScale = 1.9; exScale > 1; exScale -= 0.05) {
+    const grown = layoutBody(ctx, word, W, fit.scale, fit.maxEx, exScale);
+    if (top + blockHeight(grown) <= bottom) {
+      lines = grown;
+      break;
     }
   }
   let y = top + Math.max(0, (bottom - top - blockHeight(lines)) * 0.28);
