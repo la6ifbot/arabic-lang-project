@@ -120,6 +120,8 @@ test('Copy link copies the canonical URL and says so quietly', async ({ page, co
 });
 
 test('Download image saves durar-<slug>.png, signed and described', async ({ page }) => {
+  // A page load (up to 40 s for the first frame on CI) plus a story render, under software WebGL.
+  test.setTimeout(120_000);
   const errors = trackErrors(page);
   await openWord(page, 'nur');
   await shareButton(page).click();
