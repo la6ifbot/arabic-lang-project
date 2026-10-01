@@ -48,7 +48,9 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
     if (!el) return;
     const dx = gesture.dragPx;
     const z = gesture.zoom;
-    const transform = (dx ? `translateX(${dx}px) rotate(${dx * 0.02}deg)` : '') + (z !== 1 ? ` scale(${z})` : '');
+    const maxPan = ((z - 1) * el.offsetHeight) / 2;
+    gesture.panPx = Math.max(-maxPan, Math.min(maxPan, gesture.panPx));
+    const transform = (dx ? `translateX(${dx}px) rotate(${dx * 0.02}deg)` : '') + (z !== 1 ? ` translateY(${gesture.panPx}px) scale(${z})` : '');
     if (el.style.transform !== transform.trim()) el.style.transform = transform.trim();
   });
 

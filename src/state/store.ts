@@ -164,6 +164,8 @@ export const gesture = {
   zoom: 1,
   /** True while two fingers are on the card, so it follows them without easing lag. */
   pinching: false,
+  /** Vertical offset of an enlarged card, in CSS pixels (drag up/down to see its top and bottom). */
+  panPx: 0,
 };
 
 export const MIN_ZOOM = 1;

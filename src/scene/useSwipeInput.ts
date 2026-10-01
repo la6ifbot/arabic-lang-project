@@ -8,7 +8,8 @@ const isTyping = (el: EventTarget | null) =>
 /**
  * One gesture model for every input: mouse drag, touch swipe, trackpad two-finger swipe and the
  * arrow keys. Right = “I know this”, left = “still learning”. Two fingers spread apart (or a
- * trackpad pinch) enlarge the focused card instead; it keeps that size until pinched back.
+ * trackpad pinch) enlarge the focused card instead; it keeps that size until pinched back, and
+ * while it's enlarged an up/down drag (or scroll) moves it to show its top and bottom.
  */
 export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFirstUse?: () => void) {
   useEffect(() => {
@@ -22,7 +23,10 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
     const setZoom = (z: number) => {
       gesture.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
       if (gesture.zoom > MIN_ZOOM) el.dataset.zoom = gesture.zoom.toFixed(2);
-      else delete el.dataset.zoom;
+      else {
+        delete el.dataset.zoom;
+        gesture.panPx = 0;
+      }
     };
     // A new card in focus starts at its normal size.
     const unsubscribe = useDurar.subscribe((s, prev) => {
@@ -34,6 +38,9 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
     let startY = 0;
     let pointerId: number | null = null;
     let samples: { x: number; t: number }[] = [];
+    // On an enlarged card a drag is either a swipe or a pan, decided by its first few pixels.
+    let mode: 'undecided' | 'swipe' | 'pan' = 'undecided';
+    let panStart = 0;
     // Every finger currently down on the scene, for the pinch.
     const fingers = new Map<number, { x: number; y: number }>();
     let pinch: { dist: number; zoom: number } | null = null;
@@ -63,6 +70,8 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       startX = e.clientX;
       startY = e.clientY;
       samples = [{ x: e.clientX, t: e.timeStamp }];
+      mode = gesture.zoom > MIN_ZOOM ? 'undecided' : 'swipe';
+      panStart = gesture.panPx;
       gesture.dragging = true;
       gesture.dragPx = 0;
     };
@@ -76,6 +85,14 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       if (e.pointerId !== pointerId) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
+      if (mode === 'undecided' && Math.hypot(dx, dy) > 8) mode = Math.abs(dy) > Math.abs(dx) ? 'pan' : 'swipe';
+      if (mode !== 'swipe') {
+        if (mode === 'pan') {
+          gesture.panPx = panStart + dy;
+          el.dataset.dragging = 'true';
+        }
+        return;
+      }
       // Rubber-band slightly past the commit point for weight.
       const lim = threshold() * 1.6;
       gesture.dragPx = Math.abs(dx) > lim ? Math.sign(dx) * (lim + (Math.abs(dx) - lim) * 0.35) : dx;
@@ -94,6 +111,10 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       pointerId = null;
       gesture.dragging = false;
       delete el.dataset.dragging;
+      if (mode !== 'swipe') {
+        gesture.dragPx = 0;
+        return;
+      }
       const dx = e.clientX - startX;
       const first = samples[0];
       const v = first && e.timeStamp > first.t ? (e.clientX - first.x) / (e.timeStamp - first.t) : 0; // px/ms
@@ -120,7 +141,13 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
         setZoom(gesture.zoom * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.01)));
         return;
       }
-      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) {
+        if (gesture.zoom > MIN_ZOOM) {
+          e.preventDefault();
+          gesture.panPx -= e.deltaY * (e.deltaMode === 1 ? 16 : 1);
+        }
+        return;
+      }
       e.preventDefault();
       const now = performance.now();
       window.clearTimeout(idle);

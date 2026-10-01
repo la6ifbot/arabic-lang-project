@@ -63,7 +63,7 @@ async function pinch(page: Page, cx: number, cy: number, from: number, to: numbe
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 
-test('pinch out enlarges the card, pinch in shrinks it back, and it never swipes', async ({ page }) => {
+test('pinch out enlarges the card, up/down drags pan it, pinch in shrinks it back', async ({ page }) => {
   await page.goto('/');
   await waitForScene(page);
   const { width, height } = page.viewportSize()!;
@@ -76,6 +76,19 @@ test('pinch out enlarges the card, pinch in shrinks it back, and it never swipes
   await expect(scene).toHaveAttribute('data-zoom');
   expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(1);
   await expect(focused(page)).toHaveAttribute('data-slug', start);
+  // Dragging up and down on the enlarged card moves it to show its top and bottom, never a swipe.
+  const cdp = await page.context().newCDPSession(page);
+  for (const [from, to] of [[height * 0.3, height * 0.8], [height * 0.8, height * 0.2]]) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: width / 2, y: from }] });
+    for (let i = 1; i <= 10; i++) {
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: width / 2 + i * 3, y: from + ((to - from) * i) / 10 }] });
+      await page.waitForTimeout(16);
+    }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+  await page.waitForTimeout(300);
+  await expect(focused(page)).toHaveAttribute('data-slug', start);
+  await expect(scene).toHaveAttribute('data-zoom', '1.80');
   await pinch(page, width / 2, height / 2, 240, 60);
   await expect(scene).not.toHaveAttribute('data-zoom');
   // A swipe still works afterwards.
