@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { onNavigate, slugFromPath } from '../lib/router';
 import { TODAY, WORDS, WORD_BY_SLUG } from '../lib/words';
+import { MAX_ZOOM, MIN_ZOOM, ZOOM_FIT } from '../lib/zoom';
 import type { SwipeDir } from '../types';
 
 /** A “still learning” card resurfaces after this many swipes… */
@@ -166,7 +167,37 @@ export const gesture = {
   pinching: false,
   /** Vertical offset of an enlarged card, in CSS pixels (drag up/down to see its top and bottom). */
   panPx: 0,
+  /** Largest zoom at which the focused card's widest line still fits the screen; set by the card. */
+  maxZoom: 1.8,
+  /** The element taking the gestures; mirrors the zoom state as data attributes (read by tests). */
+  el: null as HTMLElement | null,
 };
 
-export const MIN_ZOOM = 1;
-export const MAX_ZOOM = 1.8;
+export { MAX_ZOOM, MIN_ZOOM, ZOOM_FIT };
+
+const mirror = (key: string, value: string | null) => {
+  const ds = gesture.el?.dataset;
+  if (!ds || ds[key] === (value ?? undefined)) return;
+  if (value === null) delete ds[key];
+  else ds[key] = value;
+};
+
+/** The one place the zoom changes: clamped to the card's fit, and back to normal size at 1. */
+export function setZoom(z: number) {
+  gesture.zoom = Math.min(MAX_ZOOM, gesture.maxZoom, Math.max(MIN_ZOOM, z));
+  if (gesture.zoom <= MIN_ZOOM) gesture.panPx = 0;
+  mirror('zoom', gesture.zoom > MIN_ZOOM ? gesture.zoom.toFixed(2) : null);
+}
+
+/** Called every frame by the focused card with how far its text lets it zoom. */
+export function setMaxZoom(max: number) {
+  gesture.maxZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, max));
+  mirror('maxZoom', gesture.maxZoom.toFixed(2));
+  if (gesture.zoom > gesture.maxZoom) setZoom(gesture.zoom);
+}
+
+/** The enlarged card's vertical offset after clamping, mirrored for tests. */
+export function setPan(px: number) {
+  gesture.panPx = px;
+  mirror('pan', gesture.zoom > MIN_ZOOM ? String(Math.round(px)) : null);
+}

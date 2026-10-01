@@ -64,14 +64,21 @@ function layoutBody(
   return out;
 }
 
+/** Width a centred line of text covers, ink overhangs included, measured from the centre out. */
+function inkWidth(ctx: CanvasRenderingContext2D, text: string) {
+  const m = ctx.measureText(text);
+  return 2 * Math.max(m.actualBoundingBoxLeft, m.actualBoundingBoxRight, m.width / 2);
+}
+
 const blockHeight = (lines: Line[]) => lines.reduce((h, l) => h + l.gapBefore + l.size * 1.45, 0);
 
 /**
  * Draws a word card's text (no background — the shader paints the pearl body) onto a canvas.
  * Arabic is shaped by the browser's text engine (connected letterforms, diacritics) with
  * `direction = 'rtl'`, then uploaded as a texture so it takes part in the scene's lighting.
+ * Returns the widest line's width as a fraction of the card width (how far a pinch can zoom).
  */
-export function drawCard(canvas: HTMLCanvasElement, word: Word) {
+export function drawCard(canvas: HTMLCanvasElement, word: Word): number {
   const W = canvas.width;
   const H = canvas.height;
   const ctx = canvas.getContext('2d')!;
@@ -86,6 +93,7 @@ export function drawCard(canvas: HTMLCanvasElement, word: Word) {
   ctx.fillStyle = INK_SOFT;
   ctx.letterSpacing = `${Math.round(3 * u)}px`;
   ctx.fillText(word.translit, W / 2, 150 * u);
+  let widest = inkWidth(ctx, word.translit);
   ctx.letterSpacing = '0px';
 
   // Headword: largest size that fits the card width.
@@ -101,6 +109,7 @@ export function drawCard(canvas: HTMLCanvasElement, word: Word) {
   ctx.shadowBlur = 24 * u;
   ctx.fillStyle = INK;
   ctx.fillText(word.ar, W / 2, headBase);
+  widest = Math.max(widest, inkWidth(ctx, word.ar));
   ctx.shadowBlur = 0;
 
   // Ornament: a hairline with a small pearl.
@@ -143,7 +152,9 @@ export function drawCard(canvas: HTMLCanvasElement, word: Word) {
     ctx.direction = l.rtl ? 'rtl' : 'ltr';
     ctx.fillStyle = l.color;
     ctx.fillText(l.text, W / 2, y - l.size * 0.4);
+    widest = Math.max(widest, inkWidth(ctx, l.text));
   }
+  return widest / W;
 }
 
 let texHeight = 1280;

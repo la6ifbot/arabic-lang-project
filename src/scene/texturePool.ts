@@ -20,8 +20,9 @@ export function acquireCardTexture(word: Word, anisotropy: number): THREE.Canvas
     const canvas = document.createElement('canvas');
     canvas.height = cardTextureHeight();
     canvas.width = Math.round(canvas.height * CARD_ASPECT);
-    drawCard(canvas, word);
+    const textWidth = drawCard(canvas, word);
     const texture = new THREE.CanvasTexture(canvas);
+    texture.userData.textWidth = textWidth;
     // Premultiplied so mip-mapped (blurred) text keeps its brightness; raw colour values, since
     // the card shader writes display colours directly.
     texture.premultiplyAlpha = true;
