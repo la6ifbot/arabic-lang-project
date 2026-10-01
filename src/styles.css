@@ -719,6 +719,12 @@ a.acct-item {
   opacity: 0;
 }
 
+/* ---------- Background music (speaker beside “?”) ---------- */
+.music-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
 /* ---------- How it works (top-left “?”) ---------- */
 .help {
   /* The box hangs from the whole corner, so it stays on screen on phones too. */
@@ -1523,6 +1529,9 @@ a.acct-item {
 }
 .page-account {
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .page-account .acct-menu {
   left: auto;

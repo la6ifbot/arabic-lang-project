@@ -14,6 +14,7 @@ import { useDurar } from './state/store';
 import { AccountMenu } from './ui/AccountMenu';
 import { CardActions } from './ui/CardActions';
 import { HelpBox } from './ui/HelpBox';
+import { MusicButton } from './ui/MusicButton';
 import { Announcer } from './ui/Announcer';
 import { PearlLabel } from './ui/PearlLabel';
 import { ProgressNote } from './ui/ProgressNote';
@@ -191,6 +192,7 @@ function Sea() {
         </a>
         <AccountMenu />
         <HelpBox />
+        <MusicButton />
       </header>
 
       {use3D && <PearlLabel />}

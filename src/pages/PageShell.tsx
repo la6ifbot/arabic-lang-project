@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { linkHandler } from '../lib/router';
 import { AccountMenu } from '../ui/AccountMenu';
+import { MusicButton } from '../ui/MusicButton';
 
 /**
  * The calm, scrollable surface used by the Library and Privacy pages: the same water and light as
@@ -24,6 +25,7 @@ export function PageShell({ back = '/', children }: { back?: string; children: R
           <span className="sr-only"> Durar home</span>
         </a>
         <div className="page-account">
+          <MusicButton />
           <AccountMenu />
         </div>
       </header>
