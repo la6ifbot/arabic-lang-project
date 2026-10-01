@@ -166,6 +166,8 @@ export const gesture = {
   pinching: false,
   /** Vertical offset of an enlarged card, in CSS pixels (drag up/down to see its top and bottom). */
   panPx: 0,
+  /** Largest zoom at which the focused card's widest line still fits the screen; set by the card. */
+  maxZoom: 1.8,
 };
 
 export const MIN_ZOOM = 1;

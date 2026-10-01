@@ -8,6 +8,8 @@ export const CAMERA_Z = 9;
 export const CAMERA_FOV = 38;
 
 const GOLDEN = 2.399963;
+/** Share of the screen width a zoomed card's widest line may cover. */
+export const ZOOM_FIT = 0.92;
 
 export interface Pose {
   x: number;
@@ -44,6 +46,15 @@ export class Layout {
     const hh = this.halfH(0);
     const hw = this.halfW(0);
     return Math.min((hh * 2 * (this.portrait ? 0.68 : 0.74)) / CARD_H, (hw * 2 * 0.86) / CARD_W);
+  }
+
+  /**
+   * Largest pinch zoom at which the focused card's widest line of text (`textWidth`, a fraction of
+   * the card width) still fits across the screen, never below 1 or above `max`.
+   */
+  fitZoom(textWidth: number, max: number) {
+    const onScreen = (CARD_W * this.focusScale() * textWidth) / (this.halfW(0) * 2);
+    return Math.min(max, Math.max(1, ZOOM_FIT / Math.max(onScreen, 0.01)));
   }
 
   focus(): Pose {

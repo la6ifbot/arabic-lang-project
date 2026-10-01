@@ -70,13 +70,20 @@ test.describe('pinch zoom', () => {
 
   test('pinch out enlarges the card, up/down drags pan it, pinch in shrinks it back', async ({ page }) => {
     test.slow();
-    await page.goto('/');
+    // A word whose example sentence is wide, so the zoom stops before the 1.8× maximum.
+    await page.goto('/word/najm');
     await waitForScene(page);
     const { width, height } = page.viewportSize()!;
     const scene = page.getByTestId('scene');
     const start = await focusedSlug(page);
     await pinch(page, width / 2, height / 2, 80, 240);
-    await expect(scene).toHaveAttribute('data-zoom', '1.80');
+    await expect(scene).toHaveAttribute('data-zoom');
+    const zoomed = Number(await scene.getAttribute('data-zoom'));
+    expect(zoomed).toBeGreaterThan(1.2);
+    expect(zoomed).toBeLessThan(1.8);
+    // Spreading further doesn't go past the point where the sentence fits the screen.
+    await pinch(page, width / 2, height / 2, 80, 300);
+    await expect(scene).toHaveAttribute('data-zoom', zoomed.toFixed(2));
     // Stays big after the fingers lift, and the page itself didn't zoom or swipe.
     await page.waitForTimeout(300);
     await expect(scene).toHaveAttribute('data-zoom');
@@ -94,8 +101,8 @@ test.describe('pinch zoom', () => {
     }
     await page.waitForTimeout(300);
     await expect(focused(page)).toHaveAttribute('data-slug', start);
-    await expect(scene).toHaveAttribute('data-zoom', '1.80');
-    await pinch(page, width / 2, height / 2, 240, 60);
+    await expect(scene).toHaveAttribute('data-zoom', zoomed.toFixed(2));
+    await pinch(page, width / 2, height / 2, 300, 40);
     await expect(scene).not.toHaveAttribute('data-zoom');
     // A swipe still works afterwards.
     await touchSwipe(page, width * 0.25, width * 0.9, height / 2);

@@ -21,7 +21,7 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
     };
     const threshold = () => Math.min(170, el.clientWidth * 0.2);
     const setZoom = (z: number) => {
-      gesture.zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z));
+      gesture.zoom = Math.min(MAX_ZOOM, gesture.maxZoom, Math.max(MIN_ZOOM, z));
       if (gesture.zoom > MIN_ZOOM) el.dataset.zoom = gesture.zoom.toFixed(2);
       else {
         delete el.dataset.zoom;
