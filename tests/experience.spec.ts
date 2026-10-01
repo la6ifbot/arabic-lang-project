@@ -226,12 +226,13 @@ test.describe('fallbacks & accessibility', () => {
       await expect(page.getByTestId('help-box')).toBeVisible();
     });
 
-    test('never covers a shared word, and opens on the next visit instead', async ({ page }) => {
+    test('never covers a shared word: the “?” glows, and the box opens on the next visit', async ({ page }) => {
       await page.goto('/word/bahr');
       await waitForScene(page);
       await page.waitForTimeout(500);
       await expect(page.getByTestId('help-box')).toBeHidden();
       await expect(focused(page)).toHaveAttribute('data-slug', 'bahr');
+      await expect(page.getByTestId('help-button')).toHaveAttribute('data-hint', 'true');
 
       await page.goto('/');
       await waitForScene(page);

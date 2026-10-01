@@ -752,6 +752,17 @@ a.acct-item {
 .help-btn:focus-visible {
   box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.3);
 }
+/* A first visit on a shared word: the “?” glows instead of opening over the word. */
+.help-btn[data-hint] {
+  color: var(--ink);
+  border-color: rgba(190, 240, 240, 0.4);
+  animation: help-hint 2.4s var(--ease-water) 1.2s 3;
+}
+@keyframes help-hint {
+  50% {
+    box-shadow: 0 0 0 6px rgba(127, 214, 214, 0.18);
+  }
+}
 .help-box {
   position: absolute;
   top: calc(100% + 10px);
