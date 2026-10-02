@@ -216,3 +216,44 @@ test.describe('topic pages', () => {
     expect(html).toContain('<a href="/sea/sky">Sky &amp; stars');
   });
 });
+
+test.describe('topics in search and the Library', () => {
+  test('search shows topic chips, and the chosen topic’s matches come first', async ({ page }) => {
+    await page.goto('/');
+    await waitForScene(page);
+    const input = page.getByRole('combobox');
+    await input.fill('night');
+    const options = page.getByRole('option');
+    await expect(options.first()).toContainText('layl');
+    await expect(options.first().locator('.search-chip')).toHaveText(['Sky & stars']);
+    await input.fill('');
+
+    await choose(page, 'poetry');
+    await input.fill('night');
+    // samar (night conversation) is in Poetry & language, so it now comes first; other topics still show.
+    await expect(options.first()).toContainText('samar');
+    await expect(options.first().locator('.search-chip[data-here]')).toHaveText('Poetry & language');
+    await expect(page.getByRole('option', { name: /layl/ })).toBeVisible();
+  });
+
+  test('the Library filters by topic', async ({ page }) => {
+    const at = Date.now();
+    const iso = (t: number) => new Date(t).toISOString();
+    const items = ['najm', 'badr', 'bahr', 'hanin'].map((slug) => ({ slug, box: 2, dueAt: iso(at + 86_400_000), lastReviewedAt: iso(at - 60_000), timesSeen: 1, lapses: 0 }));
+    await page.addInitScript((value) => {
+      if (!localStorage.getItem('durar-progress')) localStorage.setItem('durar-progress', value);
+    }, JSON.stringify({ v: 1, seed: 'test', items }));
+    await page.goto('/library');
+    const group = page.getByTestId('library-topics');
+    await expect(group.getByRole('button')).toHaveText([/Every topic/, /Sea & water/, /Sky & stars/, /Feeling & virtue/]);
+    await group.getByRole('button', { name: /Sky & stars/ }).click();
+    const list = page.getByTestId('library-list');
+    await expect(list.locator('[data-slug]')).toHaveCount(2);
+    await expect(list).toHaveAttribute('aria-label', 'All in Sky & stars: 2 words');
+    await page.getByRole('button', { name: 'Still learning' }).click();
+    await expect(page.getByTestId('library-empty-topic')).toContainText('Nothing here in Sky & stars');
+    await page.getByRole('button', { name: 'Show every topic' }).click();
+    await page.getByRole('button', { name: 'All', exact: true }).click();
+    await expect(list.locator('[data-slug]')).toHaveCount(4);
+  });
+});
