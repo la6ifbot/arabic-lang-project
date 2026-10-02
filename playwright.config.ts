@@ -8,7 +8,9 @@ export default defineConfig({
   testDir: 'tests',
   testMatch: '**/*.spec.ts', // tests/db holds the node:test database suite
 
-  timeout: 45_000,
+  // CI renders the 3D sea in software, and one page load there can take up to 40 s on a slow
+  // machine, so a test that loads the sea two or three times needs more than 45 s.
+  timeout: process.env.CI ? 90_000 : 45_000,
   expect: { timeout: 10_000 },
   fullyParallel: true,
   workers: process.env.CI ? 2 : undefined,
