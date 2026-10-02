@@ -25,7 +25,7 @@ every file name from the entry alone.
      "plate": "Rosa centifolia foliacea",
      "date": "1817–1824",
      "license": "public-domain",
-     "alt": "A cabbage rose in full bloom on a leafy stem",
+     "alt": "Two cabbage roses in full bloom, with buds, on a leafy stem",
      "style": "colour"
    }
    ```
