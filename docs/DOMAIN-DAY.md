@@ -67,10 +67,11 @@ a full name, you get `mail.durar.space.durar.space`, which doesn't work.
    **Verification Center → Submit for verification**. It usually takes a few days.
 
 > **Email for `hello@durar.space`:** Namecheap's free **Email Forwarding** can forward it to your
-> inbox. It lives under **Advanced DNS → Mail Settings**. Part 4's MAIL FROM step asks you to switch
-> *Mail Settings* to **Custom MX**, and that turns forwarding off. If you want both, use Custom MX and
-> add forwarding somewhere else (e.g. ImprovMX, free), or skip the optional MAIL FROM step:
-> deliverability is fine without it, because DKIM keeps DMARC passing.
+> inbox. It lives under **Advanced DNS → Mail Settings**. Part 4's optional MAIL FROM step needs
+> *Mail Settings* set to **Custom MX**, which turns that forwarding off unless Namecheap's five
+> forwarding MX records (`eforward1`–`eforward5.registrar-servers.com`) are added back by hand.
+> OPERATIONS.md §1, *Custom MAIL FROM*, has the full procedure with a forwarding test and a way back.
+> Without MAIL FROM, deliverability is still fine, because DKIM keeps DMARC passing.
 
 ## Part 4 · Amazon SES: verify durar.space
 
@@ -100,6 +101,11 @@ SES shows the name as `abc123…._domainkey.durar.space`. In Namecheap's Host fi
 **only** `abc123…._domainkey` (delete `.durar.space`). The Value is pasted as shown. Repeat for all 3.
 
 **Custom MAIL FROM (`mail.durar.space`, optional; see the note in Part 3):**
+
+> Skipped on domain day. If you set it up later, follow OPERATIONS.md §1, *Custom MAIL FROM*,
+> instead of the three steps below: switching to Custom MX without re-adding Namecheap's forwarding
+> MX records stops the `hello@` forwarding.
+
 1. Still in Advanced DNS, scroll to **Mail Settings** → choose **Custom MX**.
 2. **Add New Record** under Mail Settings:
 

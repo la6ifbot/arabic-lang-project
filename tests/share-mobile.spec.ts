@@ -59,8 +59,8 @@ async function openWord(page: Page, slug: string) {
   await waitForScene(page);
   const share = page.getByTestId('share-button');
   await expect(share).toBeVisible();
-  // The image is drawn while the phone is idle, before any tap.
-  await expect(share).toHaveAttribute('data-ready', slug, { timeout: 15_000 });
+  // The image is drawn while the phone is idle, before any tap (slow under CI's software rendering).
+  await expect(share).toHaveAttribute('data-ready', slug, { timeout: 30_000 });
   return share;
 }
 
