@@ -5,6 +5,8 @@
  * gradient, live text for everything that matters (so it reads with images off), Arabic marked up
  * with lang/dir. No tracking of any kind: no pixels, no redirects, no query parameters on links.
  */
+import { cardAlt, cardUrl } from '../../shared/cards.js';
+
 export interface EmailWord {
   slug: string;
   ar: string;
@@ -111,8 +113,8 @@ export function renderDaily(opts: {
 }): Rendered {
   const { word: w, siteUrl } = opts;
   const url = `${siteUrl}/word/${w.slug}`;
-  const img = `${siteUrl}/cards/email/${w.slug}.png`;
-  const alt = `${w.ar} (${w.translit}): ${w.meanings[0]}`;
+  const img = cardUrl('email', w);
+  const alt = cardAlt(w);
   const ex = w.examples[0];
   const more = w.meanings.slice(1).join('; ');
   const subject = SUBJECTS[opts.subjectStyle ?? 'b'](w);

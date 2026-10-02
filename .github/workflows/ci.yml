@@ -36,6 +36,32 @@ jobs:
       - name: Serverless functions load as plain Node ESM (like on Vercel)
         run: npm run check:functions
 
+  card-images:
+    # Renders the card images (link previews, daily email) that img.durar.space doesn't have yet and
+    # uploads them, so a pull request's preview and, after merging, the live site find them there.
+    # Pull requests from forks get no secrets, so they skip this.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: card-images-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Render and upload missing cards
+        run: npm run cards -- --upload
+        env:
+          IMAGES_AWS_ACCESS_KEY_ID: ${{ secrets.IMAGES_AWS_ACCESS_KEY_ID }}
+          IMAGES_AWS_SECRET_ACCESS_KEY: ${{ secrets.IMAGES_AWS_SECRET_ACCESS_KEY }}
+      - name: Every word's card is on img.durar.space
+        run: npm run cards -- --check
+
   build-and-test:
     runs-on: ubuntu-latest
     timeout-minutes: 20

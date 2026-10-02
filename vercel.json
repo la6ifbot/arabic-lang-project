@@ -6,6 +6,11 @@
   "trailingSlash": false,
   "redirects": [
     {
+      "source": "/cards/:path*",
+      "destination": "https://img.durar.space/cards/:path*",
+      "permanent": false
+    },
+    {
       "source": "/((?!api/).*)",
       "has": [
         {

@@ -79,7 +79,7 @@ exports[`daily email > matches the snapshot > html 1`] = `
 </td></tr>
 <tr><td align="center" style="padding:0 0 26px;">
   <a href="https://durar.example/word/bahr" style="text-decoration:none;color:#f4efe3;">
-    <img src="https://durar.example/cards/email/bahr.png" width="560" alt="بَحْر (baḥr): sea" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:18px;background:#0b2a36;color:#f4efe3;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:24px;line-height:1.4;">
+    <img src="https://img.durar.space/cards/email/bahr-a60d7be54c8c7b0e.png" width="560" alt="بَحْر (baḥr): sea" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:18px;background:#0b2a36;color:#f4efe3;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:24px;line-height:1.4;">
   </a>
 </td></tr>
 <tr><td class="px" align="center" style="padding:0 40px;">
@@ -163,7 +163,7 @@ exports[`daily email > “A pearl to revisit”: one line under the main card, l
 </td></tr>
 <tr><td align="center" style="padding:0 0 26px;">
   <a href="https://durar.example/word/bahr" style="text-decoration:none;color:#f4efe3;">
-    <img src="https://durar.example/cards/email/bahr.png" width="560" alt="بَحْر (baḥr): sea" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:18px;background:#0b2a36;color:#f4efe3;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:24px;line-height:1.4;">
+    <img src="https://img.durar.space/cards/email/bahr-a60d7be54c8c7b0e.png" width="560" alt="بَحْر (baḥr): sea" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:18px;background:#0b2a36;color:#f4efe3;font-family:'Cormorant Garamond', Georgia, 'Times New Roman', serif;font-size:24px;line-height:1.4;">
   </a>
 </td></tr>
 <tr><td class="px" align="center" style="padding:0 40px;">

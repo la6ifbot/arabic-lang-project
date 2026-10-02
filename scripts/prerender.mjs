@@ -4,6 +4,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { HOME_CARD, cardAlt, cardUrl } from '../shared/cards.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -15,12 +16,13 @@ const site = SITE && !/^https?:\/\//.test(SITE) ? `https://${SITE}` : SITE;
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const HIDDEN = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap';
 
-const SITE_IMAGE = { path: '/cards/og/durar.png', alt: 'Durar (دُرَر): Arabic words, like pearls' };
+// Card images live on img.durar.space (shared/cards.ts), uploaded by CI under content-hashed names.
+const SITE_IMAGE = { src: cardUrl('og', HOME_CARD), alt: 'Durar (دُرَر): Arabic words, like pearls' };
 
-/** og:image / twitter:image need absolute URLs, so they're only emitted when the site URL is known. */
+/** og:image / twitter:image, emitted (like og:url) only when the site URL is known. */
 function imageTags(image) {
   if (!site || !image) return [];
-  const src = `${site}${image.path}`;
+  const { src } = image;
   return [
     `<meta property="og:image" content="${src}" />`,
     `<meta property="og:image:type" content="image/png" />`,
@@ -94,7 +96,7 @@ for (const w of words) {
   };
   const html = inject(
     template,
-    head({ title, description, path, image: { path: `/cards/og/${w.slug}.png`, alt: `${w.ar} (${w.translit}): ${w.meanings[0]}` }, extra: `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>` }),
+    head({ title, description, path, image: { src: cardUrl('og', w), alt: cardAlt(w) }, extra: `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>` }),
     article(w),
   );
   const out = join(dist, 'word', w.slug, 'index.html');

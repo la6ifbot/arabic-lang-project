@@ -65,7 +65,9 @@ export default function PrivacyPage() {
             </>
           ) : null}
           . The website itself is served by <strong>Vercel</strong>, which keeps standard, short-lived server logs. Fonts are
-          served from our own site, not from Google.
+          served from our own site, not from Google. Pictures (the word cards in link previews and in the daily email) come
+          from <strong>img.durar.space</strong>, our image host on <strong>Amazon CloudFront</strong> in our own Amazon Web
+          Services account, with its access logs switched off.
         </p>
 
         <h2>If you get the Pearl of the Day by email</h2>

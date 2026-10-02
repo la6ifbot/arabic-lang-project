@@ -3,36 +3,34 @@
 // Arabic needs a real text engine (joined letterforms, diacritics), so the cards are drawn by
 // headless Chromium, the same way the site draws its cards, then compressed with sharp.
 //
-// The PNGs are committed under public/cards/ with a manifest of content hashes, so:
-//   • a build (e.g. on Vercel, which has no browser) just ships them, with no render cost;
-//   • `npm run cards` re-renders only words whose text or the template changed;
-//   • `npm run cards -- --check` (run in CI and before builds) fails if any image is stale.
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+// The images are served from img.durar.space (S3 + CloudFront) under content-hashed names worked
+// out from each word's data (shared/cards.ts), so nothing is committed and nobody renders by hand:
+//   • `npm run cards -- --upload` (CI, on every pull request and on main) checks which cards are
+//     missing on img.durar.space, renders only those and uploads them;
+//   • `npm run cards -- --check` fails if any word's card is missing there;
+//   • `npm run cards` (optionally `-- --only=bahr,durar`) renders into .cards/ to look at locally.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  CARD_KINDS,
+  CARD_SIZES as SIZES,
+  HOME_CARD,
+  IMAGE_BUCKET,
+  IMAGE_ORIGIN,
+  IMAGE_REGION,
+  cardKey,
+  cardStableKey,
+} from '../shared/cards.ts';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'public/cards');
-const MANIFEST = join(OUT, 'manifest.json');
-/** Bump when the template changes to re-render everything. */
-const TEMPLATE_VERSION = 5;
-
-export const SIZES = {
-  og: { width: 1200, height: 630, scale: 1 },
-  email: { width: 600, height: 340, scale: 2 },
-};
+const LOCAL_OUT = join(ROOT, '.cards');
 
 const words = JSON.parse(readFileSync(join(ROOT, 'src/data/words.json'), 'utf8'));
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-/** Alt text used for og:image:alt, twitter:image:alt and the email <img>. */
-export const cardAlt = (w) => `${w.ar} (${w.translit}): ${w.meanings[0]}`;
-
-const hashWord = (w) =>
-  createHash('sha256').update(JSON.stringify([TEMPLATE_VERSION, w.slug, w.ar, w.translit, w.meanings[0]])).digest('hex').slice(0, 16);
-const HOME = { slug: 'durar', home: true };
-const hashHome = () => createHash('sha256').update(`home:${TEMPLATE_VERSION}`).digest('hex').slice(0, 16);
+const HOME = { slug: HOME_CARD, home: true };
+/** cardKey/cardStableKey take the word, or HOME_CARD for the general card. */
+const ref = (w) => (w.home ? HOME_CARD : w);
 
 function fontFaces() {
   const f = (pkg, file) => `url(data:font/woff2;base64,${readFileSync(join(ROOT, 'node_modules/@fontsource', pkg, 'files', file)).toString('base64')}) format('woff2')`;
@@ -108,21 +106,22 @@ async function findBrowser() {
   return chromium.launch({ executablePath });
 }
 
-async function render(targets) {
+/** Renders each target at every size and hands the compressed PNG to `save(word, kind, png)`. */
+async function render(targets, save) {
   const sharp = (await import('sharp')).default;
   const browser = await findBrowser();
   if (!browser) throw new Error('No Chromium found. Install one with `npx playwright install chromium` or set PW_CHROMIUM_PATH.');
   const started = Date.now();
   try {
     const pages = {};
-    for (const kind of Object.keys(SIZES)) {
+    for (const kind of CARD_KINDS) {
       const { width, height, scale } = SIZES[kind];
       const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: scale });
       await page.setContent(pageHtml(fontFaces()), { waitUntil: 'load' });
       pages[kind] = page;
     }
     for (const w of targets) {
-      for (const kind of Object.keys(SIZES)) {
+      for (const kind of CARD_KINDS) {
         const page = pages[kind];
         await page.evaluate((html) => (document.getElementById('root').innerHTML = html), cardHtml(w, kind));
         await page.evaluate(async () => {
@@ -136,11 +135,9 @@ async function render(targets) {
             ar.style.fontSize = `${size}px`;
           }
         });
-        const png = await page.locator('.frame').screenshot({ type: 'png' });
-        const out = join(OUT, kind, `${w.slug}.png`);
-        mkdirSync(dirname(out), { recursive: true });
+        const shot = await page.locator('.frame').screenshot({ type: 'png' });
         // Palette PNG: a fraction of the size, visually identical on these smooth gradients.
-        await sharp(png).png({ palette: true, quality: 90, effort: 8, dither: 1 }).toFile(out);
+        await save(w, kind, await sharp(shot).png({ palette: true, quality: 90, effort: 8, dither: 1 }).toBuffer());
       }
     }
   } finally {
@@ -149,52 +146,86 @@ async function render(targets) {
   return Date.now() - started;
 }
 
-function readManifest() {
-  try {
-    return JSON.parse(readFileSync(MANIFEST, 'utf8'));
-  } catch {
-    return { words: {} };
+/** Runs `fn` over `items`, `n` at a time. */
+async function pool(items, n, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(n, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        out[i] = await fn(items[i]);
+      }
+    }),
+  );
+  return out;
+}
+
+/**
+ * Cards whose hashed file isn't on img.durar.space yet. Asks the public host, so the upload key
+ * needs no read access (a missing file answers 403 or 404 through CloudFront).
+ */
+async function missingOnHost(targets) {
+  const missing = await pool(targets, 16, async (w) => {
+    for (const kind of CARD_KINDS) {
+      const url = `${IMAGE_ORIGIN}/${cardKey(kind, ref(w))}`;
+      const res = await fetch(url, { method: 'HEAD' }).catch((e) => {
+        throw new Error(`cards: can't reach ${url} (${e.cause?.code ?? e.message}). Is img.durar.space set up?`);
+      });
+      if (res.status === 403 || res.status === 404) return w;
+      if (!res.ok) throw new Error(`cards: ${url} answered ${res.status}`);
+    }
+    return null;
+  });
+  return missing.filter(Boolean);
+}
+
+async function upload(targets) {
+  const keyId = process.env.IMAGES_AWS_ACCESS_KEY_ID;
+  const secret = process.env.IMAGES_AWS_SECRET_ACCESS_KEY;
+  if (!keyId || !secret) {
+    throw new Error('cards: IMAGES_AWS_ACCESS_KEY_ID and IMAGES_AWS_SECRET_ACCESS_KEY must be set (GitHub repository secrets).');
   }
+  const missing = await missingOnHost(targets);
+  if (!missing.length) {
+    console.log(`cards: all ${targets.length} cards are already on ${IMAGE_ORIGIN}.`);
+    return;
+  }
+  console.log(`cards: ${missing.length} missing on ${IMAGE_ORIGIN} (${missing.slice(0, 8).map((w) => w.slug).join(', ')}${missing.length > 8 ? '…' : ''}).`);
+  const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
+  const s3 = new S3Client({ region: IMAGE_REGION, credentials: { accessKeyId: keyId, secretAccessKey: secret } });
+  const put = (Key, Body, CacheControl) =>
+    s3.send(new PutObjectCommand({ Bucket: IMAGE_BUCKET, Key, Body, ContentType: 'image/png', CacheControl }));
+  const ms = await render(missing, async (w, kind, png) => {
+    // The hashed file never changes, so it's cached for a year. The stable copy only serves old links.
+    await put(cardKey(kind, ref(w)), png, 'public, max-age=31536000, immutable');
+    await put(cardStableKey(kind, ref(w)), png, 'public, max-age=86400');
+  });
+  console.log(`cards: rendered and uploaded ${missing.length} card(s) × ${CARD_KINDS.length} sizes in ${(ms / 1000).toFixed(1)} s.`);
 }
 
 async function main() {
-  const check = process.argv.includes('--check');
   const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7).split(',');
-  if (only) {
-    const ms = await render([...words, HOME].filter((w) => only.includes(w.slug)));
-    console.log(`cards: rendered ${only.join(', ')} in ${ms} ms (manifest untouched).`);
-    return;
-  }
-  const all = process.argv.includes('--all');
-  const manifest = readManifest();
-  const wanted = { ...Object.fromEntries(words.map((w) => [w.slug, hashWord(w)])), [HOME.slug]: hashHome() };
-  const stale = [...words, HOME].filter((w) => {
-    if (all || manifest.words[w.slug] !== wanted[w.slug]) return true;
-    return !Object.keys(SIZES).every((k) => existsSync(join(OUT, k, `${w.slug}.png`)));
-  });
-  const removed = Object.keys(manifest.words).filter((s) => !(s in wanted));
-
-  if (check) {
-    if (stale.length || removed.length) {
-      console.error(`cards: ${stale.length} missing or out of date (${stale.slice(0, 5).map((w) => w.slug).join(', ')}…). Run \`npm run cards\` and commit public/cards.`);
+  const targets = [...words, HOME].filter((w) => !only || only.includes(w.slug));
+  if (process.argv.includes('--upload')) return upload(targets);
+  if (process.argv.includes('--check')) {
+    const missing = await missingOnHost(targets);
+    if (missing.length) {
+      console.error(`cards: ${missing.length} missing on ${IMAGE_ORIGIN}: ${missing.map((w) => w.slug).join(', ')}.`);
       process.exit(1);
     }
-    console.log(`cards: all ${words.length} word images are up to date.`);
+    console.log(`cards: all ${targets.length} cards are on ${IMAGE_ORIGIN}.`);
     return;
   }
-  for (const slug of removed) for (const k of Object.keys(SIZES)) rmSync(join(OUT, k, `${slug}.png`), { force: true });
-  if (!stale.length) {
-    console.log('cards: nothing to render.');
-  } else {
-    const ms = await render(stale);
-    console.log(`cards: rendered ${stale.length} card(s) × ${Object.keys(SIZES).length} sizes in ${(ms / 1000).toFixed(1)} s.`);
-  }
-  writeFileSync(MANIFEST, JSON.stringify({ template: TEMPLATE_VERSION, words: wanted }, null, 1) + '\n');
+  const ms = await render(targets, (w, kind, png) => {
+    const out = join(LOCAL_OUT, kind, `${w.slug}.png`);
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, png);
+  });
+  console.log(`cards: rendered ${targets.length} card(s) into .cards/ in ${(ms / 1000).toFixed(1)} s (nothing uploaded).`);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  main().catch((e) => {
-    console.error(e.message);
-    process.exit(1);
-  });
-}
+main().catch((e) => {
+  console.error(e.message);
+  process.exit(1);
+});

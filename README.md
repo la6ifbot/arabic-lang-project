@@ -18,7 +18,7 @@ npm run validate:data  # schema check for src/data/words.json
 npm run test:e2e       # Playwright (builds are served via `npm run preview`)
 npm run test:db        # database tests (RLS, subscriptions); needs DATABASE_URL (PostgreSQL)
 npm run test:unit      # schedule, email rendering, server handlers (handlers need DATABASE_URL)
-npm run cards          # re-render card images for new/changed words (needs Chromium)
+npm run cards          # render card images into .cards/ for a look (CI uploads the real ones)
 npm run email:render   # write today's emails to dist-email/ for a look
 npm run check:functions  # compile api/ like Vercel and load it in plain Node
 ```
@@ -70,7 +70,7 @@ src/
 shared/                  code used by both site and server (Pearl of the Day schedule, flags)
 api/                     Vercel functions: subscribe, confirm, unsubscribe, cron/daily
 server/                  their logic: handlers, SQL-function store, email templates, SES adapter
-public/cards/            card images (social previews + email), rendered by scripts/cards.mjs
+scripts/cards.mjs        card images (social previews + email): CI renders and uploads them to img.durar.space
 supabase/migrations/     versioned SQL: saved_pearls, subscribers, daily_sends, RLS, functions
 supabase/setup/          one-off owner SQL (pg_cron schedule for the daily email)
 scripts/prerender.mjs    post-build: static HTML + OG/Twitter/JSON-LD for every word; noindex /library
@@ -127,9 +127,11 @@ All fonts are self-hosted via Fontsource (SIL Open Font License), with no third-
 - `shared/pearlOfTheDay.ts` maps each Europe/Amsterdam calendar day to a word. Every word appears
   once per cycle, and words added later (with an `added` date) join the next cycle, so past days
   never change. The site (`/` opens on today's pearl) and the email sender both use it.
-- Card images are rendered with headless Chromium (real Arabic shaping) and committed under
-  `public/cards/`. A hash manifest means `npm run cards` only redraws what changed. The build fails if
-  an image is stale.
+- Card images are rendered with headless Chromium (real Arabic shaping) and served from
+  `img.durar.space` (a private S3 bucket in Frankfurt behind CloudFront). Each file name carries a hash
+  of the card's text (`shared/cards.ts`), so the site and the email work out a word's image URL from
+  its data. CI (`npm run cards -- --upload`) renders and uploads only the cards the host doesn't have
+  yet, on every pull request and on `main`. Old `durar.space/cards/*` links redirect to the host.
 - The email runs on Vercel functions + Supabase + Amazon SES: double opt-in, one-click unsubscribe,
   no tracking, one send per subscriber per day (enforced by a primary key), and sandbox mode until the
   domain exists. Details: [`docs/EMAIL-SETUP.md`](docs/EMAIL-SETUP.md).
