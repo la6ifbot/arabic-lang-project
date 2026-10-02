@@ -14,7 +14,7 @@ export const PEARL_EPOCH = '2026-09-24';
 
 export interface ScheduledWord {
   slug: string;
-  /** ISO date the word was added to the dataset; absent for the original set. */
+  /** ISO date the word was added to the dataset (the original set has PEARL_EPOCH, same as absent). */
   added?: string;
 }
 

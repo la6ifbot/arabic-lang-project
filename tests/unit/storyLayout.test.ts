@@ -15,7 +15,7 @@ const measure: Measure = (text, font, rtl, spacing) => {
 
 const long = (n: number, s: string) => Array.from({ length: n }, () => s).join(' ');
 
-const extremes: Word[] = [
+const extremes: Word[] = ([
   { slug: 'short', ar: 'نُور', translit: 'nūr', meanings: ['light'], examples: [] },
   {
     slug: 'long-head',
@@ -44,7 +44,7 @@ const extremes: Word[] = [
       },
     ],
   },
-];
+] as Omit<Word, 'topics' | 'added'>[]).map((w) => ({ ...w, topics: [], added: '2026-09-24' }));
 
 function expectInside(word: Word) {
   const layout = layoutStory(word, measure);
