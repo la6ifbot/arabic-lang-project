@@ -39,7 +39,7 @@ every file name from the entry alone.
    on the sea, and the result faint behind a card's text.
 5. **Adjust if needed.** Read the crop off the sheet's grid, set `crop`, and push. The new version renders
    from the archived source, without asking Commons again. Reload the Vercel preview once the check is
-   green to see it at `/credits` and on the word.
+   green to see it at `/credits`.
 
 ## Fields
 

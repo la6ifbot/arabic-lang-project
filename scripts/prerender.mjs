@@ -132,7 +132,7 @@ const pages = [
   {
     path: '/credits',
     title: 'Credits · Durar',
-    description: 'Who made the illustrations, music and fonts on Durar, and the licences they are shared under.',
+    description: 'Who made the pictures and fonts on Durar, and the licences they are shared under.',
   },
 ];
 for (const page of pages) {

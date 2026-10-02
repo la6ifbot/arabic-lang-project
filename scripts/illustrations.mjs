@@ -5,9 +5,10 @@
 //     licence), render, upload write-once, upload a review sheet, and write .illustrations/report.md.
 //   • `npm run illustrations -- --check` (CI): every rendition of every entry is on the host, with CORS.
 //   • `npm run illustrations [-- --only=a,b]` (anyone with network): render into .illustrations/ to look at.
-//   • `--base=<file>`: the base branch's illustrations.json; the report lists entries added or changed.
+//   • `--base=<file>`: the base branch's illustrations.json; the report lists entries added or changed, and
+//     .illustrations/report.md is always written (the sticky PR comment).
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { IMAGE_ORIGIN } from '../shared/site.ts';
@@ -19,6 +20,8 @@ import { contactSheet, restyle } from './lib/illustration-pipeline.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, '.illustrations');
+/** GitHub refuses comments over 65,536 characters. */
+const MAX_REPORT = 60_000;
 const UA = 'Durar-illustrations/1.0 (https://durar.space; hello@durar.space)';
 const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
 const MAX_ORIGINAL = 50e6; // bigger originals (TIFF masters) are fetched as Commons' 3840 px JPEG rendition
@@ -74,9 +77,16 @@ export function licenseProblem(entry, c) {
  */
 export async function loadSource(entry, client) {
   const id = sourceId(entry);
-  const side = await fetch(`${IMAGE_ORIGIN}/sources/${id}.json`);
+  // A local run (no upload client) that can't reach the host just goes to Commons.
+  const side = await fetch(`${IMAGE_ORIGIN}/sources/${id}.json`).catch((e) => {
+    if (client) throw new Error(`can't reach ${IMAGE_ORIGIN} (${e.cause?.code ?? e.message})`);
+    return { ok: false, status: 404 };
+  });
   if (side.ok) {
     const meta = await side.json();
+    // The entry's declared licence must still match what Commons said when the source was archived.
+    const problem = licenseProblem(entry, meta);
+    if (problem) throw new Error(problem);
     const r = await fetch(`${IMAGE_ORIGIN}/${meta.key}`);
     if (!r.ok) throw new Error(`archive: ${meta.key} answered ${r.status}`);
     const bytes = Buffer.from(await r.arrayBuffer());
@@ -93,7 +103,7 @@ export async function loadSource(entry, client) {
   if (!url) throw new Error(`Commons gave no usable rendition (${info.mime}, ${Math.round(info.size / 1e6)} MB)`);
   const r = await politeFetch(url);
   if (!r.ok) throw new Error(`download ${url} answered ${r.status}`);
-  const bytes = Buffer.from(await r.arrayBuffer());
+  let bytes = Buffer.from(await r.arrayBuffer());
   if (original && sha('sha1', bytes) !== info.sha1) throw new Error(`download ${url}: SHA-1 differs from Commons (truncated?)`);
   const mime = original ? info.mime : 'image/jpeg';
   const meta = {
@@ -103,21 +113,27 @@ export async function loadSource(entry, client) {
     fetchedAt: new Date().toISOString(), run: `${process.env.GITHUB_RUN_ID ?? 'local'}@${process.env.GITHUB_SHA ?? ''}`,
   };
   if (client) {
-    await putOnce(client, meta.key, bytes, mime);
+    if ((await putOnce(client, meta.key, bytes, mime)) === 'exists') {
+      // An earlier run archived these bytes but not the sidecar. Keep the archived copy: it is the pinned input.
+      const kept = await fetch(`${IMAGE_ORIGIN}/${meta.key}`);
+      if (!kept.ok) throw new Error(`archive: ${meta.key} exists but answered ${kept.status}; try again in a minute`);
+      bytes = Buffer.from(await kept.arrayBuffer());
+      Object.assign(meta, { bytes: bytes.length, sha256: sha('sha256', bytes) });
+    }
     await putOnce(client, `sources/${id}.json`, JSON.stringify(meta, null, 2), 'application/json'); // last: marks the archive complete
   }
   return { bytes, meta, archived: false };
 }
 
-/** Render one entry; upload its renditions and review sheet when `client` is given. */
-export async function renderEntry(entry, client) {
+/** Render one entry into `out`; upload its renditions and review sheet when `client` is given. */
+export async function renderEntry(entry, client, out = OUT) {
   const { bytes, meta, archived } = await loadSource(entry, client);
   const r = await restyle(bytes, entry);
-  mkdirSync(OUT, { recursive: true });
+  mkdirSync(out, { recursive: true });
   const sheet = await contactSheet(bytes, entry, r, ILLUSTRATION_ALPHA.behindText);
-  writeFileSync(join(OUT, `${entry.id}-sheet.jpg`), sheet);
+  writeFileSync(join(out, `${entry.id}-sheet.jpg`), sheet);
   for (const f of r.files) {
-    writeFileSync(join(OUT, `${entry.id}-${f.width}.webp`), f.buf);
+    writeFileSync(join(out, `${entry.id}-${f.width}.webp`), f.buf);
     if (client) await putOnce(client, illustrationKey(entry, f.width), f.buf, 'image/webp');
   }
   if (client) await putOnce(client, `previews/${entry.id}-${recipeHash(entry)}.jpg`, sheet, 'image/jpeg');
@@ -130,31 +146,30 @@ const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\s*\n\s*/g, ' ');
 
 /** Markdown for the sticky PR comment and the job log. */
 export function report(rows) {
-  const lines = [
-    '<!-- durar:illustrations -->',
-    '### Illustrations in this pull request',
-    '',
-    '| | id | Credit (as published) | Commons says | Used by |',
-    '|---|---|---|---|---|',
-  ];
-  for (const { e, meta, error, usedBy, notes } of rows) {
+  const lines = ['<!-- durar:illustrations -->', '### Illustrations in this pull request', ''];
+  if (!rows.length) return [...lines, 'None added or changed any more.'].join('\n');
+  lines.push('| | id | Credit (as published) | Commons says | Used by |', '|---|---|---|---|---|');
+  for (const [i, { e, meta, error, usedBy, notes }] of rows.entries()) {
+    if (lines.join('\n').length > MAX_REPORT) {
+      lines.push(`| | …and ${rows.length - i} more: see the job log | | | |`);
+      break;
+    }
     const thumb = error ? 'failed' : `<img width="120" src="${IMAGE_ORIGIN}/${illustrationKey(e, 320)}">`;
     const commons = meta ? `${meta.licenseShortName || meta.license} · ${meta.artist || '?'} · ${meta.date || '?'}` : '';
     const id = error ? `**${e.id}**: ${error}` : `${e.id} ([review sheet](${previewUrl(e)}))${notes.length ? `<br>${notes.join('; ')}` : ''}`;
     lines.push(`| ${thumb} | ${cell(id)} | ${cell(creditLine(e))} | ${cell(commons)} | ${usedBy.join(', ') || '(unused)'} |`);
   }
-  lines.push('', 'Images appear on the Vercel preview (reload it) at /credits and on each word once this check is green.');
+  lines.push('', 'Reload the Vercel preview once this check is green to see them at /credits.');
   return lines.join('\n');
 }
 
-/** `deps.client` lets tests inject a fake S3 client. */
+/** Tests inject a fake S3 `client`, their own `data` ({ entries, words, topics }) and an `out` folder. */
 export async function main(argv, deps = {}) {
   const flag = (n) => argv.includes(`--${n}`);
   const opt = (n) => argv.find((a) => a.startsWith(`--${n}=`))?.slice(n.length + 3);
   const read = (f) => JSON.parse(readFileSync(join(ROOT, 'src/data', f), 'utf8'));
-  const entries = read('illustrations.json');
-  const words = read('words.json');
-  const topics = read('topics.json');
+  const { entries, words, topics } = deps.data ?? { entries: read('illustrations.json'), words: read('words.json'), topics: read('topics.json') };
+  const out = deps.out ?? OUT;
   const v = validateIllustrations(entries, words, topics);
   if (v.errors.length) throw new Error(v.errors.join('\n'));
   const only = opt('only')?.split(',');
@@ -185,7 +200,7 @@ export async function main(argv, deps = {}) {
   const errors = [];
   for (const e of todo) { // strictly sequential: one Commons request at a time
     try {
-      const { r, meta, archived } = await renderEntry(e, client);
+      const { r, meta, archived } = await renderEntry(e, client, out);
       const notes = [...r.warnings, `source ${r.source.join('×')} px, crop ${fmtCrop(e, r)}`, archived ? 'from archive' : 'fetched from Commons and archived'];
       console.log(`✓ ${e.id}: ${notes.join('; ')}`);
       rows.push({ e, meta, usedBy: usedBy(e), notes });
@@ -200,22 +215,31 @@ export async function main(argv, deps = {}) {
     if (!base || !changed(e) || todo.includes(e)) continue;
     const side = await fetch(`${IMAGE_ORIGIN}/sources/${sourceId(e)}.json`);
     const meta = side.ok ? await side.json() : null;
-    const problem = meta && licenseProblem(e, meta);
+    const problem = meta ? licenseProblem(e, meta) : `can't re-check the licence: sources/${sourceId(e)}.json answered ${side.status}`;
     if (problem) errors.push(`✗ ${e.id}: ${problem}`);
     rows.push({ e, meta, error: problem ?? undefined, usedBy: usedBy(e), notes: ['files already on the host'] });
   }
   const shown = base ? rows.filter((x) => changed(x.e) || x.error) : rows;
-  if (shown.length) {
-    mkdirSync(OUT, { recursive: true });
-    writeFileSync(join(OUT, 'report.md'), report(shown));
-    console.log(report(shown));
+  if (shown.length || base) {
+    // With --base this is the PR comment, written even when empty so an earlier comment never goes stale.
+    mkdirSync(out, { recursive: true });
+    writeFileSync(join(out, 'report.md'), report(shown));
+    if (shown.length) console.log(report(shown));
   }
   if (errors.length) throw new Error(errors.join('\n'));
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  main(process.argv.slice(2)).catch((e) => {
+  const argv = process.argv.slice(2);
+  const started = Date.now();
+  main(argv).catch((e) => {
     console.error(`illustrations: ${e.message}`);
+    // A run that failed before writing its report (bad data, host unreachable) says so on the PR.
+    const md = join(OUT, 'report.md');
+    if (argv.some((a) => a.startsWith('--base=')) && !(existsSync(md) && statSync(md).mtimeMs >= started)) {
+      mkdirSync(OUT, { recursive: true });
+      writeFileSync(md, `<!-- durar:illustrations -->\n### Illustrations in this pull request\n\nThe check failed before rendering: ${e.message.split('\n')[0]} See the job log.`);
+    }
     process.exit(1);
   });
 }

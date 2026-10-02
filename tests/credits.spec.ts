@@ -23,7 +23,7 @@ test.describe('Credits', () => {
     expect(res.status()).toBe(200);
     const html = await res.text();
     expect(html).toContain('<title>Credits · Durar</title>');
-    expect(html).toContain('Who made the illustrations, music and fonts on Durar');
+    expect(html).toContain('Who made the pictures and fonts on Durar');
     expect(html).not.toContain('noindex');
     const xml = await (await request.get('/sitemap.xml')).text();
     expect(xml).toContain('/credits</loc>');
@@ -117,6 +117,8 @@ test.describe('Credits', () => {
     await about.getByRole('link', { name: 'Credits' }).click();
     await expect(page).toHaveURL(/\/credits$/);
     await expect(about).toBeHidden();
+    // The dialog and its link are gone, so focus starts at the new page's heading rather than <body>.
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Credits');
+    await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   });
 });

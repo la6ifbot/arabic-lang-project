@@ -71,7 +71,7 @@ export default function PrivacyPage() {
           <strong>Amazon CloudFront</strong> in our own Amazon Web Services account, with its access logs switched off.
         </p>
         <p>
-          Who made the illustrations, music and fonts is on the{' '}
+          Who made the pictures and fonts we use, and their licences, is on the{' '}
           <a href="/credits" onClick={linkHandler('/credits')}>
             Credits
           </a>{' '}

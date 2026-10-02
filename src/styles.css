@@ -996,7 +996,15 @@ a.acct-item {
 .modal-privacy a,
 .prose a {
   color: var(--ink-soft);
+  text-decoration: underline;
+  text-decoration-color: rgba(214, 232, 236, 0.35);
   text-underline-offset: 3px;
+}
+.modal-privacy a:hover,
+.modal-privacy a:focus-visible,
+.prose a:hover,
+.prose a:focus-visible {
+  text-decoration-color: currentColor;
 }
 .auth-form {
   display: grid;
@@ -1907,6 +1915,7 @@ a.acct-item {
 }
 .prose .credit {
   margin: 0;
+  scroll-margin-top: 80px; /* clear of the sticky header on /credits#ill-<id> */
   display: grid;
   grid-template-columns: 96px 1fr;
   gap: 16px;

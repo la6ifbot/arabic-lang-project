@@ -2,6 +2,9 @@
 // CI later checks the same entries against Commons (scripts/illustrations.mjs); this file needs no network.
 export const IMAGE_LICENSES = ['public-domain', 'CC0-1.0'];
 export const STYLES = ['ink', 'colour', 'colour-yellow'];
+/** PIPELINE.lo and PIPELINE.hi in shared/images.ts (plain Node can't import it; a unit test keeps them equal). */
+export const DEFAULT_LO = 0.18;
+export const DEFAULT_HI = 0.6;
 const ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 export const COMMONS_FILE = /^https:\/\/commons\.wikimedia\.org\/wiki\/File:[^?#\s/]+\.(jpe?g|png|tiff?|gif|webp)$/i;
 const DATE = /^(c\. )?\d{3,4}(–\d{3,4})?$/;
@@ -59,7 +62,9 @@ export function validateIllustrations(entries, words = [], topics = [], { year =
     if (e.flip !== undefined && typeof e.flip !== 'boolean') err('flip must be true or false');
     if (e.style !== undefined && !STYLES.includes(e.style)) err(`style must be one of ${STYLES.join(', ')}`);
     for (const f of ['lo', 'hi']) if (e[f] !== undefined && !(num(e[f]) && e[f] >= 0 && e[f] <= 1)) err(`${f} must be between 0 and 1`);
-    if (num(e.lo) && num(e.hi) && e.lo >= e.hi) err('lo must be below hi');
+    const lo = e.lo ?? DEFAULT_LO;
+    const hi = e.hi ?? DEFAULT_HI;
+    if (num(lo) && num(hi) && lo >= hi) err(`lo must be below hi (defaults ${DEFAULT_LO} and ${DEFAULT_HI})`);
     if (e.erase !== undefined && !(Array.isArray(e.erase) && e.erase.every((c) => Array.isArray(c) && c.length === 3 && c.every(num) && c.every((v) => v >= 0 && v <= 100))))
       err('erase must be a list of [x, y, radius] in percent');
   });

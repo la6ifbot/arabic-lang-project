@@ -1,6 +1,7 @@
 import sharp from 'sharp';
 import { describe, expect, test } from 'vitest';
 import { restyle } from '../../scripts/lib/illustration-pipeline.mjs';
+import { PIPELINE } from '../../shared/images';
 
 /** A synthetic engraving: 40 hairlines on cream paper, optionally with foxing and a block on the left. */
 function plate(S: number, { foxing = false, block = false } = {}) {
@@ -40,8 +41,11 @@ describe('restyle', { timeout: 30_000 }, () => {
     const { files } = await restyle(await plate(1400), ENTRY);
     const { data } = await rgba(files[2].buf);
     expect(data[3]).toBe(0); // the padded corner
-    for (const [i, c] of [207, 238, 240].entries()) expect(Math.abs(data[i] - c)).toBeLessThanOrEqual(4);
-    expect(Math.max(...Array.from({ length: 960 }, (_, y) => data[(y * 960 + 480) * 4 + 3]))).toBeGreaterThan(200);
+    // The most opaque pixel down the middle column is ink, and it carries the tint.
+    const y = Array.from({ length: 960 }, (_, y) => y).reduce((a, b) => (data[(b * 960 + 480) * 4 + 3] > data[(a * 960 + 480) * 4 + 3] ? b : a));
+    const ink = (y * 960 + 480) * 4;
+    expect(data[ink + 3]).toBeGreaterThan(200);
+    for (const [i, c] of PIPELINE.tint.entries()) expect(Math.abs(data[ink + i] - c)).toBeLessThanOrEqual(4);
   });
 
   test('ignores brown foxing on the paper', async () => {
@@ -68,6 +72,6 @@ describe('restyle', { timeout: 30_000 }, () => {
   });
 
   test('refuses a crop with no ink', async () => {
-    await expect(restyle(await plate(1400), { ...ENTRY, crop: [0, 0, 10, 10] })).rejects.toThrow(/no ink found|needs at least/);
+    await expect(restyle(await plate(1400), { ...ENTRY, crop: [0, 88, 100, 12] })).rejects.toThrow(/no ink found/);
   });
 });

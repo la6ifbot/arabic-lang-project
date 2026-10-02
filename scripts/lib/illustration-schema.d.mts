@@ -1,5 +1,7 @@
 export const IMAGE_LICENSES: string[];
 export const STYLES: string[];
+export const DEFAULT_LO: number;
+export const DEFAULT_HI: number;
 export const COMMONS_FILE: RegExp;
 export interface Report {
   errors: string[];

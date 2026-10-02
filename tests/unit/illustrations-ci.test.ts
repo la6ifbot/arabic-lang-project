@@ -5,14 +5,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { afterAll, beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
-import registry from '../../src/data/illustrations.json';
 import { creditLine } from '../../shared/credits';
 import { illustrationKeys, recipeHash, sourceId, type Illustration } from '../../shared/images';
-import { licenseProblem, main, renderEntry } from '../../scripts/illustrations.mjs';
+import { licenseProblem, main, renderEntry, report } from '../../scripts/illustrations.mjs';
 import { IMMUTABLE, putOnce, type PutInput, type UploadClient } from '../../scripts/lib/image-host.mjs';
 
 const HOST = 'https://img.durar.space/';
-const REAL = registry as Illustration[];
 const ENTRY: Illustration = {
   id: 'test-rose',
   sourceUrl: 'https://commons.wikimedia.org/wiki/File:Test_rose.jpg',
@@ -23,6 +21,10 @@ const ENTRY: Illustration = {
   license: 'public-domain',
   alt: 'A rose',
 };
+
+/** Renders go to a temporary folder, never the repo's .illustrations/. */
+const OUT = mkdtempSync(join(tmpdir(), 'durar-illustrations-'));
+const DATA = { entries: [ENTRY], words: [{ slug: 'ward', topics: ['flowers'], image: ENTRY.id }], topics: [] };
 
 let bytes: Buffer;
 let store: Map<string, PutInput>;
@@ -83,7 +85,7 @@ beforeEach(() => {
 
 describe('rendering an entry', { timeout: 60_000 }, () => {
   test('the first time, checks Commons once, archives the source, and uploads write-once', async () => {
-    const { archived, meta } = await renderEntry(ENTRY, client);
+    const { archived, meta } = await renderEntry(ENTRY, client, OUT);
     expect([archived, commons.calls]).toEqual([false, 1]);
     const id = sourceId(ENTRY);
     expect([...store.keys()].sort()).toEqual(
@@ -94,9 +96,25 @@ describe('rendering an entry', { timeout: 60_000 }, () => {
   });
 
   test('a changed recipe re-renders from the archive without asking Commons', async () => {
-    await renderEntry(ENTRY, client);
-    const { archived } = await renderEntry({ ...ENTRY, crop: [5, 5, 90, 90] }, client);
+    await renderEntry(ENTRY, client, OUT);
+    const { archived } = await renderEntry({ ...ENTRY, crop: [5, 5, 90, 90] }, client, OUT);
     expect([archived, commons.calls]).toEqual([true, 1]);
+  });
+
+  test('an entry rendered from the archive must still declare the licence Commons gave', async () => {
+    await renderEntry(ENTRY, client, OUT);
+    await expect(renderEntry({ ...ENTRY, license: 'CC0-1.0', crop: [5, 5, 90, 90] }, client, OUT)).rejects.toThrow(/not CC0-1\.0/);
+  });
+
+  test('a source archived by an interrupted run is kept, and the sidecar describes it', async () => {
+    const id = sourceId(ENTRY);
+    const old = Buffer.from(bytes); // what the interrupted run archived: same picture, older file
+    old[old.length - 3] ^= 1;
+    store.set(`sources/${id}.jpg`, { Key: `sources/${id}.jpg`, Body: new Uint8Array(old) });
+    const { meta } = await renderEntry(ENTRY, client, OUT);
+    expect(meta.sha256).toBe(createHash('sha256').update(old).digest('hex'));
+    expect(JSON.parse(store.get(`sources/${id}.json`)!.Body as string).sha256).toBe(meta.sha256);
+    expect((await renderEntry({ ...ENTRY, crop: [5, 5, 90, 90] }, client, OUT)).archived).toBe(true);
   });
 
   test('never overwrites a file that exists', async () => {
@@ -107,7 +125,7 @@ describe('rendering an entry', { timeout: 60_000 }, () => {
 
   test('refuses a source whose Commons licence differs', async () => {
     commons.license = 'cc-by-sa-4.0';
-    await expect(renderEntry(ENTRY, client)).rejects.toThrow(/Commons says the licence is "CC BY-SA 4.0", not public-domain/);
+    await expect(renderEntry(ENTRY, client, OUT)).rejects.toThrow(/Commons says the licence is "CC BY-SA 4.0", not public-domain/);
     expect(store.size).toBe(0);
     expect(licenseProblem({ license: 'CC0-1.0' }, { license: 'pd', licenseShortName: 'Public domain' })).toMatch(/not CC0-1.0/);
     expect(licenseProblem({ license: 'public-domain' }, { license: '', licenseShortName: 'Public domain' })).toBeNull();
@@ -115,35 +133,67 @@ describe('rendering an entry', { timeout: 60_000 }, () => {
 
   test('a misspelt file name lists the closest match', async () => {
     commons.missing = true;
-    await expect(renderEntry(ENTRY, client)).rejects.toThrow(
+    await expect(renderEntry(ENTRY, client, OUT)).rejects.toThrow(
       /no such file on Commons: "File:Test rose\.jpg".*Closest: https:\/\/commons\.wikimedia\.org\/wiki\/File:Rosa_centifolia_foliacea\.jpg/,
     );
   });
 
   test('a download that does not match Commons’ SHA-1 fails', async () => {
     commons.sha1 = '0'.repeat(40);
-    await expect(renderEntry(ENTRY, client)).rejects.toThrow(/SHA-1 differs/);
+    await expect(renderEntry(ENTRY, client, OUT)).rejects.toThrow(/SHA-1 differs/);
     expect(store.size).toBe(0);
   });
 });
 
 describe('the CI commands', { timeout: 60_000 }, () => {
+  const deps = { client, data: DATA, out: OUT };
+  const base = (entries: Illustration[]) => {
+    const f = join(OUT, 'base.json');
+    writeFileSync(f, JSON.stringify(entries));
+    return `--base=${f}`;
+  };
+  const md = () => readFileSync(join(OUT, 'report.md'), 'utf8');
+
   test('--upload renders what is missing and reports it; --check then passes, and fails without CORS', async () => {
-    const base = join(mkdtempSync(join(tmpdir(), 'durar-')), 'base.json');
-    writeFileSync(base, '[]');
     vi.spyOn(console, 'log').mockImplementation(() => {});
-    await main(['--upload', `--base=${base}`], { client });
-    for (const e of REAL) for (const k of illustrationKeys(e)) expect(store.has(k)).toBe(true);
-    const md = readFileSync(join(__dirname, '../../.illustrations/report.md'), 'utf8');
-    expect(md.startsWith('<!-- durar:illustrations -->')).toBe(true);
-    for (const e of REAL) expect(md).toContain(creditLine(e));
+    await main(['--upload', base([])], deps);
+    for (const k of illustrationKeys(ENTRY)) expect(store.has(k)).toBe(true);
+    expect(md().startsWith('<!-- durar:illustrations -->')).toBe(true);
+    expect(md()).toContain(creditLine(ENTRY));
+    expect(md()).toContain('| ward |');
 
     const calls = commons.calls;
-    await main(['--upload'], { client });
+    await main(['--upload'], deps);
     expect(commons.calls).toBe(calls);
 
-    await main(['--check']);
+    await main(['--check'], deps);
     cors = false;
-    await expect(main(['--check'])).rejects.toThrow(/Access-Control-Allow-Origin/);
+    await expect(main(['--check'], deps)).rejects.toThrow(/Access-Control-Allow-Origin/);
+  });
+
+  test('a pull request that no longer changes illustrations replaces the comment with a plain line', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await main(['--upload', base([ENTRY])], deps);
+    expect(md()).toMatch(/None added or changed any more\.$/);
+    expect(md()).not.toMatch(/^\| /m);
+  });
+
+  test('a changed credit is re-checked against the archive, and a missing archive fails', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await main(['--upload'], deps);
+    const credit = { ...ENTRY, artist: 'P.-J. Redouté' }; // same files, new credit
+    await main(['--upload', base([ENTRY])], { ...deps, data: { ...DATA, entries: [credit] } });
+    expect(md()).toContain(creditLine(credit));
+    store.delete(`sources/${sourceId(ENTRY)}.json`);
+    await expect(main(['--upload', base([ENTRY])], { ...deps, data: { ...DATA, entries: [credit] } })).rejects.toThrow(/can't re-check the licence/);
+  });
+});
+
+describe('the PR report', () => {
+  test('stays under GitHub’s comment limit', () => {
+    const rows = Array.from({ length: 400 }, (_, i) => ({ e: { ...ENTRY, id: `rose-${i}` }, usedBy: ['ward'], notes: ['x'.repeat(200)] }));
+    const out = report(rows);
+    expect(out.length).toBeLessThan(65_536);
+    expect(out).toMatch(/…and \d+ more: see the job log/);
   });
 });

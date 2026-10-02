@@ -53,9 +53,6 @@ jobs:
     concurrency:
       group: images-${{ github.ref }}
       cancel-in-progress: false
-    env:
-      IMAGES_AWS_ACCESS_KEY_ID: ${{ secrets.IMAGES_AWS_ACCESS_KEY_ID }}
-      IMAGES_AWS_SECRET_ACCESS_KEY: ${{ secrets.IMAGES_AWS_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -71,8 +68,13 @@ jobs:
           git show FETCH_HEAD:src/data/illustrations.json > .illustrations/base.json 2>/dev/null || echo '[]' > .illustrations/base.json
       - name: Illustrations (archive new sources once, render and upload what's missing)
         run: npm run illustrations -- --upload --base=.illustrations/base.json
+        env:
+          IMAGES_AWS_ACCESS_KEY_ID: ${{ secrets.IMAGES_AWS_ACCESS_KEY_ID }}
+          IMAGES_AWS_SECRET_ACCESS_KEY: ${{ secrets.IMAGES_AWS_SECRET_ACCESS_KEY }}
       - name: Illustration report on the pull request
-        if: always() && github.event_name == 'pull_request'
+        # Updates the sticky comment; only starts one when there is something to show.
+        if: ${{ !cancelled() && github.event_name == 'pull_request' }}
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -80,11 +82,18 @@ jobs:
           [ -f .illustrations/report.md ] || exit 0
           id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- durar:illustrations -->")) | .id' | head -n1)
           if [ -n "$id" ]; then gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@.illustrations/report.md > /dev/null
-          else gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@.illustrations/report.md > /dev/null; fi
-      - run: npx playwright install --with-deps chromium
+          elif grep -q '^| ' .illustrations/report.md; then gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@.illustrations/report.md > /dev/null; fi
+      # Cards don't wait on illustrations: a bad plate must not hold back new words' link previews.
+      - if: ${{ !cancelled() }}
+        run: npx playwright install --with-deps chromium
       - name: Render and upload missing cards
+        if: ${{ !cancelled() }}
         run: npm run cards -- --upload
+        env:
+          IMAGES_AWS_ACCESS_KEY_ID: ${{ secrets.IMAGES_AWS_ACCESS_KEY_ID }}
+          IMAGES_AWS_SECRET_ACCESS_KEY: ${{ secrets.IMAGES_AWS_SECRET_ACCESS_KEY }}
       - name: Everything is on img.durar.space
+        if: ${{ !cancelled() }}
         run: npm run illustrations -- --check && npm run cards -- --check
 
   build-and-test:

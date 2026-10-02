@@ -25,7 +25,7 @@ export interface Word {
   added: string;
   /**
    * An illustration (decision 5): the id of an entry in src/data/illustrations.json, which holds the
-   * picture's source, credit, licence and alt text. Drawn faintly on the card and the share image.
+   * picture's source, credit, licence and alt text. Meant to be drawn faintly behind the card's text.
    */
   image?: string;
   /** Where the word comes from, or where it went. Required for words in the "borrowed" topic. */

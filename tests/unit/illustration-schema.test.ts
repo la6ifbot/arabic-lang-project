@@ -2,7 +2,8 @@ import { describe, expect, test } from 'vitest';
 import illustrations from '../../src/data/illustrations.json';
 import topics from '../../src/data/topics.json';
 import words from '../../src/data/words.json';
-import { validateIllustrations } from '../../scripts/lib/illustration-schema.mjs';
+import { DEFAULT_HI, DEFAULT_LO, validateIllustrations } from '../../scripts/lib/illustration-schema.mjs';
+import { PIPELINE } from '../../shared/images';
 
 const ROSE = {
   id: 'rose-centifolia',
@@ -41,7 +42,13 @@ describe('illustrations.json validator', () => {
     ['a hyphen in the date', { date: '1817-1824' }, /en dash/],
     ['an unknown style', { style: 'watercolour' }, /style must be one of/],
     ['lo above hi', { lo: 0.7, hi: 0.5 }, /lo must be below hi/],
+    ['hi alone below the default lo', { hi: 0.1 }, /lo must be below hi/],
+    ['lo alone above the default hi', { lo: 0.7 }, /lo must be below hi/],
   ])('rejects %s', (_, over, re) => expect(errorsFor(over)).toEqual([expect.stringMatching(re)]));
+
+  test('knows the pipeline’s default thresholds', () => {
+    expect([DEFAULT_LO, DEFAULT_HI]).toEqual([PIPELINE.lo, PIPELINE.hi]);
+  });
 
   test('rejects duplicate and unsorted ids', () => {
     const b = { ...ROSE, id: 'aster' };

@@ -19,7 +19,7 @@ npm run test:e2e       # Playwright (builds are served via `npm run preview`)
 npm run test:db        # database tests (RLS, subscriptions); needs DATABASE_URL (PostgreSQL)
 npm run test:unit      # schedule, email rendering, server handlers (handlers need DATABASE_URL)
 npm run cards          # render card images into .cards/ for a look (CI uploads the real ones)
-npm run illustrations  # restyle illustrations into .illustrations/ (needs Wikimedia access; CI uploads)
+npm run illustrations  # restyle illustrations into .illustrations/ (needs Wikimedia; CI uploads them)
 npm run email:render   # write today's emails to dist-email/ for a look
 npm run check:functions  # compile api/ like Vercel and load it in plain Node
 ```

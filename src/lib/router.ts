@@ -52,8 +52,13 @@ export function onNavigate(cb: RouteListener) {
   return () => listeners.delete(cb);
 }
 
+let inApp = false;
+/** True once the visitor has moved between views inside the app (not on the first page they opened). */
+export const navigatedInApp = () => inApp;
+
 /** In-app navigation (History API when available, in-memory otherwise). */
 export function navigate(path: string) {
+  inApp = true;
   const route = routeFromPath(path);
   if (canSyncUrl) {
     try {

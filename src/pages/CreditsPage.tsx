@@ -72,7 +72,7 @@ function MusicLine({ m }: { m: Music }) {
 export default function CreditsPage() {
   useEffect(() => {
     // The list renders after the browser tried to scroll to the fragment (e.g. /credits#ill-rose-centifolia).
-    const id = decodeURIComponent(window.location.hash.slice(1));
+    const id = window.location.hash.slice(1); // ids are ASCII, so no decoding (which throws on a stray %)
     if (id) document.getElementById(id)?.scrollIntoView();
   }, []);
 
@@ -87,16 +87,16 @@ export default function CreditsPage() {
       <h1 className="page-title">Credits</h1>
       <div className="prose">
         <p className="prose-lead">
-          The meanings and example sentences on Durar are written for Durar. The pictures, music and fonts are other
-          people’s work, credited here.
+          The meanings and most example sentences on Durar are written for Durar. The{' '}
+          {MUSIC.length > 0 ? 'pictures, music and fonts' : 'pictures and fonts'} are other people’s work, credited here.
         </p>
 
         {items.length > 0 && (
           <>
             <h2>Illustrations</h2>
             <p>
-              Every illustration is restyled from a historical print in the public domain: cleaned, cropped and tinted for
-              Durar. We credit the artist and link the copy we used.
+              Every illustration is restyled from a public-domain or CC0 original: cleaned, cropped and tinted for Durar.
+              We credit the artist and link the copy we used.
             </p>
             <ul className="credits-list">
               {items.map(({ e, words, covers }) => {
@@ -122,12 +122,12 @@ export default function CreditsPage() {
                         </a>
                         . {e.flip ? 'Mirrored and restyled' : 'Restyled'} by Durar.{' '}
                         <a href={e.sourceUrl} rel="external">
-                          The print on Wikimedia Commons
+                          The original on Wikimedia Commons
                         </a>
                         {e.scan && <> (scan: {e.scan})</>}.
                       </p>
                       <p className="credit-used">
-                        Used for{' '}
+                        Drawn for{' '}
                         {words.map((w, i) => (
                           <Fragment key={w.slug}>
                             {i > 0 && ', '}
