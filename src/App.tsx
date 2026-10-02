@@ -190,7 +190,7 @@ function Sea() {
           <span className="brand-en">Durar</span>
         </a>
         <AccountMenu />
-        <HelpBox />
+        <HelpBox ready={sceneReady || !use3D} />
       </header>
 
       {use3D && <PearlLabel />}

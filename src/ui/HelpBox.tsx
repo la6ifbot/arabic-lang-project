@@ -1,17 +1,59 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { accountsMode } from '../account/backend';
+import { HELP_SEEN_KEY } from '../account/storageKeys';
+import { hasAuthCallback } from '../account/urlState';
+import { slugFromLocation } from '../lib/router';
 import { openAbout } from '../state/dialogs';
 
-/** “?” in the top-left corner: a small box with how to use the sea, and a way into “What is Durar?”. */
-export function HelpBox() {
+// Read at startup, before the site tidies the URL. An email or sign-in link landing never opens it,
+// and a shared word (/word/<slug>) is never covered: the “?” only glows, and the box waits.
+const cameFromAuthLink = hasAuthCallback();
+const cameFromWordLink = slugFromLocation() !== null;
+
+function seen() {
+  try {
+    return localStorage.getItem(HELP_SEEN_KEY) !== null;
+  } catch {
+    return true; // storage blocked: don't open it on every visit
+  }
+}
+
+function markSeen() {
+  try {
+    localStorage.setItem(HELP_SEEN_KEY, '1');
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/**
+ * “?” in the top-left corner: a small box with how to use the sea, and a way into “What is Durar?”.
+ * On a first visit it opens by itself once the sea is ready (`ready`); after that, only from the “?”.
+ * Arriving on a shared word, the “?” glows gently instead, until it is opened or a later visit opens it.
+ */
+export function HelpBox({ ready = false }: { ready?: boolean }) {
   const [open, setOpen] = useState(false);
+  const [hint, setHint] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const boxId = useId();
   const titleId = useId();
 
   useEffect(() => {
+    // Not over a dialog or a linked word: those visitors came for something else.
+    if (!ready || seen() || document.body.dataset.modal || cameFromAuthLink) return;
+    if (cameFromWordLink) {
+      setHint(true);
+      return;
+    }
+    markSeen();
+    setOpen(true);
+  }, [ready]);
+
+  useEffect(() => {
     if (!open) return;
+    markSeen();
+    setHint(false);
     const onDown = (e: PointerEvent) => {
       if (!box.current?.contains(e.target as Node) && !button.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -37,6 +79,7 @@ export function HelpBox() {
         aria-expanded={open}
         aria-controls={boxId}
         aria-label="How it works"
+        data-hint={hint || undefined}
         onClick={() => setOpen((o) => !o)}
         data-testid="help-button"
       >
