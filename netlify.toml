@@ -2,8 +2,5 @@
   command = "npm run build"
   publish = "dist"
 
-# Static /word/<slug>/index.html files are served first; everything else falls back to the SPA.
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# No SPA fallback: every app route is prerendered (/word/<slug>/index.html, /library, …), and any
+# other path gets dist/404.html with a 404 status, which Netlify serves by itself.

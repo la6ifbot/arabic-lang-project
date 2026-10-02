@@ -51,7 +51,7 @@ Optional, with working defaults (leave unset unless you mean to change them):
 | --- | --- | --- |
 | `ALERT_EMAIL` | first `EMAIL_SANDBOX_TO` address | Who the morning health check emails. |
 | `SES_REGION` | `eu-central-1` | SES region. |
-| `SES_RATE_PER_SECOND` | `1` | Sending pace of the daily email. Keep it at 1 while the list is small: Amazon was told the daily send is paced at 1 per second. Each sending call handles about 45 emails, so the six 07:xx calls cover roughly 250 subscribers. Raise it (SES allows up to 14) before the list gets near that. |
+| `SES_RATE_PER_SECOND` | `1` | Top speed of the daily email, in emails a second. **Set it to `5`** (Phase 0.6); see “Sending capacity” below. |
 | `EMAIL_SEND_HOUR` | `7` | Amsterdam hour the daily email goes out. |
 | `EMAIL_HEALTH_HOUR` | `8` | Amsterdam hour the health check looks at today's run. |
 | `EMAIL_SUBJECT_STYLE` | `b` | Subject line style (a, b or c). |
@@ -84,9 +84,68 @@ Vercel sets `VERCEL_ENV`, `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL` itsel
 
 The 3 SES DKIM `CNAME` records (`…._domainkey`), DMARC `TXT` at `_dmarc`, Email Forwarding for
 `hello@`, and **exactly one** SPF `TXT` record at `@` (Namecheap's forwarding one). Never add a
-second `v=spf1` record at `@`. There is no custom MAIL FROM (`mail.durar.space`): its MX record
-would need Namecheap's Custom MX mode, which switches off the `hello@` forwarding. DMARC passes
-through DKIM without it.
+second `v=spf1` record at `@`. Until the custom MAIL FROM below is set up, DMARC passes through
+DKIM alone, which is enough.
+
+### Custom MAIL FROM (`mail.durar.space`)
+
+It makes the envelope sender `mail.durar.space` instead of an amazonses.com address, so SPF also
+aligns with `durar.space` (some inboxes, Outlook among them, trust that more). Its MX record needs
+Namecheap's **Mail Settings → Custom MX**, and that mode turns Email Forwarding off unless
+Namecheap's own forwarding servers are added back by hand. So, in this order:
+
+1. Screenshot **Domain → Redirect Email** and the whole **Advanced DNS** page first.
+2. **Mail Settings → Custom MX**, then these MX records (Mail Settings → Add New Record):
+
+   | Host | Value | Priority |
+   | --- | --- | --- |
+   | `@` | `eforward1.registrar-servers.com` | 10 |
+   | `@` | `eforward2.registrar-servers.com` | 10 |
+   | `@` | `eforward3.registrar-servers.com` | 10 |
+   | `@` | `eforward4.registrar-servers.com` | 15 |
+   | `@` | `eforward5.registrar-servers.com` | 20 |
+   | `mail` | `feedback-smtp.eu-central-1.amazonses.com` | 10 |
+
+3. **Host Records → TXT**, Host `mail`, Value `v=spf1 include:amazonses.com ~all`. The SPF at `@`
+   stays exactly as it was.
+4. Test right away: an email to `hello@durar.space` from another address must reach the owner's
+   Gmail.
+5. Only then, SES (Frankfurt) → **Identities → durar.space → Custom MAIL FROM domain → Edit**: `mail`,
+   **Behavior on MX failure: Use default MAIL FROM domain** → Save. It turns **Successful** within an
+   hour; the next Pearl of the Day shows SPF **PASS** for `mail.durar.space` in Gmail's *Show original*.
+
+**Way back** (if the forwarding test fails): Mail Settings → **Email Forwarding**, re-add `hello`
+under Redirect Email from the screenshot if it's gone, and skip step 5. Nothing else changes.
+
+### Sending capacity
+
+The daily email goes out in the six 07:xx calls. Each call keeps claiming batches of 10 recipients
+for 45 seconds, then finishes the batch in hand, so it sends for up to about 55 seconds, one email
+after another. Each email waits for Amazon and then for the database, and the functions run in
+Washington (Vercel region `iad1`) while SES and the database are in Europe, so one email takes
+roughly a quarter to a third of a second whatever the setting. `SES_RATE_PER_SECOND` is a ceiling on
+top of that:
+
+| `SES_RATE_PER_SECOND` | Expected pace | Subscribers covered by 07:59 (estimate) |
+| --- | --- | --- |
+| `1` (the default) | 1 a second, about 50 a call | about 300 |
+| `5` (recommended) | about 3 a second, limited by the round trips | about 800 |
+
+Amazon's limit for this account is 14 a second and 50,000 a day (SES → Account dashboard), and the
+sign-up and password emails from Supabase share it, so `5` leaves plenty of room. The production
+access request (DOMAIN-DAY.md, 4d) named no rate, only that sending is spread over 07:00–08:00
+Amsterdam, which stays true at `5`. Anyone not reached by 07:59 is still sent the next morning's
+email as usual, but misses that day's. The 08:15 health check then emails the alarm *“Durar: the
+YYYY-MM-DD email needs a look”*, with the line *“N confirmed subscriber(s) did not get today's email.”*
+
+**When to raise it again:** when the list passes about 600 confirmed subscribers, or after the first
+such alarm. Changing the number won't be enough then: the next step is a code change so each call
+sends several emails at once (and, optionally, moving Vercel's function region to Frankfurt `fra1`,
+which roughly doubles the pace). Count confirmed subscribers with:
+
+```sql
+select count(*) from public.subscribers where status = 'confirmed';
+```
 
 ## 2. The schedule
 
