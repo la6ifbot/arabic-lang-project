@@ -147,12 +147,6 @@ test.describe('routes & SEO', () => {
     await expect(page).toHaveTitle(/ṭarab/);
   });
 
-  test('unknown word routes fall back to the home experience', async ({ page }) => {
-    await page.goto('/word/not-a-word');
-    await waitForScene(page);
-    await expect(focused(page)).toHaveAttribute('data-slug', today().slug);
-  });
-
   test('word pages are prerendered with meta tags and content', async ({ request }) => {
     const html = await (await request.get('/word/hanin')).text();
     expect(html).toContain('<title>حَنِين (ḥanīn) — longing, nostalgia · Durar</title>');

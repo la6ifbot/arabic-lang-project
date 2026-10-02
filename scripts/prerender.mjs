@@ -181,15 +181,16 @@ const notFound = `<!doctype html>
       .lost-search label { display: block; margin-bottom: 8px; font: italic 500 1.05rem/1.2 var(--font-en); color: var(--ink-soft); }
       .lost-search input { width: 100%; box-sizing: border-box; min-height: 46px; padding: 0 18px; border-radius: 999px;
         border: 1px solid var(--glass-edge); background: rgba(8, 34, 46, 0.5); color: var(--ink); font: 400 1rem/1 var(--font-ui); }
-      .lost-search input::placeholder { color: var(--ink-faint); }
+      .lost-search input::placeholder { color: var(--ink-soft); }
       .lost-search input:focus-visible { outline: none; border-color: rgba(190, 240, 240, 0.4); box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.3); }
       .lost-results { display: grid; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; text-align: start; }
       .lost-results a { display: flex; align-items: baseline; gap: 12px; padding: 8px 14px; border-radius: 14px;
         color: var(--ink); text-decoration: none; background: rgba(8, 34, 46, 0.42); }
       .lost-results a:hover, .lost-results a:focus-visible { outline: none; background: rgba(127, 214, 214, 0.14); }
+      .lost-results a:focus-visible { box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.3); }
       .lost-results [lang='ar'] { font: 600 1.4rem/1.4 var(--font-ar); }
       .lost-results .lost-en { font: 500 1rem/1.3 var(--font-en); color: var(--ink-soft); }
-      .lost-status { min-height: 1.2em; margin: 8px 0 0; font: italic 500 0.95rem/1.2 var(--font-en); color: var(--ink-faint); }
+      .lost-status { min-height: 1.2em; margin: 8px 0 0; font: italic 500 0.95rem/1.2 var(--font-en); color: var(--ink-soft); }
       .lost-home { display: inline-block; margin-top: 8px; padding: 12px 26px; border-radius: 999px; border: 1px solid rgba(190, 240, 240, 0.35);
         color: var(--ink); text-decoration: none; font: 500 1.15rem/1 var(--font-en); background: rgba(127, 214, 214, 0.12); }
       .lost-home:hover, .lost-home:focus-visible { outline: none; background: rgba(127, 214, 214, 0.22); box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.3); }
@@ -209,7 +210,7 @@ const notFound = `<!doctype html>
         <p class="lost-text">This page isn’t in the sea. The link may be mistyped, or the page has drifted away.</p>
         <form class="lost-search" role="search" hidden>
           <label for="lost-q">Look for a word instead</label>
-          <input id="lost-q" type="search" autocomplete="off" placeholder="ابحث · search" />
+          <input id="lost-q" type="search" dir="auto" autocomplete="off" spellcheck="false" placeholder="ابحث · search" />
           <p class="lost-status" role="status"></p>
           <ul class="lost-results"></ul>
         </form>
@@ -219,7 +220,7 @@ const notFound = `<!doctype html>
     <script>
       (() => {
         const words = ${JSON.stringify(lost).replace(/</g, '\\u003c')};
-        const ar = (s) => s.replace(/[\\u0610-\\u061a\\u064b-\\u065f\\u0670\\u06d6-\\u06ed\\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه');
+        const ar = (s) => s.replace(/[\\u0610-\\u061a\\u064b-\\u065f\\u0670\\u06d6-\\u06ed\\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي');
         const la = (s) => s.normalize('NFD').replace(/\\p{M}/gu, '').replace(/[ʿʾ'’\`-]/g, '').toLowerCase();
         const form = document.querySelector('.lost-search');
         const input = form.querySelector('input');
@@ -231,10 +232,27 @@ const notFound = `<!doctype html>
           list.querySelector('a')?.click();
         });
         input.addEventListener('input', () => {
+          // Best matches first: the word itself, then a meaning that is a whole word, then the rest.
           const q = input.value.trim();
-          const hits = !q ? [] : /[\\u0600-\\u06ff]/.test(q)
-            ? words.filter((w) => ar(w.ar).includes(ar(q).replace(/^ال/, '')))
-            : words.filter((w) => la(w.tr).replace(/\\s+/g, '').startsWith(la(q).replace(/\\s+/g, '')) || la(w.en).includes(la(q)));
+          const isAr = /[\\u0600-\\u06ff]/.test(q);
+          const nq = isAr ? ar(q).replace(/^ال/, '') : la(q);
+          const c = nq.replace(/\\s+/g, '');
+          const hits = !nq ? [] : words.map((w) => {
+            let s = 0;
+            if (isAr) {
+              const a = ar(w.ar);
+              s = a === nq ? 100 : a.startsWith(nq) ? 70 : a.includes(nq) ? 40 : 0;
+            } else {
+              const t = la(w.tr).replace(/\\s+/g, '');
+              const en = la(w.en);
+              const mw = en.split(/[^a-z]+/);
+              s = t === c ? 100 : t.startsWith(c) ? 75 : 0;
+              if (mw.includes(nq)) s = Math.max(s, 90);
+              else if (mw.some((m) => m.startsWith(nq))) s = Math.max(s, 60);
+              else if (nq.length > 2 && en.includes(nq)) s = Math.max(s, 35);
+            }
+            return { w, s };
+          }).filter((h) => h.s).sort((a, b) => b.s - a.s).map((h) => h.w);
           list.replaceChildren(...hits.slice(0, 6).map((w) => {
             const li = document.createElement('li');
             const a = document.createElement('a');
@@ -250,7 +268,7 @@ const notFound = `<!doctype html>
             li.append(a);
             return li;
           }));
-          status.textContent = !q ? '' : hits.length ? hits.length + (hits.length === 1 ? ' word' : ' words') : 'No word matches that yet.';
+          status.textContent = !nq ? '' : hits.length ? hits.length + (hits.length === 1 ? ' word' : ' words') : 'No word matches that yet.';
         });
       })();
     </script>
