@@ -97,9 +97,14 @@ test.describe('Pearl of the Day by email: sign-up form', () => {
     expect(bodies).toHaveLength(0);
 
     // The honeypot isn't visible or reachable by keyboard.
-    const hp = page.locator('#subscribe-website');
+    const hp = page.locator('#subscribe-extra');
     await expect(hp).toHaveAttribute('tabindex', '-1');
     expect(await hp.evaluate((el) => el.getBoundingClientRect().right < 0)).toBe(true);
+    // Nothing invites a browser or password manager to fill it in for a person.
+    await expect(hp).not.toHaveAttribute('name', /web|url|site|home/i);
+    await expect(hp).toHaveAttribute('autocomplete', 'off');
+    await expect(hp).toHaveAttribute('data-1p-ignore', /.*/);
+    await expect(hp).toHaveAttribute('data-lpignore', 'true');
 
     await d.getByLabel('Email').fill('Reader@Example.com');
     await d.getByRole('button', { name: 'Send me the pearls' }).click();
@@ -122,12 +127,30 @@ test.describe('Pearl of the Day by email: sign-up form', () => {
     await page.goto('/');
     await waitForScene(page);
     await page.getByTestId('subscribe-open').click();
-    await page.locator('#subscribe-website').fill('http://spam.example', { force: true });
+    await page.locator('#subscribe-extra').fill('http://spam.example', { force: true });
     await page.getByRole('dialog').getByLabel('Email').fill('bot@example.com');
     await page.getByRole('dialog').getByRole('button', { name: 'Send me the pearls' }).click();
     await expect(page.getByRole('dialog').getByRole('heading')).toHaveText('Check your inbox to confirm');
     expect(body).toEqual({ email: 'bot@example.com', website: 'http://spam.example' });
   });
+
+  for (const [what, reply] of [
+    ['a refusal', { status: 403, body: 'Forbidden', contentType: 'text/plain' }],
+    ['a missing endpoint', { status: 404, json: { error: 'not_found' } }],
+    ['a web page instead of the endpoint', { status: 200, body: '<!doctype html><title>Durar</title>', contentType: 'text/html' }],
+  ] as const) {
+    test(`${what} never says “check your inbox”`, async ({ page }) => {
+      await page.route('**/api/subscribe', (route) => route.fulfill(reply));
+      await page.goto('/');
+      await waitForScene(page);
+      await page.getByTestId('subscribe-open').click();
+      const d = page.getByRole('dialog');
+      await d.getByLabel('Email').fill('reader@example.com');
+      await d.getByRole('button', { name: 'Send me the pearls' }).click();
+      await expect(d.getByRole('alert')).toHaveText('Something went wrong on our side. Please try again in a moment.');
+      await expect(d.getByRole('heading')).toHaveText('Pearl of the Day by email');
+    });
+  }
 
   test('too many tries says so kindly', async ({ page }) => {
     await page.route('**/api/subscribe', (route) => route.fulfill({ status: 429, json: { error: 'rate_limited' } }));

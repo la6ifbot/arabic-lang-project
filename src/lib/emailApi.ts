@@ -59,7 +59,10 @@ export async function subscribeEmail(email: string, opts: { website?: string; ac
     return verified ? 'confirmed' : 'check_inbox';
   }
   const headers: Record<string, string> = opts.accessToken ? { Authorization: `Bearer ${opts.accessToken}` } : {};
-  const { data } = await post('/api/subscribe', { email: e, website: opts.website ?? '' }, headers);
+  const { status, data } = await post('/api/subscribe', { email: e, website: opts.website ?? '' }, headers);
+  // Only the endpoint's own answer counts as success: never tell someone to check their inbox
+  // when the request was refused or answered by something else (a 403, a 404 page).
+  if (status !== 200 || (data as { ok?: unknown }).ok !== true) throw new EmailApiError('server');
   return data.status === 'confirmed' ? 'confirmed' : 'check_inbox';
 }
 

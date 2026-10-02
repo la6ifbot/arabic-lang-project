@@ -226,6 +226,13 @@ Work down this list; stop at the first thing that's wrong.
 3. **Your subscription:** `select status from public.subscribers where email = 'you@…';` must be
    `confirmed`. `bounced` or `complained` stops all email to that address: remove it from SES's
    suppression list first, then set the row back to `confirmed`.
+   - *No row at all:* the request never reached the list (a pending, unsubscribed or bounced
+     address always leaves a row). Most often the person **created an account** instead: an
+     account never subscribes anyone. Check with
+     `select exists (select 1 from auth.users where email = 'them@…');`. Otherwise they never saw
+     **Check your inbox to confirm** after **Send me the pearls** (the link shows only on today's
+     pearl), or deleted their account, which removes its subscription too. Have them subscribe
+     again from durar.space.
 4. **Mode:** in `sandbox`, only `EMAIL_SANDBOX_TO` addresses get anything.
 5. **Resend today's email to yourself:** `…/api/cron/daily?test=1` (outside the log).
 
