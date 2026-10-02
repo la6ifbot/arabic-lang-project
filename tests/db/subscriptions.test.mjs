@@ -268,3 +268,75 @@ describe('daily run log (monitoring)', () => {
     assert.deepEqual(h.sends, { sent: 0, failed: 0, reserved: 0 });
   });
 });
+
+describe('new accounts get the daily email once their address is proven', () => {
+  const sub = (email) => one(`select status, user_id, confirm_token_hash, confirmed_at from public.subscribers where email = $1`, [email]);
+  const signUp = async (email, provider, { sent = true } = {}) => {
+    const id = randomUUID();
+    await q(`insert into auth.users (id, email, raw_app_meta_data, confirmation_sent_at) values ($1, $2, $3, $4)`, [
+      id,
+      email,
+      { provider, providers: [provider] },
+      sent && provider === 'email' ? new Date() : null,
+    ]);
+    return id;
+  };
+  const confirm = (id) => q(`update auth.users set email_confirmed_at = now() where id = $1`, [id]);
+
+  test('an email sign-up is subscribed when the confirmation link is used, not before, and only once', async () => {
+    const id = await signUp('Nora@Example.com', 'email');
+    assert.equal(await sub('nora@example.com'), undefined);
+    await confirm(id);
+    const row = await sub('nora@example.com');
+    assert.equal(row.status, 'confirmed');
+    assert.equal(row.user_id, id);
+    assert.equal(row.confirm_token_hash, null);
+    assert.ok(row.confirmed_at);
+    await server(() => q(`select public.subscription_unsubscribe((select id from public.subscribers where email = 'nora@example.com'))`));
+    await confirm(id); // already confirmed: the trigger doesn't fire again
+    assert.equal((await sub('nora@example.com')).status, 'unsubscribed');
+    assert.equal((await one(`select count(*)::int as n from public.subscribers where user_id = $1`, [id])).n, 1);
+  });
+
+  test('a Google sign-up is subscribed when Supabase confirms it', async () => {
+    const id = await signUp('omar@gmail.com', 'google');
+    await confirm(id);
+    assert.equal((await sub('omar@gmail.com')).status, 'confirmed');
+  });
+
+  test('with “Confirm email” off nothing was proven, so nothing is subscribed', async () => {
+    const id = await signUp('typed-by-anyone@example.com', 'email', { sent: false });
+    await confirm(id);
+    assert.equal(await sub('typed-by-anyone@example.com'), undefined);
+  });
+
+  test('an earlier opt-out, bounce or complaint sticks; a pending form sign-up is confirmed', async () => {
+    await q(
+      `insert into public.subscribers (email, status, confirm_token_hash, confirm_sent_at) values
+         ('left@example.com', 'unsubscribed', null, null), ('gone@example.com', 'bounced', null, null),
+         ('halfway@example.com', 'pending', 'abc', now())`,
+    );
+    for (const email of ['left@example.com', 'gone@example.com', 'halfway@example.com']) await confirm(await signUp(email, 'email'));
+    assert.equal((await sub('left@example.com')).status, 'unsubscribed');
+    assert.ok((await sub('left@example.com')).user_id, 'the account is linked, so the menu shows Off');
+    assert.equal((await sub('gone@example.com')).status, 'bounced');
+    const pending = await sub('halfway@example.com');
+    assert.equal(pending.status, 'confirmed');
+    assert.equal(pending.confirm_token_hash, null);
+  });
+
+  test('a problem with the email list never blocks the sign-up', async () => {
+    const id = await signUp('x', 'email'); // fails the subscribers address check
+    await confirm(id);
+    assert.ok((await one(`select email_confirmed_at from auth.users where id = $1`, [id])).email_confirmed_at);
+    assert.equal(await sub('x'), undefined);
+  });
+
+  test('it works when Supabase Auth, which has no rights on the email tables, confirms the account', async () => {
+    await q(`do $$ begin create role supabase_auth_admin nologin; exception when duplicate_object then null; end $$`);
+    await q(`grant usage on schema auth to supabase_auth_admin; grant select, insert, update on auth.users to supabase_auth_admin`);
+    const id = await signUp('via-auth@example.com', 'email');
+    await as('supabase_auth_admin', null, () => confirm(id));
+    assert.equal((await sub('via-auth@example.com')).status, 'confirmed');
+  });
+});

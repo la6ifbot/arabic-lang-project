@@ -403,7 +403,7 @@ test.describe('mastery: Library and reset', () => {
     await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 0 still learning · 0 saved');
     await page.getByTestId('account-button').click();
     await page.getByRole('menuitem', { name: /Delete my account/ }).click();
-    await expect(dialog(page)).toContainText('along with your progress');
+    await expect(dialog(page)).toContainText('along with your progress, and stops any Pearl of the Day email');
     await dialog(page).getByRole('button', { name: 'Delete my account' }).click();
     await expect(page.getByTestId('sign-in')).toBeVisible();
     const db = await page.evaluate(() => JSON.parse(localStorage.getItem('durar-mock-db')!));
