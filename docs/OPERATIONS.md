@@ -258,6 +258,14 @@ above either, go **back to sandbox** and find the cause before switching live ag
 also told: double opt-in only, one-click unsubscribe, the account-level suppression list on for
 bounces and complaints, the daily job syncing that list, and no open or click tracking.
 
+**Accounts get the email (since 3 Oct 2026, the owner's choice).** Besides the double opt-in form,
+an account is subscribed when its address is proven: the Supabase confirmation link, or Google. A
+database trigger (`supabase/migrations/20261003000000_account_daily_email.sql`) does it, and the
+same file subscribed the accounts that already existed. Sign-in and sign-up say so, and the account
+menu switches it off. An unsubscribed, bounced or complained address is never resubscribed. It
+relies on **Confirm email** staying on in Supabase: with it off, email sign-ups prove nothing and
+the trigger skips them. Watch the complaint rate more closely after this change.
+
 **Sign-up and reset links** work in any browser or device. The templates link to
 `https://durar.space/?durar=verify|reset&token_hash=…` and the site checks the hash itself
 (`src/account/supabaseBackend.ts`), instead of Supabase's default link, which only works in the
@@ -286,9 +294,8 @@ Work down this list; stop at the first thing that's wrong.
    `confirmed`. `bounced` or `complained` stops all email to that address: remove it from SES's
    suppression list first, then set the row back to `confirmed`.
    - *No row at all:* the request never reached the list (a pending, unsubscribed or bounced
-     address always leaves a row). Most often the person **created an account** instead: an
-     account never subscribes anyone. Check with
-     `select exists (select 1 from auth.users where email = 'them@…');`. Otherwise they never saw
+     address always leaves a row). An account that never confirmed its address isn't subscribed:
+     `select email_confirmed_at from auth.users where email = 'them@…';`. Otherwise they never saw
      **Check your inbox to confirm** after **Send me the pearls** (the link shows only on today's
      pearl), or deleted their account, which removes its subscription too. Have them subscribe
      again from durar.space.

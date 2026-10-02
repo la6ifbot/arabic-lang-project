@@ -85,6 +85,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
     verify(email: string) {
       const db = load();
       const u = db.users.find((x) => x.email === email.toLowerCase());
+      if (u && !u.verified) subscribeAccount(u.email);
       if (u) u.verified = true;
       store(db);
     },
@@ -116,6 +117,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
         const owner = link && db.users.find((x) => x.email === link.to);
         if (link && owner) {
           for (const l of db.links!) if (l.to === link.to) l.used = true;
+          if (link.kind === 'verify' && !owner.verified) subscribeAccount(owner.email);
           if (link.kind === 'verify') owner.verified = true;
           db.sessionUserId = owner.id;
           store(db);
@@ -174,6 +176,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       if (!u) {
         u = { id: crypto.randomUUID(), email: 'pearl.diver@gmail.com', password: '', verified: true, provider: 'google' };
         db.users.push(u);
+        subscribeAccount(u.email);
       }
       db.sessionUserId = u.id;
       store(db);
@@ -298,6 +301,15 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       emit('signed-out', null);
     },
   };
+}
+
+/**
+ * Like the database trigger: an account whose address was just proven (confirmation link or Google)
+ * gets the daily email, unless that address already opted out, bounced or complained.
+ */
+function subscribeAccount(email: string) {
+  const m = readMockEmail();
+  if (!m[email] || m[email] === 'pending') writeMockEmail({ ...m, [email]: 'confirmed' });
 }
 
 /** Mock email subscriptions (email → status), shared with src/lib/emailApi.ts in mock mode. */

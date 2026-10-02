@@ -116,7 +116,8 @@ export function renderDaily(opts: {
   const ex = w.examples[0];
   const more = w.meanings.slice(1).join('; ');
   const subject = SUBJECTS[opts.subjectStyle ?? 'b'](w);
-  const reason = 'You’re receiving this because you subscribed to the Pearl of the Day on Durar. One email a day, around 7:00 in Amsterdam.';
+  const reason =
+    'You’re receiving this because you subscribed to the Pearl of the Day, or have a Durar account, with this address. One email a day, around 7:00 in Amsterdam.';
   const rv = opts.revisit;
   const rvUrl = rv ? `${siteUrl}/word/${rv.slug}` : '';
 

@@ -277,7 +277,7 @@ accountTest.describe('accounts: interim mode and the email toggle', () => {
     await expect(page.getByTestId('account-button')).toBeVisible();
   });
 
-  accountTest('account menu toggle: Google accounts subscribe at once and can switch off', async ({ page }) => {
+  accountTest('account menu toggle: a new Google account starts on, switches off and back on at once', async ({ page }) => {
     await seed(page);
     await page.goto('/');
     await waitForSea(page);
@@ -285,13 +285,13 @@ accountTest.describe('accounts: interim mode and the email toggle', () => {
     await dialog(page).getByRole('button', { name: 'Continue with Google' }).click();
     await page.getByTestId('account-button').click();
     const toggle = page.getByTestId('email-toggle');
-    await expect(toggle).toHaveAttribute('aria-checked', 'false');
-    await toggle.click();
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
-    await expect(page.getByTestId('account-status')).toContainText('You’re subscribed');
     await toggle.click();
     await expect(toggle).toHaveAttribute('aria-checked', 'false');
     await expect(page.getByTestId('account-status')).toContainText('email is off');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await expect(page.getByTestId('account-status')).toContainText('You’re subscribed');
   });
 
   accountTest('account menu toggle: email accounts confirm by email first', async ({ page }) => {

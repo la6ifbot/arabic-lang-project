@@ -102,7 +102,7 @@ exports[`daily email > matches the snapshot > html 1`] = `
   </td></tr>
 </table></td></tr>
 <tr><td class="px" align="center" style="padding:28px 40px 0;font-family:-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:1.6;color:#8fb0b8;">
-  <p style="margin:0 0 8px;">You’re receiving this because you subscribed to the Pearl of the Day on Durar. One email a day, around 7:00 in Amsterdam.</p>
+  <p style="margin:0 0 8px;">You’re receiving this because you subscribed to the Pearl of the Day, or have a Durar account, with this address. One email a day, around 7:00 in Amsterdam.</p>
   <p style="margin:0;"><a href="https://durar.example/unsubscribe?token=abc.def" style="color:#c8dde2;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="https://durar.example/privacy" style="color:#c8dde2;text-decoration:underline;">Privacy</a> &nbsp;·&nbsp; <a href="mailto:hello@durar.example" style="color:#c8dde2;text-decoration:underline;">hello@durar.example</a></p>
 </td></tr>
 </table>
@@ -129,7 +129,7 @@ I am the sea; in its depths the pearls lie hidden.
 Open in Durar: https://durar.example/word/bahr
 
 —
-You’re receiving this because you subscribed to the Pearl of the Day on Durar. One email a day, around 7:00 in Amsterdam.
+You’re receiving this because you subscribed to the Pearl of the Day, or have a Durar account, with this address. One email a day, around 7:00 in Amsterdam.
 Unsubscribe: https://durar.example/unsubscribe?token=abc.def
 Privacy: https://durar.example/privacy
 Contact: hello@durar.example"
@@ -189,7 +189,7 @@ exports[`daily email > “A pearl to revisit”: one line under the main card, l
   </td></tr>
 </table></td></tr>
 <tr><td class="px" align="center" style="padding:28px 40px 0;font-family:-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;font-size:12px;line-height:1.6;color:#8fb0b8;">
-  <p style="margin:0 0 8px;">You’re receiving this because you subscribed to the Pearl of the Day on Durar. One email a day, around 7:00 in Amsterdam.</p>
+  <p style="margin:0 0 8px;">You’re receiving this because you subscribed to the Pearl of the Day, or have a Durar account, with this address. One email a day, around 7:00 in Amsterdam.</p>
   <p style="margin:0;"><a href="https://durar.example/unsubscribe?token=abc.def" style="color:#c8dde2;text-decoration:underline;">Unsubscribe</a> &nbsp;·&nbsp; <a href="https://durar.example/privacy" style="color:#c8dde2;text-decoration:underline;">Privacy</a> &nbsp;·&nbsp; <a href="mailto:hello@durar.example" style="color:#c8dde2;text-decoration:underline;">hello@durar.example</a></p>
 </td></tr>
 </table>
@@ -215,7 +215,7 @@ A pearl to revisit: سَرَاب (sarāb) — mirage: https://durar.example/word
 Open in Durar: https://durar.example/word/bahr
 
 —
-You’re receiving this because you subscribed to the Pearl of the Day on Durar. One email a day, around 7:00 in Amsterdam.
+You’re receiving this because you subscribed to the Pearl of the Day, or have a Durar account, with this address. One email a day, around 7:00 in Amsterdam.
 Unsubscribe: https://durar.example/unsubscribe?token=abc.def
 Privacy: https://durar.example/privacy
 Contact: hello@durar.example"

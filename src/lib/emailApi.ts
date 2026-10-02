@@ -53,10 +53,12 @@ export async function subscribeEmail(email: string, opts: { website?: string; ac
   if (mock) {
     await new Promise((r) => setTimeout(r, 150));
     // A signed-in Google account's address is already verified: no confirmation step.
-    const verified = !!opts.accessToken && opts.accessToken.startsWith('mock:google:') && opts.accessToken.endsWith(`:${e}`);
+    const own = !!opts.accessToken && opts.accessToken.endsWith(`:${e}`);
+    const verified = own && opts.accessToken!.startsWith('mock:google:');
     const next = verified ? 'confirmed' : mockStore()[e] === 'confirmed' ? 'confirmed' : 'pending';
     mockStore((m) => (m[e] = next));
-    return verified ? 'confirmed' : 'check_inbox';
+    // Like the server, only the address's own account hears that it's already subscribed.
+    return verified || (own && next === 'confirmed') ? 'confirmed' : 'check_inbox';
   }
   const headers: Record<string, string> = opts.accessToken ? { Authorization: `Bearer ${opts.accessToken}` } : {};
   const { status, data } = await post('/api/subscribe', { email: e, website: opts.website ?? '' }, headers);

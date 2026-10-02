@@ -59,9 +59,9 @@ export default function AuthModal() {
     requestAnimationFrame(() => focusFirst(body.current));
   }, [mode, dialog.error, dialog.email]);
 
-  // A new account never sends the daily email by itself, so the welcome offers it.
+  // A confirmed account gets the daily email; the welcome says so, or offers it if the address had opted out.
   const offerEmail = mode === 'verified' && emailSignupEnabled;
-  const showOffer = offerEmail && (emailState === 'off' || emailState === 'unknown' || (emailState === 'loading' && askedEmail));
+  const showOffer = offerEmail && (emailState === 'off' || (emailState === 'loading' && askedEmail));
   useEffect(() => {
     if (offerEmail && useEmailToggle.getState().state === 'unknown') void loadEmailToggle();
   }, [offerEmail]);
@@ -196,14 +196,13 @@ export default function AuthModal() {
                 Almost there: open the email <strong>Confirm your Pearl of the Day</strong> and tap the link in it.
               </p>
             )}
-            {offerEmail && emailState === 'on' && askedEmail && (
+            {offerEmail && emailState === 'on' && (
               <p className="modal-text" role="status">
-                You’re subscribed. The next pearl arrives at about 7:00, Amsterdam time.
+                Your Pearl of the Day email is on: one Arabic word each morning at about 7:00, Amsterdam time. Switch it off
+                any time in the account menu.
               </p>
             )}
-            {showOffer && (
-              <p className="modal-text">The Pearl of the Day email is separate from your account. Want one Arabic word each morning?</p>
-            )}
+            {showOffer && <p className="modal-text">Want the Pearl of the Day by email? One Arabic word each morning.</p>}
             <div className="modal-actions">
               {showOffer && (
                 <button
@@ -373,6 +372,7 @@ export default function AuthModal() {
 
       <p className="modal-privacy">
         We keep only your email and the words you save.{' '}
+        {showGoogle && emailSignupEnabled && 'A new account also gets the Pearl of the Day email, which you can switch off in the menu. '}
         <a
           href="/privacy"
           onClick={(e) => {

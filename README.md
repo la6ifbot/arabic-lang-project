@@ -130,7 +130,8 @@ All fonts are self-hosted via Fontsource (SIL Open Font License), with no third-
 - Card images are rendered with headless Chromium (real Arabic shaping) and committed under
   `public/cards/`. A hash manifest means `npm run cards` only redraws what changed. The build fails if
   an image is stale.
-- The email runs on Vercel functions + Supabase + Amazon SES: double opt-in, one-click unsubscribe,
+- The email runs on Vercel functions + Supabase + Amazon SES: double opt-in from the form (confirmed
+  accounts get it too, with an Off switch in the account menu), one-click unsubscribe,
   no tracking, one send per subscriber per day (enforced by a primary key), and sandbox mode until the
   domain exists. Details: [`docs/EMAIL-SETUP.md`](docs/EMAIL-SETUP.md).
 

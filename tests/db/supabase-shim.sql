@@ -13,8 +13,12 @@ exception when duplicate_object then null; end $$;
 
 create schema if not exists auth;
 create table if not exists auth.users (
-  id    uuid primary key,
-  email text
+  id                   uuid primary key,
+  email                text,
+  email_confirmed_at   timestamptz,
+  confirmation_sent_at timestamptz,
+  recovery_sent_at     timestamptz,
+  raw_app_meta_data    jsonb
 );
 
 create or replace function auth.uid() returns uuid
