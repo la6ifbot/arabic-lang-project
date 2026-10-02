@@ -15,6 +15,10 @@ const toUser = (u: User): AccountUser => ({
   id: u.id,
   email: u.email ?? null,
   provider: (u.app_metadata?.provider as string | undefined) ?? 'email',
+  // Absent until a topic is first chosen while signed in; null is "the whole sea".
+  ...(u.user_metadata && 'sea_topic' in u.user_metadata
+    ? { topic: typeof u.user_metadata.sea_topic === 'string' ? u.user_metadata.sea_topic : null }
+    : {}),
 });
 
 const AUTH_CODES: Partial<Record<string, AccountErrorCode>> = {
@@ -141,6 +145,11 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
 
     async updatePassword(password) {
       await guard(client.auth.updateUser({ password }));
+    },
+
+    async setTopic(topic) {
+      // Kept in the user's own auth metadata: no table, and it goes when the account goes.
+      await guard(client.auth.updateUser({ data: { sea_topic: topic } }));
     },
 
     async resendVerification(email, returnTo) {
