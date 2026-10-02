@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { IMAGE_ORIGIN } from './site.js';
 
 /**
  * Card images (social previews and the daily email) live on img.durar.space: a private S3 bucket in
@@ -6,7 +7,7 @@ import { createHash } from 'node:crypto';
  * committed. Each file name carries a hash of everything drawn on the card, so a word's URL can be
  * worked out from its data alone, a changed word gets a new URL, and every file can be cached forever.
  */
-export const IMAGE_ORIGIN = 'https://img.durar.space';
+export { IMAGE_ORIGIN };
 export const IMAGE_BUCKET = 'durar-space-images';
 export const IMAGE_REGION = 'eu-central-1';
 

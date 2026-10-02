@@ -14,11 +14,12 @@ npm install
 npm run dev            # http://localhost:5173
 npm run build          # type-check, bundle, prerender /word/<slug> pages → dist/
 npm run preview        # serve dist/ at http://localhost:4173 (clean URLs like production)
-npm run validate:data  # schema check for src/data/words.json
+npm run validate:data  # schema check for words.json, topics.json and illustrations.json
 npm run test:e2e       # Playwright (builds are served via `npm run preview`)
 npm run test:db        # database tests (RLS, subscriptions); needs DATABASE_URL (PostgreSQL)
 npm run test:unit      # schedule, email rendering, server handlers (handlers need DATABASE_URL)
 npm run cards          # render card images into .cards/ for a look (CI uploads the real ones)
+npm run illustrations  # restyle illustrations into .illustrations/ (needs Wikimedia access; CI uploads)
 npm run email:render   # write today's emails to dist-email/ for a look
 npm run check:functions  # compile api/ like Vercel and load it in plain Node
 ```
@@ -65,12 +66,14 @@ src/
                          sign-in dialog, account menu, save control
   account/               accounts: Supabase client (lazy chunk), browser-only mock, store
                          (optimistic saves, pending save across sign-in), friendly errors
-  pages/                 /library (My Pearls) and /privacy, light CSS-only pages
+  pages/                 /library (My Pearls), /privacy and /credits, light CSS-only pages
   share/                 sharing (lazy chunk): share text + links, the 9:16 story image, share sheet
-shared/                  code used by both site and server (Pearl of the Day schedule, flags)
+shared/                  code used by both site and server (Pearl of the Day schedule, flags,
+                         image URLs, licences and credit lines)
 api/                     Vercel functions: subscribe, confirm, unsubscribe, cron/daily
 server/                  their logic: handlers, SQL-function store, email templates, SES adapter
 scripts/cards.mjs        card images (social previews + email): CI renders and uploads them to img.durar.space
+scripts/illustrations.mjs  illustrations: CI restyles public-domain plates and uploads them to img.durar.space
 supabase/migrations/     versioned SQL: saved_pearls, subscribers, daily_sends, RLS, functions
 supabase/setup/          one-off owner SQL (pg_cron schedule for the daily email)
 scripts/prerender.mjs    post-build: static HTML + OG/Twitter/JSON-LD for every word; noindex /library
@@ -169,19 +172,25 @@ interface Word {
   topics: string[];        // ids from src/data/topics.json; [] = only in "The whole sea"
   audio?: string;          // reserved: pronunciation audio
   added: string;           // ISO date it joined (2026-09-24 for the original set; Pearl of the Day cycles)
-  image?: { src: string; alt: string; credit: string; license: string; sourceUrl?: string };
+  image?: string;          // an id from src/data/illustrations.json (source, credit, licence, alt)
   etymology?: { text: string; source: string }; // required for the "borrowed" topic
 }
 ```
 
 `src/data/topics.json` is the topic registry: `id` (the `/sea/<id>` URL), `name` and `description`
-in English and Arabic, `order`, and an optional `cover`. "The whole sea" is every word and isn't
-listed there.
+in English and Arabic, `order`, and an optional `cover` (an illustration id). "The whole sea" is
+every word and isn't listed there.
+
+`src/data/illustrations.json` lists the illustrations: restyled public-domain plates from Wikimedia
+Commons, each with its artist, work, date, licence and alt text. CI turns each entry into tinted
+line art on `img.durar.space`, and `/credits` credits every one. How to add one:
+[`docs/ILLUSTRATIONS.md`](docs/ILLUSTRATIONS.md).
 
 Run `npm run validate:data` after editing. It checks the rules in `scripts/lib/word-schema.mjs`:
 vowelled headwords, the transliteration format (ā ī ū, ḥ ṣ ḍ ṭ ẓ, ʿ and ʾ), 1–3 examples, known
-topic ids, an `added` date, a sourced etymology for borrowed words, credit and licence on images,
-and unique slugs. Topics under 20 words are a warning.
+topic ids, an `added` date, a sourced etymology for borrowed words, image ids that exist, and
+unique slugs. Topics under 20 words are a warning. Illustrations are checked by
+`scripts/lib/illustration-schema.mjs` (Commons file page, public domain or CC0, dates, crop).
 
 ## Deploying
 

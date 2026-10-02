@@ -10,7 +10,7 @@ const cleanUrls = (): Plugin => ({
   configurePreviewServer(server) {
     server.middlewares.use((req, _res, next) => {
       const url = req.url?.split('?')[0] ?? '';
-      if (/^\/(word\/[a-z0-9-]+|library|privacy|subscribe\/confirm|unsubscribe)\/?$/.test(url)) {
+      if (/^\/(word\/[a-z0-9-]+|library|privacy|credits|subscribe\/confirm|unsubscribe)\/?$/.test(url)) {
         const file = join(server.config.build.outDir, url, 'index.html');
         if (existsSync(join(server.config.root, file))) req.url = `${url.replace(/\/$/, '')}/index.html`;
       }

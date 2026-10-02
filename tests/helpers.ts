@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
 
 export const focused = (page: Page) => page.getByTestId('focused-word');
 
@@ -26,4 +26,27 @@ import { pearlOfTheDay } from '../shared/pearlOfTheDay';
 export function today() {
   const slug = pearlOfTheDay(words).slug;
   return words.find((w) => w.slug === slug)!;
+}
+
+let art: Promise<Buffer> | undefined;
+/** A small pale-aqua square standing in for a rendered illustration. */
+const fixtureArt = () =>
+  (art ??= import('sharp').then(({ default: sharp }) =>
+    sharp({ create: { width: 320, height: 320, channels: 4, background: { r: 207, g: 238, b: 240, alpha: 0.9 } } }).webp().toBuffer(),
+  ));
+
+/**
+ * Serves img.durar.space illustrations from a generated fixture, so tests never depend on the image host.
+ * Returns the requests seen. cors: false answers with another origin's CORS header, as a misconfigured host would.
+ */
+export async function routeIllustrations(target: Page | BrowserContext, { cors = true } = {}) {
+  const seen: { url: string; origin?: string }[] = [];
+  await target.route('https://img.durar.space/illustrations/**', async (route) => {
+    seen.push({ url: route.request().url(), origin: (await route.request().allHeaders()).origin });
+    await route.fulfill({
+      body: await fixtureArt(),
+      headers: { 'content-type': 'image/webp', 'access-control-allow-origin': cors ? '*' : 'https://elsewhere.example' },
+    });
+  });
+  return seen;
 }

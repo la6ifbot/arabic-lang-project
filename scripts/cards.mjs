@@ -6,22 +6,14 @@
 // The images are served from img.durar.space (S3 + CloudFront) under content-hashed names worked
 // out from each word's data (shared/cards.ts), so nothing is committed and nobody renders by hand:
 //   • `npm run cards -- --upload` (CI, on every pull request and on main) checks which cards are
-//     missing on img.durar.space, renders only those and uploads them;
+//     missing on img.durar.space, renders only those and uploads them (write-once);
 //   • `npm run cards -- --check` fails if any word's card is missing there;
 //   • `npm run cards` (optionally `-- --only=bahr,durar`) renders into .cards/ to look at locally.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  CARD_KINDS,
-  CARD_SIZES as SIZES,
-  HOME_CARD,
-  IMAGE_BUCKET,
-  IMAGE_ORIGIN,
-  IMAGE_REGION,
-  cardKey,
-  cardStableKey,
-} from '../shared/cards.ts';
+import { CARD_KINDS, CARD_SIZES as SIZES, HOME_CARD, IMAGE_ORIGIN, cardKey, cardStableKey } from '../shared/cards.ts';
+import { checkOnHost, headOnHost, putOnce, s3 } from './lib/image-host.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LOCAL_OUT = join(ROOT, '.cards');
@@ -146,60 +138,26 @@ async function render(targets, save) {
   return Date.now() - started;
 }
 
-/** Runs `fn` over `items`, `n` at a time. */
-async function pool(items, n, fn) {
-  const out = new Array(items.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(n, items.length) }, async () => {
-      while (next < items.length) {
-        const i = next++;
-        out[i] = await fn(items[i]);
-      }
-    }),
-  );
-  return out;
-}
+const cardKeys = (w) => CARD_KINDS.map((kind) => cardKey(kind, ref(w)));
 
-/**
- * Cards whose hashed file isn't on img.durar.space yet. Asks the public host, so the upload key
- * needs no read access (a missing file answers 403 or 404 through CloudFront).
- */
-async function missingOnHost(targets) {
-  const missing = await pool(targets, 16, async (w) => {
-    for (const kind of CARD_KINDS) {
-      const url = `${IMAGE_ORIGIN}/${cardKey(kind, ref(w))}`;
-      const res = await fetch(url, { method: 'HEAD' }).catch((e) => {
-        throw new Error(`cards: can't reach ${url} (${e.cause?.code ?? e.message}). Is img.durar.space set up?`);
-      });
-      if (res.status === 403 || res.status === 404) return w;
-      if (!res.ok) throw new Error(`cards: ${url} answered ${res.status}`);
-    }
-    return null;
-  });
-  return missing.filter(Boolean);
+/** Cards with any size missing on img.durar.space (asked through the public host; the CI key can't read S3). */
+async function missingCards(targets, head = headOnHost) {
+  const { missing, noCors } = await head(targets.flatMap(cardKeys));
+  return { missing: targets.filter((w) => cardKeys(w).some((k) => missing.includes(k))), noCors };
 }
 
 async function upload(targets) {
-  const keyId = process.env.IMAGES_AWS_ACCESS_KEY_ID;
-  const secret = process.env.IMAGES_AWS_SECRET_ACCESS_KEY;
-  if (!keyId || !secret) {
-    throw new Error('cards: IMAGES_AWS_ACCESS_KEY_ID and IMAGES_AWS_SECRET_ACCESS_KEY must be set (GitHub repository secrets).');
-  }
-  const missing = await missingOnHost(targets);
+  const client = await s3();
+  const { missing } = await missingCards(targets);
   if (!missing.length) {
     console.log(`cards: all ${targets.length} cards are already on ${IMAGE_ORIGIN}.`);
     return;
   }
   console.log(`cards: ${missing.length} missing on ${IMAGE_ORIGIN} (${missing.slice(0, 8).map((w) => w.slug).join(', ')}${missing.length > 8 ? '…' : ''}).`);
-  const { S3Client, PutObjectCommand } = await import('@aws-sdk/client-s3');
-  const s3 = new S3Client({ region: IMAGE_REGION, credentials: { accessKeyId: keyId, secretAccessKey: secret } });
-  const put = (Key, Body, CacheControl) =>
-    s3.send(new PutObjectCommand({ Bucket: IMAGE_BUCKET, Key, Body, ContentType: 'image/png', CacheControl }));
   const ms = await render(missing, async (w, kind, png) => {
-    // The hashed file never changes, so it's cached for a year. The stable copy only serves old links.
-    await put(cardKey(kind, ref(w)), png, 'public, max-age=31536000, immutable');
-    await put(cardStableKey(kind, ref(w)), png, 'public, max-age=86400');
+    // The hashed file never changes: written once, cached for a year. The stable copy only serves old links.
+    await putOnce(client, cardKey(kind, ref(w)), png, 'image/png');
+    await client.send({ Key: cardStableKey(kind, ref(w)), Body: png, ContentType: 'image/png', CacheControl: 'public, max-age=86400' });
   });
   console.log(`cards: rendered and uploaded ${missing.length} card(s) × ${CARD_KINDS.length} sizes in ${(ms / 1000).toFixed(1)} s.`);
 }
@@ -209,9 +167,13 @@ async function main() {
   const targets = [...words, HOME].filter((w) => !only || only.includes(w.slug));
   if (process.argv.includes('--upload')) return upload(targets);
   if (process.argv.includes('--check')) {
-    const missing = await missingOnHost(targets);
+    const { missing, noCors } = await missingCards(targets, checkOnHost);
     if (missing.length) {
       console.error(`cards: ${missing.length} missing on ${IMAGE_ORIGIN}: ${missing.map((w) => w.slug).join(', ')}.`);
+      process.exit(1);
+    }
+    if (noCors.length) {
+      console.error(`cards: ${IMAGE_ORIGIN} sends no Access-Control-Allow-Origin (e.g. ${noCors[0]}): add the SimpleCORS response headers policy in CloudFront.`);
       process.exit(1);
     }
     console.log(`cards: all ${targets.length} cards are on ${IMAGE_ORIGIN}.`);

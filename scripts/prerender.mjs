@@ -1,7 +1,7 @@
 // Post-build step: writes a static, crawlable HTML page for every word at dist/word/<slug>/index.html
 // (unique <title>, description, canonical, Open Graph / Twitter tags, JSON-LD and the card's text),
 // plus sitemap.xml when SITE_URL is set. Live visitors get the same SPA, which boots into that word.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOME_CARD, cardAlt, cardUrl } from '../shared/cards.ts';
@@ -129,12 +129,22 @@ const pages = [
     title: 'Privacy · Durar',
     description: 'What Durar stores about you (very little), why, where, and how to delete it.',
   },
+  {
+    path: '/credits',
+    title: 'Credits · Durar',
+    description: 'Who made the illustrations, music and fonts on Durar, and the licences they are shared under.',
+  },
 ];
 for (const page of pages) {
   const out = join(dist, page.path.slice(1), 'index.html');
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, inject(template, head({ ...page, type: 'website' }), ''));
 }
+
+// The fonts' licence texts (SIL OFL 1.1 asks for them to travel with the font files we serve), linked from /credits.
+const credits = JSON.parse(readFileSync(join(root, 'src/data/credits.json'), 'utf8'));
+mkdirSync(join(dist, 'licenses'), { recursive: true });
+for (const f of credits.fonts) copyFileSync(join(root, 'node_modules', f.package, 'LICENSE'), join(dist, 'licenses', `${f.package.split('/')[1]}.txt`));
 
 // Home: keep default tags, add canonical + a crawlable index of every word.
 const index = `<nav id="seo-word" style="${HIDDEN}" aria-label="All words"><ul>${words
@@ -154,7 +164,7 @@ const home = inject(
 writeFileSync(join(dist, 'index.html'), home);
 
 if (site) {
-  const urls = ['/', '/privacy', ...words.map((w) => `/word/${w.slug}`)];
+  const urls = ['/', ...pages.filter((p) => !p.noindex).map((p) => p.path), ...words.map((w) => `/word/${w.slug}`)];
   writeFileSync(
     join(dist, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls

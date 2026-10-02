@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, 'claude/**']
   pull_request:
+  workflow_dispatch:
 
 jobs:
   database:
@@ -36,16 +37,25 @@ jobs:
       - name: Serverless functions load as plain Node ESM (like on Vercel)
         run: npm run check:functions
 
-  card-images:
-    # Renders the card images (link previews, daily email) that img.durar.space doesn't have yet and
-    # uploads them, so a pull request's preview and, after merging, the live site find them there.
-    # Pull requests from forks get no secrets, so they skip this.
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push' && github.ref == 'refs/heads/main'
+  images:
+    # Renders what img.durar.space doesn't have yet (illustrations, then word cards) and uploads it, so a
+    # pull request's preview and, after merging, the live site find it there. Pull requests from forks get
+    # no secrets, so they skip this.
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository ||
+      github.event_name == 'push' && github.ref == 'refs/heads/main' ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
     concurrency:
-      group: card-images-${{ github.ref }}
+      group: images-${{ github.ref }}
       cancel-in-progress: false
+    env:
+      IMAGES_AWS_ACCESS_KEY_ID: ${{ secrets.IMAGES_AWS_ACCESS_KEY_ID }}
+      IMAGES_AWS_SECRET_ACCESS_KEY: ${{ secrets.IMAGES_AWS_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -53,14 +63,29 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Base branch's illustrations (the report lists what this pull request adds or changes)
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p .illustrations
+          git fetch --depth=1 origin "$GITHUB_BASE_REF"
+          git show FETCH_HEAD:src/data/illustrations.json > .illustrations/base.json 2>/dev/null || echo '[]' > .illustrations/base.json
+      - name: Illustrations (archive new sources once, render and upload what's missing)
+        run: npm run illustrations -- --upload --base=.illustrations/base.json
+      - name: Illustration report on the pull request
+        if: always() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          [ -f .illustrations/report.md ] || exit 0
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- durar:illustrations -->")) | .id' | head -n1)
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@.illustrations/report.md > /dev/null
+          else gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@.illustrations/report.md > /dev/null; fi
       - run: npx playwright install --with-deps chromium
       - name: Render and upload missing cards
         run: npm run cards -- --upload
-        env:
-          IMAGES_AWS_ACCESS_KEY_ID: ${{ secrets.IMAGES_AWS_ACCESS_KEY_ID }}
-          IMAGES_AWS_SECRET_ACCESS_KEY: ${{ secrets.IMAGES_AWS_SECRET_ACCESS_KEY }}
-      - name: Every word's card is on img.durar.space
-        run: npm run cards -- --check
+      - name: Everything is on img.durar.space
+        run: npm run illustrations -- --check && npm run cards -- --check
 
   build-and-test:
     runs-on: ubuntu-latest

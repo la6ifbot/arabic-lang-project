@@ -2,13 +2,14 @@ import { create } from 'zustand';
 import { WORD_BY_SLUG } from './words';
 
 /**
- * Routes: “/” and “/word/<slug>” (the sea), “/library” and “/privacy”. Word routes are also
+ * Routes: “/” and “/word/<slug>” (the sea), “/library”, “/privacy” and “/credits”. Word routes are also
  * prerendered as static HTML at build time (scripts/prerender.mjs) for crawlers and link previews.
  */
 export type Route =
   | { name: 'scene' }
   | { name: 'library' }
   | { name: 'privacy' }
+  | { name: 'credits' }
   | { name: 'confirm' } // /subscribe/confirm?token=… (link in the confirmation email)
   | { name: 'unsubscribe' }; // /unsubscribe?token=… (link in every email)
 
@@ -18,6 +19,7 @@ export function routeFromPath(pathname: string): Route {
   const p = pathname.replace(/\/+$/, '') || '/';
   if (p === '/library') return { name: 'library' };
   if (p === '/privacy') return { name: 'privacy' };
+  if (p === '/credits') return { name: 'credits' };
   if (p === '/subscribe/confirm') return { name: 'confirm' };
   if (p === '/unsubscribe') return { name: 'unsubscribe' };
   return { name: 'scene' };
@@ -36,7 +38,7 @@ export function slugFromLocation(): string | null {
 const canSyncUrl = (() => {
   if (import.meta.env.VITE_EMBEDDED) return false;
   const p = window.location.pathname;
-  return p === '/' || p === '/index.html' || /^\/(word|library|privacy|subscribe|unsubscribe)(\/|$)/.test(p);
+  return p === '/' || p === '/index.html' || /^\/(word|library|privacy|credits|subscribe|unsubscribe)(\/|$)/.test(p);
 })();
 
 export const useRoute = create<{ route: Route }>(() => ({ route: routeFromPath(window.location.pathname) }));
