@@ -51,7 +51,7 @@ Optional, with working defaults (leave unset unless you mean to change them):
 | --- | --- | --- |
 | `ALERT_EMAIL` | first `EMAIL_SANDBOX_TO` address | Who the morning health check emails. |
 | `SES_REGION` | `eu-central-1` | SES region. |
-| `SES_RATE_PER_SECOND` | `1` | Sending pace of the daily email. Keep it at 1 while the list is small: Amazon was told the daily send is paced at 1 per second. Each sending call handles about 45 emails, so the six 07:xx calls cover roughly 250 subscribers. Raise it (SES allows up to 14) before the list gets near that. |
+| `SES_RATE_PER_SECOND` | `1` | Top speed of the daily email, in emails a second. **Set it to `5`** (Phase 0.6); see “Sending capacity” below. |
 | `EMAIL_SEND_HOUR` | `7` | Amsterdam hour the daily email goes out. |
 | `EMAIL_HEALTH_HOUR` | `8` | Amsterdam hour the health check looks at today's run. |
 | `EMAIL_SUBJECT_STYLE` | `b` | Subject line style (a, b or c). |
@@ -84,9 +84,38 @@ Vercel sets `VERCEL_ENV`, `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL` itsel
 
 The 3 SES DKIM `CNAME` records (`…._domainkey`), DMARC `TXT` at `_dmarc`, Email Forwarding for
 `hello@`, and **exactly one** SPF `TXT` record at `@` (Namecheap's forwarding one). Never add a
-second `v=spf1` record at `@`. There is no custom MAIL FROM (`mail.durar.space`): its MX record
-would need Namecheap's Custom MX mode, which switches off the `hello@` forwarding. DMARC passes
-through DKIM without it.
+second `v=spf1` record at `@`. There is no custom MAIL FROM (`mail.durar.space`) yet; DMARC passes
+through DKIM without it. Its MX record needs Namecheap's **Custom MX** mode, and in that mode the
+`hello@` forwarding only keeps working if Namecheap's five forwarding MX records
+(`eforward1`–`eforward5.registrar-servers.com`) are added by hand at `@`. The Phase 0.6 owner steps
+do exactly that, with a forwarding test and a way back.
+
+### Sending capacity
+
+The daily email goes out in the six 07:xx calls, and each call sends for up to 45 seconds, one email
+after another. Each email waits for Amazon and then for the database, and the functions run in
+Washington (Vercel region `iad1`) while SES and the database are in Europe, so one email takes
+roughly a quarter to a third of a second whatever the setting. `SES_RATE_PER_SECOND` is a ceiling on
+top of that:
+
+| `SES_RATE_PER_SECOND` | Expected pace | Subscribers covered by 07:59 (estimate) |
+| --- | --- | --- |
+| `1` (the default) | 1 a second | about 250 |
+| `5` (recommended) | about 3 a second, limited by the round trips | about 800 |
+
+Amazon's limit for this account is 14 a second and 50,000 a day (SES → Account dashboard), and the
+sign-up and password emails from Supabase share it, so `5` leaves plenty of room. Anyone not reached by
+07:59 is still sent the next morning's email as usual, but misses that day's; the 08:15 health check
+emails an alarm when that happens (“left people waiting”).
+
+**When to raise it again:** when the list passes about 600 confirmed subscribers, or after the first
+“left people waiting” alarm. Changing the number won't be enough then: the next step is a code change
+so each call sends several emails at once (and, optionally, moving Vercel's function region to
+Frankfurt `fra1`, which roughly doubles the pace). Count confirmed subscribers with:
+
+```sql
+select count(*) from public.subscribers where status = 'confirmed';
+```
 
 ## 2. The schedule
 

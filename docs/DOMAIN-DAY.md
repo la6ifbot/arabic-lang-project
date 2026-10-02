@@ -100,6 +100,11 @@ SES shows the name as `abc123…._domainkey.durar.space`. In Namecheap's Host fi
 **only** `abc123…._domainkey` (delete `.durar.space`). The Value is pasted as shown. Repeat for all 3.
 
 **Custom MAIL FROM (`mail.durar.space`, optional; see the note in Part 3):**
+
+> Skipped on domain day. If you set it up later, follow the Phase 0.6 owner steps instead of the
+> two below: switching to Custom MX without re-adding Namecheap's forwarding MX records stops the
+> `hello@` forwarding. See OPERATIONS.md §1, *Namecheap*.
+
 1. Still in Advanced DNS, scroll to **Mail Settings** → choose **Custom MX**.
 2. **Add New Record** under Mail Settings:
 
