@@ -1,9 +1,10 @@
-import { toggleMusic, useMusic } from '../lib/music';
+import { invited, toggleMusic, useMusic } from '../lib/music';
 
-/** Round speaker button beside “?”: shows whether the background music is playing, and turns it off or on. */
+/** Round speaker button beside “?”: music is off until the visitor taps it, and the choice is remembered. */
 export function MusicButton() {
   const playing = useMusic((s) => s.playing);
   const failed = useMusic((s) => s.failed);
+  const invite = useMusic((s) => s.invite);
   if (failed) return null;
 
   return (
@@ -12,8 +13,10 @@ export function MusicButton() {
       className="help-btn music-btn"
       aria-pressed={playing}
       aria-label="Background music"
-      title={playing ? 'Turn the music off' : 'Play the music'}
+      title={playing ? 'Turn the music off' : 'Play music'}
       onClick={toggleMusic}
+      onAnimationEnd={invite ? invited : undefined}
+      data-invite={invite || undefined}
       data-music-toggle
       data-testid="music-toggle"
     >

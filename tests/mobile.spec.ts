@@ -147,11 +147,13 @@ test.describe('pinch zoom', () => {
   });
 });
 
-test('a swipe on a phone starts the background music', async ({ page }) => {
+test('on a phone, swiping stays silent and the speaker button starts the music', async ({ page }) => {
   await page.goto('/');
   await waitForScene(page);
   const { width, height } = page.viewportSize()!;
-  await expect(page.getByTestId('music-toggle')).toHaveAttribute('aria-pressed', 'false');
   await touchSwipe(page, width * 0.25, width * 0.9, height / 2);
+  await page.waitForTimeout(500);
+  await expect(page.getByTestId('music-toggle')).toHaveAttribute('aria-pressed', 'false');
+  await page.getByTestId('music-toggle').tap();
   await expect(page.getByTestId('music-toggle')).toHaveAttribute('aria-pressed', 'true');
 });

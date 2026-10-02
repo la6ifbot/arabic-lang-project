@@ -3,6 +3,7 @@ import { create } from 'zustand';
 /** The background track. Swap the file in public/audio/ to change the music. */
 export const MUSIC_SRC = '/audio/background.mp3';
 const KEY = 'durar:music';
+const INVITED_KEY = 'durar:music-invited';
 const VOLUME = 0.5;
 
 type Music = {
@@ -10,34 +11,51 @@ type Music = {
   playing: boolean;
   /** The file couldn't load, so the button hides itself. */
   failed: boolean;
+  /** First visit, no choice made yet: the speaker button pulses once to invite a tap. */
+  invite: boolean;
 };
 
-export const useMusic = create<Music>(() => ({ playing: false, failed: false }));
-
-let audio: HTMLAudioElement | null = null;
-let fade = 0;
-
-function wanted(): boolean {
+function read(key: string): string | null {
   try {
-    return localStorage.getItem(KEY) !== 'off';
+    return localStorage.getItem(key);
   } catch {
-    return true;
+    return null;
   }
 }
 
-function remember(on: boolean) {
+function write(key: string, value: string) {
   try {
-    localStorage.setItem(KEY, on ? 'on' : 'off');
+    localStorage.setItem(key, value);
   } catch {
     /* private mode: the choice just lasts for this visit */
   }
 }
 
+export const useMusic = create<Music>(() => ({
+  playing: false,
+  failed: false,
+  invite: typeof window !== 'undefined' && read(KEY) === null && read(INVITED_KEY) === null,
+}));
+
+/** The pulse has played: don't invite again on later visits. */
+export function invited() {
+  write(INVITED_KEY, '1');
+  useMusic.setState({ invite: false });
+}
+
+let audio: HTMLAudioElement | null = null;
+let fade = 0;
+
+type AudioSessionNavigator = Navigator & { audioSession?: { type: string } };
+
 function element(): HTMLAudioElement {
   if (audio) return audio;
+  // Safari: “ambient” sound obeys the phone's silent switch and mixes with whatever else is playing.
+  const session = (navigator as AudioSessionNavigator).audioSession;
+  if (session) session.type = 'ambient';
+  // Created on first play, so the file is only fetched once someone asks for music.
   audio = new Audio(MUSIC_SRC);
   audio.loop = true;
-  audio.preload = 'auto';
   audio.addEventListener('playing', () => useMusic.setState({ playing: true }));
   audio.addEventListener('pause', () => useMusic.setState({ playing: false }));
   audio.addEventListener('error', () => useMusic.setState({ playing: false, failed: true }));
@@ -69,24 +87,25 @@ function pause() {
   audio?.pause();
 }
 
-/** The speaker button: turns the music off (remembered), or on again. */
+/** The speaker button: turns the music on or off, and remembers the choice. */
 export function toggleMusic() {
+  if (useMusic.getState().invite) invited();
   if (audio && !audio.paused) {
-    remember(false);
+    write(KEY, 'off');
     pause();
   } else {
-    remember(true);
+    write(KEY, 'on');
     play();
   }
 }
 
-// Browsers only allow sound after the visitor interacts, so the first tap, click or key press anywhere
-// starts it. The speaker button handles its own clicks, so a first tap there doesn't start and stop it.
+// Someone who turned the music on before gets it back at their first tap, click or key press this
+// visit (browsers allow sound only after an interaction). The button handles its own clicks.
 const GESTURES = ['pointerup', 'touchend', 'click', 'keydown'] as const;
 
 function onGesture(e: Event) {
   if (e.target instanceof Element && e.target.closest('[data-music-toggle]')) return;
-  if (wanted()) play();
+  if (read(KEY) === 'on') play();
 }
 
 function stopListening() {
@@ -95,17 +114,19 @@ function stopListening() {
 
 let started = false;
 
-/** Called once at boot: waits for the first interaction, and pauses while the tab is in the background. */
+/** Called once at boot. Music is off unless the visitor has asked for it; it pauses in background tabs. */
 export function startMusic() {
   if (started || typeof window === 'undefined') return;
   started = true;
-  for (const g of GESTURES) window.addEventListener(g, onGesture, { capture: true, passive: true });
+  if (read(KEY) === 'on') {
+    for (const g of GESTURES) window.addEventListener(g, onGesture, { capture: true, passive: true });
+  }
   let resume = false;
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       resume = !!audio && !audio.paused;
       pause();
-    } else if (resume && wanted()) {
+    } else if (resume) {
       resume = false;
       play();
     }
