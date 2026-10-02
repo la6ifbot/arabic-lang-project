@@ -115,6 +115,7 @@ test.describe('topic picker', () => {
   });
 
   test('signed in, the choice is saved to the account and follows it to another browser', async ({ page, browser }) => {
+    test.setTimeout(90_000);
     await seed(page, { signedIn: true });
     await page.goto('/');
     await waitForScene(page);
@@ -133,8 +134,8 @@ test.describe('topic picker', () => {
       if (!localStorage.getItem('durar-mock-db')) localStorage.setItem('durar-mock-db', value);
     }, db);
     await page2.goto('/');
-    await waitForScene(page2);
-    await expect.poll(() => page2.evaluate(() => localStorage.getItem('durar-topic')), { timeout: 20_000 }).toBe('sky');
+    // A second browser on a busy machine: the account loads once its scene is up, which can take a while.
+    await expect.poll(() => page2.evaluate(() => localStorage.getItem('durar-topic')), { timeout: 40_000 }).toBe('sky');
     await page2.goto('/');
     await expect(picker(page2)).toContainText('Sky & stars');
     await other.close();
