@@ -3,6 +3,7 @@ import { daysUntilDue, type Progress } from '../../shared/mastery';
 import { accountsMode } from '../account/backend';
 import { openAuth, removePearl, restorePearl, useAccount } from '../account/store';
 import { linkHandler } from '../lib/router';
+import { TOPIC_BY_ID, TOPICS } from '../lib/topics';
 import { normalizeArabic, WORD_BY_SLUG } from '../lib/words';
 import { openResetProgress } from '../state/dialogs';
 import { progressLabel, startProgress, useProgress } from '../state/progress';
@@ -69,6 +70,7 @@ export default function LibraryPage() {
   const progressLoaded = useProgress((s) => s.loaded);
   const [sort, setSort] = useState<Sort>(readSort);
   const [filter, setFilter] = useState<Filter>('all');
+  const [topicFilter, setTopicFilter] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ word: Word; savedAt: string; id: number } | null>(null);
   const undoButton = useRef<HTMLButtonElement>(null);
   const signedIn = status === 'signed-in';
@@ -121,14 +123,19 @@ export default function LibraryPage() {
     [items],
   );
 
-  const shown = items.filter((i) =>
-    filter === 'saved'
-      ? i.savedAt
-      : filter === 'learning'
-        ? i.progress?.box === 1
-        : filter === 'deep'
-          ? (i.progress?.box ?? 0) >= 2
-          : true,
+  // Only topics that hold at least one of your pearls are offered.
+  const topicsHere = TOPICS.filter((t) => items.some((i) => i.word.topics.includes(t.id)));
+  const activeTopic = topicFilter && topicsHere.some((t) => t.id === topicFilter) ? topicFilter : null;
+  const shown = items.filter(
+    (i) =>
+      (!activeTopic || i.word.topics.includes(activeTopic)) &&
+      (filter === 'saved'
+        ? i.savedAt
+        : filter === 'learning'
+          ? i.progress?.box === 1
+          : filter === 'deep'
+            ? (i.progress?.box ?? 0) >= 2
+            : true),
   );
 
   const chooseSort = (s: Sort) => {
@@ -241,14 +248,36 @@ export default function LibraryPage() {
                 </button>
               </div>
             </div>
+            {topicsHere.length > 1 && (
+              <div className="lib-sort lib-filter lib-topics" role="group" aria-label="Topic" data-testid="library-topics">
+                <button type="button" aria-pressed={!activeTopic} onClick={() => setTopicFilter(null)}>
+                  Every topic
+                </button>
+                {topicsHere.map((t) => (
+                  <button key={t.id} type="button" aria-pressed={activeTopic === t.id} onClick={() => setTopicFilter(t.id)}>
+                    {t.name.en}{' '}
+                    <span lang="ar" dir="rtl">
+                      {t.name.ar}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </>
         )}
-        {shown.length === 0 ? (
+        {shown.length === 0 && activeTopic ? (
+          <div className="lib-empty" data-testid="library-empty-topic">
+            <p className="lib-empty-lead">Nothing here in {TOPIC_BY_ID.get(activeTopic)!.name.en}.</p>
+            <button type="button" className="link-btn" onClick={() => setTopicFilter(null)}>
+              Show every topic
+            </button>
+          </div>
+        ) : shown.length === 0 ? (
           <div className="lib-empty" data-testid={`library-empty-${filter}`}>
             {empty[filter]}
           </div>
         ) : (
-          <ul className="lib-grid" data-testid="library-list" aria-label={`${FILTERS.find((f) => f.id === filter)!.label}: ${plural(shown.length, 'word')}`}>
+          <ul className="lib-grid" data-testid="library-list" aria-label={`${FILTERS.find((f) => f.id === filter)!.label}${activeTopic ? ` in ${TOPIC_BY_ID.get(activeTopic)!.name.en}` : ''}: ${plural(shown.length, 'word')}`}>
             {shown.map(({ word, savedAt, progress: p }) => (
               <li key={word.slug} className="lib-pearl" data-saved={savedAt ? true : undefined} data-box={p?.box}>
                 <a className="lib-link" href={`/word/${word.slug}`} onClick={linkHandler(`/word/${word.slug}`)} data-slug={word.slug}>

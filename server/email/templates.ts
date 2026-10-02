@@ -6,6 +6,7 @@
  * with lang/dir. No tracking of any kind: no pixels, no redirects, no query parameters on links.
  */
 import { cardAlt, cardUrl } from '../../shared/cards.js';
+import topics from '../../src/data/topics.json' with { type: 'json' };
 
 export interface EmailWord {
   slug: string;
@@ -13,7 +14,11 @@ export interface EmailWord {
   translit: string;
   meanings: string[];
   examples: { ar: string; en: string; source?: string }[];
+  /** Topic ids; the first one names the part of the sea the pearl comes from. */
+  topics?: string[];
 }
+
+const TOPIC_NAMES = new Map(topics.map((t) => [t.id, t.name]));
 
 export interface Rendered {
   subject: string;
@@ -122,6 +127,9 @@ export function renderDaily(opts: {
     'You’re receiving this because you subscribed to the Pearl of the Day, or have a Durar account, with this address. One email a day, around 7:00 in Amsterdam.';
   const rv = opts.revisit;
   const rvUrl = rv ? `${siteUrl}/word/${rv.slug}` : '';
+  // “From Sky & stars”: which part of the sea the pearl comes from, when it belongs to a topic.
+  const seaId = w.topics?.find((id) => TOPIC_NAMES.has(id));
+  const sea = seaId ? { ...TOPIC_NAMES.get(seaId)!, url: `${siteUrl}/sea/${seaId}` } : null;
 
   const body = `
 <tr><td align="center" style="padding:0 0 18px;font-family:${FONT_EN};font-size:17px;font-style:italic;letter-spacing:1px;color:${C.soft};">
@@ -137,6 +145,7 @@ export function renderDaily(opts: {
   <p style="margin:0 0 4px;font-family:${FONT_EN};font-size:20px;font-style:italic;letter-spacing:1px;color:${C.soft};">${esc(w.translit)}</p>
   <p style="margin:0;font-family:${FONT_EN};font-size:26px;line-height:1.3;color:${C.ink};">${esc(w.meanings[0])}</p>
   ${more ? `<p style="margin:6px 0 0;font-family:${FONT_EN};font-size:18px;font-style:italic;line-height:1.4;color:${C.soft};">${esc(more)}</p>` : ''}
+  ${sea ? `<p style="margin:14px 0 0;font-family:${FONT_EN};font-size:16px;font-style:italic;line-height:1.5;color:${C.faint};">From <a href="${esc(sea.url)}" style="color:${C.soft};text-decoration:underline;">${esc(sea.en)}</a> &nbsp;·&nbsp; <span lang="ar" dir="rtl" style="font-family:${FONT_AR};font-style:normal;font-size:18px;">${esc(sea.ar)}</span></p>` : ''}
 </td></tr>
 ${
   ex
@@ -168,6 +177,7 @@ ${footer({ siteUrl, unsubscribeUrl: opts.unsubscribeUrl, contactEmail: opts.cont
     w.translit,
     w.meanings[0],
     more,
+    sea ? `From ${sea.en} · ${sea.ar}: ${sea.url}` : '',
     '',
     ex ? ex.ar : '',
     ex ? ex.en : '',

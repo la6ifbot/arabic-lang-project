@@ -129,3 +129,17 @@ describe('MIME', () => {
     expect(raw.split('\r\n').every((l) => l.length <= 998)).toBe(true);
   });
 });
+
+describe('the topic line', () => {
+  test('names the pearl’s first topic, linked to its topic page, in both parts', () => {
+    expect(daily.html).toContain('From <a href="https://durar.example/sea/water"');
+    expect(daily.html).toContain('<span lang="ar" dir="rtl"');
+    expect(daily.text).toContain('From Sea & water · البحر والماء: https://durar.example/sea/water');
+  });
+
+  test('is left out for a word in no topic', () => {
+    const plain = renderDaily({ word: { ...bahr, topics: [] }, date: '2026-09-24', siteUrl: SITE, unsubscribeUrl: UNSUB, contactEmail: null });
+    expect(plain.html).not.toContain('/sea/');
+    expect(plain.text).not.toContain('/sea/');
+  });
+});
