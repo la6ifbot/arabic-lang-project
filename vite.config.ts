@@ -1,20 +1,36 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { join, resolve, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { emailSignupFlag } from './shared/flags';
 import { canonicalOrigin } from './shared/site';
 
-/** `vite preview` parity with Vercel/Netlify clean URLs: /word/x → dist/word/x/index.html, etc. */
+/**
+ * `vite preview` parity with Vercel: a file is served as is, /word/x serves dist/word/x/index.html
+ * (clean URLs), and any other path gets dist/404.html with a 404 status (no SPA fallback).
+ */
 const cleanUrls = (): Plugin => ({
   name: 'durar-clean-urls',
   configurePreviewServer(server) {
-    server.middlewares.use((req, _res, next) => {
-      const url = req.url?.split('?')[0] ?? '';
-      if (/^\/(word\/[a-z0-9-]+|library|privacy|credits|subscribe\/confirm|unsubscribe)\/?$/.test(url)) {
-        const file = join(server.config.build.outDir, url, 'index.html');
-        if (existsSync(join(server.config.root, file))) req.url = `${url.replace(/\/$/, '')}/index.html`;
+    const dist = resolve(server.config.root, server.config.build.outDir);
+    const isFile = (p: string) => existsSync(p) && statSync(p).isFile();
+    server.middlewares.use((req, res, next) => {
+      const [path, query] = (req.url ?? '/').split(/\?(.*)/s);
+      let url: string;
+      try {
+        url = decodeURIComponent(path);
+      } catch {
+        url = path;
       }
-      next();
+      const file = join(dist, url);
+      if (url.startsWith('/api/') || !(file + sep).startsWith(dist + sep) || isFile(file)) return next();
+      if (isFile(join(file, 'index.html'))) {
+        req.url = `${path.replace(/\/$/, '')}/index.html${query ? `?${query}` : ''}`;
+        return next();
+      }
+      if (!isFile(join(dist, '404.html'))) return next();
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.end(readFileSync(join(dist, '404.html')));
     });
   },
 });

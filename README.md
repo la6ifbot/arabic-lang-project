@@ -196,9 +196,12 @@ unique slugs. Topics under 20 words are a warning. Illustrations are checked by
 
 The build output (`dist/`) is fully static:
 
-- **Vercel**: import the repo. `vercel.json` sets the build and SPA fallback. Static word pages win
-  over the rewrite.
+- **Vercel**: import the repo. `vercel.json` sets the build and clean URLs. There is no SPA
+  fallback: every app route is prerendered, and any other path gets the static `404.html` (a lost
+  pearl with a word search) with a real 404 status. A new app route must be added to
+  `scripts/prerender.mjs`.
 - **Netlify**: import the repo. `netlify.toml` does the same.
+- **Locally**: `npm run preview` behaves the same way (`vite.config.ts`).
 
 Set `SITE_URL` (e.g. `https://durar.example`) at build time to emit absolute canonical/`og:url`
 tags, `sitemap.xml` and a `robots.txt` sitemap entry. On Vercel and Netlify the production URL is
