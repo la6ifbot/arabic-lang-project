@@ -719,6 +719,34 @@ a.acct-item {
   opacity: 0;
 }
 
+/* ---------- Background music (speaker beside “?”) ---------- */
+.music-btn svg {
+  width: 17px;
+  height: 17px;
+}
+/* First visit only: one slow ripple, a quiet invitation. Sound never starts on its own. */
+.music-btn[data-invite] {
+  animation: music-invite 2.4s var(--ease-water) 1.8s 1 both;
+}
+@keyframes music-invite {
+  0% {
+    box-shadow: 0 0 0 0 rgba(127, 214, 214, 0);
+  }
+  25% {
+    color: var(--ink);
+    border-color: rgba(190, 240, 240, 0.45);
+    box-shadow: 0 0 0 0 rgba(127, 214, 214, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(127, 214, 214, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .music-btn[data-invite] {
+    animation: none;
+  }
+}
+
 /* ---------- How it works (top-left “?”) ---------- */
 .help {
   /* The box hangs from the whole corner, so it stays on screen on phones too. */
@@ -1523,6 +1551,9 @@ a.acct-item {
 }
 .page-account {
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .page-account .acct-menu {
   left: auto;
