@@ -27,7 +27,8 @@ describe('the data in the repo', () => {
   });
 
   test('every word keeps its slug (no /word/<slug> URL changes) and has topics and added', () => {
-    expect(WORDS).toHaveLength(140);
+    // The original 140 words are all still here; batches add words with later dates.
+    expect(WORDS.filter((w) => w.added === ORIGINAL_ADDED)).toHaveLength(140);
     for (const w of WORDS) {
       expect(Array.isArray(w.topics)).toBe(true);
       expect(w.added).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -89,9 +90,10 @@ describe('validator', () => {
     expect(check(word({ slug: WORDS[1].slug }))).toEqual([expect.stringMatching(/duplicate slug/)]));
 
   test('topics short of 20 words are warnings, not errors', () => {
-    const { errors, warnings } = validateWords(WORDS, topics);
+    const empty = { ...topics[0], id: 'empty', order: 99 };
+    const { errors, warnings } = validateWords(WORDS, [...topics, empty]);
     expect(errors).toEqual([]);
-    expect(warnings).toContain('topic "borrowed" has 0 words (target 20)');
+    expect(warnings).toContain('topic "empty" has 0 words (target 20)');
   });
 
   test('the registry needs bilingual names and descriptions, unique ids and orders', () => {
