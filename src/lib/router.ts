@@ -1,8 +1,9 @@
 import { create } from 'zustand';
+import { isTopic, TOPIC_BY_ID } from './topics';
 import { WORD_BY_SLUG } from './words';
 
 /**
- * Routes: “/” and “/word/<slug>” (the sea), “/library”, “/privacy” and “/credits”. Word routes are also
+ * Routes: “/”, “/word/<slug>” and “/sea/<topic>” (the sea), “/library”, “/privacy” and “/credits”. Word routes are also
  * prerendered as static HTML at build time (scripts/prerender.mjs) for crawlers and link previews.
  */
 export type Route =
@@ -14,6 +15,7 @@ export type Route =
   | { name: 'unsubscribe' }; // /unsubscribe?token=… (link in every email)
 
 const WORD_PATH = /\/word\/([a-z0-9-]+)\/?$/;
+const SEA_PATH = /^\/sea\/([a-z-]+)\/?$/;
 
 export function routeFromPath(pathname: string): Route {
   const p = pathname.replace(/\/+$/, '') || '/';
@@ -30,6 +32,12 @@ export function slugFromPath(pathname: string): string | null {
   return m && WORD_BY_SLUG.has(m[1]) ? m[1] : null;
 }
 
+/** The topic a /sea/<topic> address names, or null (the whole sea, or not a sea address). */
+export function topicFromPath(pathname: string): string | null {
+  const m = pathname.match(SEA_PATH);
+  return m && isTopic(m[1]) ? m[1] : null;
+}
+
 export function slugFromLocation(): string | null {
   return slugFromPath(window.location.pathname);
 }
@@ -38,7 +46,7 @@ export function slugFromLocation(): string | null {
 const canSyncUrl = (() => {
   if (import.meta.env.VITE_EMBEDDED) return false;
   const p = window.location.pathname;
-  return p === '/' || p === '/index.html' || /^\/(word|library|privacy|credits|subscribe|unsubscribe)(\/|$)/.test(p);
+  return p === '/' || p === '/index.html' || /^\/(word|sea|library|privacy|credits|subscribe|unsubscribe)(\/|$)/.test(p);
 })();
 
 export const useRoute = create<{ route: Route }>(() => ({ route: routeFromPath(window.location.pathname) }));
@@ -79,13 +87,17 @@ if (typeof window !== 'undefined') {
   });
 }
 
-/** Keeps the URL and <title> in step with the focused card while the sea is on screen. */
-export function syncUrl(slug: string) {
+/**
+ * Keeps the URL and <title> in step with the sea: the focused card's /word/<slug> in the whole sea,
+ * and the topic's /sea/<topic> while a topic is chosen (so a reload or a shared link keeps it).
+ */
+export function syncUrl(slug: string, topic: string | null = null) {
   const word = WORD_BY_SLUG.get(slug);
   if (!word) return;
-  document.title = `${word.ar} (${word.translit}) — ${word.meanings[0]} · Durar`;
+  const t = topic ? TOPIC_BY_ID.get(topic) : undefined;
+  document.title = `${word.ar} (${word.translit}) — ${word.meanings[0]} · ${t ? `${t.name.en} · ` : ''}Durar`;
   if (!canSyncUrl) return;
-  const path = `/word/${slug}`;
+  const path = t ? `/sea/${t.id}` : `/word/${slug}`;
   if (window.location.pathname === path) return;
   try {
     window.history.replaceState(window.history.state, '', path + window.location.search);

@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
+import { TOPIC_BY_ID } from '../lib/topics';
 import { useProgress } from '../state/progress';
+import { useDurar } from '../state/store';
+import { chooseTopic } from '../state/topic';
 
 export const MET_ALL = 'You’ve met every pearl for now. The sea will bring some back soon.';
 
@@ -11,6 +14,7 @@ export function ProgressNote() {
   const note = useProgress((s) => s.note);
   const metAll = useProgress((s) => s.metAll);
   const loaded = useProgress((s) => s.loaded);
+  const topic = useDurar((s) => (s.topic ? TOPIC_BY_ID.get(s.topic) : undefined));
   const [shown, setShown] = useState(false);
 
   useEffect(() => {
@@ -22,9 +26,17 @@ export function ProgressNote() {
 
   return (
     <div className="progress-note" data-progress={loaded ? 'ready' : 'loading'} data-testid="progress-note">
-      {metAll && (
+      {metAll && !topic && (
         <p className="met-all" role="status" data-testid="met-all">
           {MET_ALL}
+        </p>
+      )}
+      {metAll && topic && (
+        <p className="met-all" role="status" data-testid="met-all">
+          Nothing new or due in {topic.name.en} for now.{' '}
+          <button type="button" className="met-all-link" onClick={() => chooseTopic(null)}>
+            Swim in the whole sea
+          </button>
         </p>
       )}
       <p className="progress-caption" aria-hidden="true" data-shown={shown || undefined}>

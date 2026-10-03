@@ -1,6 +1,7 @@
 // Post-build step: writes a static, crawlable HTML page for every word at dist/word/<slug>/index.html
 // (unique <title>, description, canonical, Open Graph / Twitter tags, JSON-LD and the card's text),
-// plus sitemap.xml when SITE_URL is set. Live visitors get the same SPA, which boots into that word.
+// and every topic at dist/sea/<topic>/index.html (both languages, the word list), plus sitemap.xml
+// when SITE_URL is set. Live visitors get the same SPA, which boots into that word.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +10,11 @@ import { HOME_CARD, cardAlt, cardUrl } from '../shared/cards.ts';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
 const words = JSON.parse(readFileSync(join(root, 'src/data/words.json'), 'utf8'));
+// Topics with no words yet get no page (the live picker hides them too).
+const topics = JSON.parse(readFileSync(join(root, 'src/data/topics.json'), 'utf8'))
+  .sort((a, b) => a.order - b.order)
+  .filter((t) => words.some((w) => w.topics.includes(t.id)));
+const topicById = new Map(topics.map((t) => [t.id, t]));
 const template = readFileSync(join(dist, 'index.html'), 'utf8');
 const SITE = (process.env.SITE_URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.URL || '').replace(/\/$/, '');
 const site = SITE && !/^https?:\/\//.test(SITE) ? `https://${SITE}` : SITE;
@@ -60,6 +66,12 @@ function head({ title, description, path, type = 'article', extra = '', noindex 
     .join('\n    ');
 }
 
+function topicLinks(w) {
+  const list = w.topics.map((id) => topicById.get(id)).filter(Boolean);
+  if (!list.length) return '';
+  return `<p>In ${list.map((t) => `<a href="/sea/${t.id}">${esc(t.name.en)} · <span lang="ar">${esc(t.name.ar)}</span></a>`).join(', ')}</p>`;
+}
+
 function article(w) {
   const examples = w.examples
     .map(
@@ -72,6 +84,7 @@ function article(w) {
       <h1 lang="ar" dir="rtl">${esc(w.ar)}</h1>
       <p>${esc(w.meanings.join('; '))}</p>
       <ul>${examples}</ul>
+      ${topicLinks(w)}
       <p><a href="/">Durar — more Arabic words</a></p>
     </article>`;
 }
@@ -100,6 +113,43 @@ for (const w of words) {
     article(w),
   );
   const out = join(dist, 'word', w.slug, 'index.html');
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, html);
+}
+
+// Topic pages: the sea filtered to one topic for live visitors; an intro and the word list for crawlers.
+for (const t of topics) {
+  const list = words.filter((w) => w.topics.includes(t.id));
+  const path = `/sea/${t.id}`;
+  const title = `${t.name.en} · ${t.name.ar} — Arabic words · Durar`;
+  const description = `${t.description.en} ${list.length} Arabic words with meanings and examples.`;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'DefinedTermSet',
+    name: `${t.name.en} · ${t.name.ar}`,
+    description: t.description.en,
+    inLanguage: ['ar', 'en'],
+    ...(site && { url: `${site}${path}` }),
+    hasDefinedTerm: list.map((w) => ({
+      '@type': 'DefinedTerm',
+      name: w.ar,
+      alternateName: w.translit,
+      ...(site && { url: `${site}/word/${w.slug}` }),
+    })),
+  };
+  const body = `<article id="seo-word" style="${HIDDEN}">
+      <h1>${esc(t.name.en)} · <span lang="ar">${esc(t.name.ar)}</span></h1>
+      <p>${esc(t.description.en)}</p>
+      <p lang="ar" dir="rtl">${esc(t.description.ar)}</p>
+      <ul>${list.map((w) => `<li><a href="/word/${w.slug}"><span lang="ar">${esc(w.ar)}</span> (${esc(w.translit)})</a> — ${esc(w.meanings[0])}</li>`).join('')}</ul>
+      <p><a href="/">The whole sea · <span lang="ar">البحر كله</span></a></p>
+    </article>`;
+  const html = inject(
+    template,
+    head({ title, description, path, type: 'website', extra: `<script type="application/ld+json">${JSON.stringify(jsonLd).replace(/</g, '\\u003c')}</script>` }),
+    body,
+  );
+  const out = join(dist, 'sea', t.id, 'index.html');
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, html);
 }
@@ -147,7 +197,9 @@ mkdirSync(join(dist, 'licenses'), { recursive: true });
 for (const f of credits.fonts) copyFileSync(join(root, 'node_modules', f.package, 'LICENSE'), join(dist, 'licenses', `${f.package.split('/')[1]}.txt`));
 
 // Home: keep default tags, add canonical + a crawlable index of every word.
-const index = `<nav id="seo-word" style="${HIDDEN}" aria-label="All words"><ul>${words
+const index = `<nav id="seo-word" style="${HIDDEN}" aria-label="All words"><ul>${topics
+  .map((t) => `<li><a href="/sea/${t.id}">${esc(t.name.en)} · <span lang="ar">${esc(t.name.ar)}</span></a></li>`)
+  .join('')}</ul><ul>${words
   .map((w) => `<li><a href="/word/${w.slug}" lang="ar">${esc(w.ar)}</a> — ${esc(w.meanings[0])}</li>`)
   .join('')}</ul></nav>`;
 const home = inject(
@@ -290,7 +342,7 @@ const notFound = `<!doctype html>
 writeFileSync(join(dist, '404.html'), notFound);
 
 if (site) {
-  const urls = ['/', ...pages.filter((p) => !p.noindex).map((p) => p.path), ...words.map((w) => `/word/${w.slug}`)];
+  const urls = ['/', ...pages.filter((p) => !p.noindex).map((p) => p.path), ...topics.map((t) => `/sea/${t.id}`), ...words.map((w) => `/word/${w.slug}`)];
   writeFileSync(
     join(dist, 'sitemap.xml'),
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls
@@ -301,4 +353,4 @@ if (site) {
 } else {
   console.warn('prerender: SITE_URL not set — skipping sitemap.xml and absolute canonical/og:url tags.');
 }
-console.log(`prerender: wrote ${words.length} word pages.`);
+console.log(`prerender: wrote ${words.length} word pages and ${topics.length} topic pages.`);
