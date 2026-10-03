@@ -1,0 +1,75 @@
+# Imports the Google Sheet and opens a pull request with the changes (docs/CONTENT.md).
+# Run it from the Actions tab: "Import from the Sheet" > Run workflow.
+name: Import from the Sheet
+
+on:
+  workflow_dispatch:
+    inputs:
+      allow_removals:
+        description: 'Allow removing words or topics that are no longer in the Sheet'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency: import-sheet
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read the Sheet, check every row and write the data files
+        id: import
+        env:
+          # Repository variables (Settings > Secrets and variables > Actions > Variables): the
+          # "Publish to web" CSV links of the words tab and the topics tab.
+          WORDS_CSV: ${{ vars.DURAR_SHEET_WORDS_CSV }}
+          TOPICS_CSV: ${{ vars.DURAR_SHEET_TOPICS_CSV }}
+          ALLOW_REMOVALS: ${{ inputs.allow_removals }}
+        run: |
+          if [ -z "$WORDS_CSV" ]; then
+            echo "The repository variable DURAR_SHEET_WORDS_CSV is not set (docs/CONTENT.md, step 4)." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          args=(--words "$WORDS_CSV" --summary "$RUNNER_TEMP/summary.md")
+          [ -n "$TOPICS_CSV" ] && args+=(--topics "$TOPICS_CSV")
+          [ "$ALLOW_REMOVALS" = "true" ] && args+=(--allow-removals)
+          status=0
+          node scripts/import-sheet.mjs "${args[@]}" || status=$?
+          cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY" || true
+          exit $status
+      - name: Open a pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet; then
+            echo "Nothing to change: the Sheet matches the repo." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          branch="sheet-import-${GITHUB_RUN_NUMBER}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add src/data
+          git commit -m "Content: import from the Sheet (run ${GITHUB_RUN_NUMBER})"
+          git push -u origin "$branch"
+          preview="https://arabic-lang-project-git-${branch}-la6ifbot.vercel.app"
+          first=$(git diff HEAD~1 --unified=0 -- src/data/words.json | sed -n 's/^+  {"slug":"\([^"]*\)".*/\1/p' | head -1)
+          {
+            echo "Imported from the Google Sheet by @${GITHUB_ACTOR}."
+            echo
+            echo "**Preview:** ${preview}${first:+/word/$first} (Vercel also comments its own link below once the preview is built). Merging makes it live on durar.space."
+            echo
+            cat "$RUNNER_TEMP/summary.md"
+          } > "$RUNNER_TEMP/body.md"
+          gh pr create --base main --head "$branch" --title "Content: import from the Sheet (run ${GITHUB_RUN_NUMBER})" --body-file "$RUNNER_TEMP/body.md" --assignee "$GITHUB_ACTOR"
+          # A push with the workflow token starts no CI, so start it here; its checks show on the PR.
+          gh workflow run ci.yml --ref "$branch"

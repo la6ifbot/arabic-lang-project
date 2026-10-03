@@ -105,6 +105,10 @@ export function validateWords(words, topics = []) {
     if (w.topics?.includes(BORROWED_TOPIC) && !text(w.etymology?.source))
       err(`words in "${BORROWED_TOPIC}" need etymology.source`);
 
+    // Native-speaker review (section G): absent means draft; both show on the site for now.
+    if (w.status !== undefined && w.status !== 'draft' && w.status !== 'reviewed')
+      err('status must be "draft" or "reviewed" (or absent: draft)');
+
     // The id must exist in src/data/illustrations.json: validateIllustrations checks that, with the credit.
     if (w.image !== undefined && !ILLUSTRATION_ID.test(w.image ?? '')) err('image must be an illustration id (src/data/illustrations.json)');
   });
