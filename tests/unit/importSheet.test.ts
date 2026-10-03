@@ -70,9 +70,11 @@ describe('import', () => {
       examples: [{ ar: 'لمع كوكب في الأفق.', en: 'A star glittered on the horizon.' }],
     });
     expect(r.words[0].status).toBe('reviewed');
-    expect(r.summary).toContain('1 new word, 1 changed word, 0 removed words. 141 words in total.');
+    const total = words.length + 1;
+    const unreviewed = r.words.filter((w) => w.status !== 'reviewed').length;
+    expect(r.summary).toContain(`1 new word, 1 changed word, 0 removed words. ${total} words in total.`);
     expect(r.summary).toContain('`kawkab`');
-    expect(r.summary).toMatch(/\| \*\*The whole sea\*\* \| \*\*141\*\* \| \*\*140\*\* \|/);
+    expect(r.summary).toContain(`| **The whole sea** | **${total}** | **${unreviewed}** |`);
   });
 
   test('a new row without a date joins today', () => {
@@ -120,7 +122,7 @@ describe('import', () => {
     expect(blocked.summary).toContain('Removals were not confirmed');
     const allowed = importSheet({ wordsCsv, ...current, allowRemovals: true });
     expect(allowed.blockedRemovals).toBe(false);
-    expect(allowed.words).toHaveLength(139);
+    expect(allowed.words).toHaveLength(words.length - 1);
     expect(allowed.summary).toContain('### Removed');
   });
 
