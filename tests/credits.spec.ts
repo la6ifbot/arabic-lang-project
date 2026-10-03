@@ -53,8 +53,10 @@ test.describe('Credits', () => {
       await img.scrollIntoViewIfNeeded();
       await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth)).toBeGreaterThan(0);
       for (const w of words.filter((x) => (x as { image?: string }).image === e.id)) {
-        const link = item.getByRole('link', { name: new RegExp(w.translit) });
-        await expect(link).toHaveAttribute('href', `/word/${w.slug}`);
+        // By address: one translit can sit inside another's (al jawzāʾ, yad al jawzāʾ).
+        const link = item.locator(`a[href="/word/${w.slug}"]`);
+        await expect(link).toHaveCount(1);
+        await expect(link).toContainText(w.translit);
         await expect(link.locator('[lang=ar][dir=rtl]')).toHaveText(w.ar);
       }
     }

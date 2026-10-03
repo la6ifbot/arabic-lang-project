@@ -1,5 +1,140 @@
 [
   {
+    "id": "aquila",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Johannes_Hevelius_-_Prodromus_Astronomia_-_Volume_III_%22Firmamentum_Sobiescianum,_sive_uranographia%22_-_Tavola_R_-_Aquila_et_Antinous.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Aquila et Antinous",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "An eagle with outspread wings and the youth Antinous, among the stars of Aquila"
+  },
+  {
+    "id": "argo-navis",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Argo_Navis_Hevelius.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Argo Navis",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "The ship Argo among its stars"
+  },
+  {
+    "id": "canis-major",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Johannes_Hevelius_-_Prodromus_Astronomia_-_Volume_III_%22Firmamentum_Sobiescianum,_sive_uranographia%22_-_Tavola_DDD_-_Canis_Major.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Canis Major",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "The Great Dog, Canis Major, leaping among its stars"
+  },
+  {
+    "id": "capricornus",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Capricorn_Hevelius.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Capricornus",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "The sea-goat Capricornus, a goat with a fish’s tail, among its stars"
+  },
+  {
+    "id": "crocus-sativus",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Crocus_sativus_in_Les_liliacees.jpg",
+    "artist": "Pierre-Joseph Redouté",
+    "died": 1840,
+    "work": "Les Liliacées",
+    "plate": "Crocus sativus",
+    "date": "1802–1816",
+    "license": "public-domain",
+    "alt": "Saffron crocus in flower, with its slender leaves",
+    "style": "colour"
+  },
+  {
+    "id": "eridanus",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Johannes_Hevelius_-_Eridanus.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Eridanus",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "The river Eridanus winding among its stars"
+  },
+  {
+    "id": "iris-germanica",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Les_liliacees_(Color_Plate_23)_BHL287298.jpg",
+    "artist": "Pierre-Joseph Redouté",
+    "died": 1840,
+    "work": "Les Liliacées",
+    "plate": "Iris germanica",
+    "date": "1802–1816",
+    "license": "public-domain",
+    "alt": "A bearded iris in flower, with its sword-shaped leaves",
+    "style": "colour"
+  },
+  {
+    "id": "lilium-candidum",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Lilium_candidum_in_Les_liliacees.jpg",
+    "artist": "Pierre-Joseph Redouté",
+    "died": 1840,
+    "work": "Les Liliacées",
+    "plate": "Lilium candidum",
+    "date": "1802–1816",
+    "license": "public-domain",
+    "alt": "A stem of white Madonna lilies in bloom, with buds",
+    "style": "colour"
+  },
+  {
+    "id": "lyra",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Johannes_Hevelius_-_Lyra.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Lyra",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "The lyre of the constellation Lyra among its stars"
+  },
+  {
+    "id": "orion",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Johannes_Hevelius_-_Prodromus_Astronomia,_volume_III_-_Firmamentum_Sobiescianum,_sive_Uranographia,_table_QQ_-_Orion,_1690.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Orion",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "The hunter Orion with a raised club, among his stars"
+  },
+  {
+    "id": "pegasus",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Johannes_Hevelius_-_Pegasus.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Pegasus",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "The forepart of the winged horse Pegasus among its stars"
+  },
+  {
+    "id": "perseus",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Johannes_Hevelius_-_Perseus.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Perseus",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "Perseus with a raised sword, holding the head of Medusa"
+  },
+  {
     "id": "rose-centifolia",
     "sourceUrl": "https://commons.wikimedia.org/wiki/File:Redoute_-_Rosa_centifolia_foliacea.jpg",
     "artist": "Pierre-Joseph Redouté",
@@ -11,5 +146,27 @@
     "alt": "Two cabbage roses in full bloom, with buds, on a leafy stem",
     "crop": [0, 0, 100, 90],
     "style": "colour"
+  },
+  {
+    "id": "taurus",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Taurus_by_Johannes_Hevelius.JPG",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Taurus",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "The forepart of a bull, Taurus, among its stars"
+  },
+  {
+    "id": "ursa-major",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Ursa_Major_constellation_-_Johannes_Hevelius_-_1690.jpg",
+    "artist": "Johannes Hevelius",
+    "died": 1687,
+    "work": "Firmamentum Sobiescianum, sive Uranographia",
+    "plate": "Ursa Major",
+    "date": "1690",
+    "license": "public-domain",
+    "alt": "The Great Bear, Ursa Major, with the stars of the Plough on its back and tail"
   }
 ]
