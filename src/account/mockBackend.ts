@@ -15,6 +15,7 @@ interface MockUser {
   password: string;
   verified: boolean;
   provider: string;
+  topic?: string | null;
 }
 
 interface MockDb {
@@ -49,7 +50,7 @@ function store(db: MockDb) {
   }
 }
 
-const toUser = (u: MockUser): AccountUser => ({ id: u.id, email: u.email, provider: u.provider });
+const toUser = (u: MockUser): AccountUser => ({ id: u.id, email: u.email, provider: u.provider, ...('topic' in u ? { topic: u.topic } : {}) });
 
 /** Sends an auth email; a newer link of the same kind replaces the older ones, as in Supabase. */
 function sendEmail(db: MockDb, to: string, kind: 'verify' | 'reset') {
@@ -207,6 +208,13 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       const u = current(db);
       if (u.password === password) throw new AccountError('same_password');
       u.password = password;
+      store(db);
+    },
+
+    async setTopic(topic) {
+      await step('setTopic');
+      const db = load();
+      current(db).topic = topic;
       store(db);
     },
 

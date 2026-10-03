@@ -145,7 +145,9 @@ export default function LibraryPage() {
     if (savedAt) setUndo({ word, savedAt, id: Date.now() });
   };
 
-  const backTo = `/word/${useDurar.getState().order[0]}`;
+  // Back to the sea as it was: the chosen topic, or the focused word in the whole sea.
+  const { topic, order } = useDurar.getState();
+  const backTo = topic ? `/sea/${topic}` : `/word/${order[0]}`;
   const now = Date.now();
   const loading = status === 'loading' || (signedIn && !savedLoaded) || !progressLoaded;
 

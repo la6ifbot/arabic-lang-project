@@ -1,12 +1,16 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { linkHandler, navigatedInApp } from '../lib/router';
+import { topicPath } from '../lib/topics';
+import { useDurar } from '../state/store';
 import { AccountMenu } from '../ui/AccountMenu';
 
 /**
  * The calm, scrollable surface used by the Library and Privacy pages: the same water and light as
  * the sea, drawn in CSS instead of WebGL so these pages load instantly.
  */
-export function PageShell({ back = '/', children }: { back?: string; children: ReactNode }) {
+export function PageShell({ back, children }: { back?: string; children: ReactNode }) {
+  // By default, back to the part of the sea the visitor was in.
+  back ??= topicPath(useDurar.getState().topic);
   const main = useRef<HTMLElement>(null);
   useEffect(() => {
     // Arriving from a dialog or menu that is now gone leaves focus on <body>: start at the page's heading.
