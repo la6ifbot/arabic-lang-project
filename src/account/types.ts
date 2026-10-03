@@ -5,6 +5,8 @@ export interface AccountUser {
   email: string | null;
   /** "email" or "google". */
   provider: string;
+  /** The sea topic chosen on any device (a profile preference): null is the whole sea; absent, never chosen. */
+  topic?: string | null;
 }
 
 export interface SavedPearl {
@@ -67,6 +69,8 @@ export interface Backend {
   signOut(): Promise<void>;
   requestPasswordReset(email: string, returnTo: string): Promise<void>;
   updatePassword(password: string): Promise<void>;
+  /** Remembers the chosen sea topic (null: the whole sea) on the account. */
+  setTopic(topic: string | null): Promise<void>;
   resendVerification(email: string, returnTo: string): Promise<void>;
   listSaved(): Promise<SavedPearl[]>;
   /** Idempotent. `savedAt` restores the original date when undoing a removal. */
