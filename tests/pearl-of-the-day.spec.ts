@@ -228,17 +228,13 @@ test.describe('email link pages', () => {
     }
   });
 
-  test('word pages carry their preview image; the general card is on /', async ({ request }) => {
+  test('word pages carry their preview image from img.durar.space; the general card is on /', async ({ request }) => {
     const html = await (await request.get('/word/bahr')).text();
-    expect(html).toMatch(/<meta property="og:image" content="https?:\/\/[^"]+\/cards\/og\/bahr\.png" \/>/);
+    expect(html).toContain('<meta property="og:image" content="https://img.durar.space/cards/og/bahr-a60d7be54c8c7b0e.png" />');
     expect(html).toContain('<meta property="og:image:width" content="1200" />');
     expect(html).toContain('<meta property="og:image:alt" content="بَحْر (baḥr): sea" />');
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image" />');
-    expect(await (await request.get('/')).text()).toMatch(/og:image" content="[^"]+\/cards\/og\/durar\.png"/);
-    const png = await request.get('/cards/og/bahr.png');
-    expect(png.ok()).toBe(true);
-    expect(png.headers()['content-type']).toContain('image/png');
-    expect((await request.get('/cards/email/bahr.png')).ok()).toBe(true);
+    expect(await (await request.get('/')).text()).toMatch(/og:image" content="https:\/\/img\.durar\.space\/cards\/og\/durar-[0-9a-f]{16}\.png"/);
   });
 });
 
