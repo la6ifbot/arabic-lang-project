@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test';
 // Vercel serves dist/404.html with a 404 status for any path that isn't a file (vercel.json has no
 // catch-all rewrite; see tests/unit/notFound.test.ts). The preview server does the same (vite.config.ts).
 test('every app route is a real page, not the 404', async ({ request }) => {
-  for (const path of ['/', '/word/bahr', '/library', '/privacy', '/subscribe/confirm', '/unsubscribe']) {
+  for (const path of ['/', '/word/bahr', '/library', '/privacy', '/credits', '/subscribe/confirm', '/unsubscribe']) {
     const res = await request.get(path);
     expect(res.status(), path).toBe(200);
     expect(await res.text(), path).not.toContain('Page not found');

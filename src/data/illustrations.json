@@ -1,0 +1,15 @@
+[
+  {
+    "id": "rose-centifolia",
+    "sourceUrl": "https://commons.wikimedia.org/wiki/File:Redoute_-_Rosa_centifolia_foliacea.jpg",
+    "artist": "Pierre-Joseph Redouté",
+    "died": 1840,
+    "work": "Les Roses",
+    "plate": "Rosa centifolia foliacea",
+    "date": "1817–1824",
+    "license": "public-domain",
+    "alt": "Two cabbage roses in full bloom, with buds, on a leafy stem",
+    "crop": [0, 0, 100, 90],
+    "style": "colour"
+  }
+]
