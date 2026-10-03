@@ -12,9 +12,8 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
  */
 const TRANSLIT = /^[a-zāīūḥṣḍṭẓʿʾ]+( [a-zāīūḥṣḍṭẓʿʾ]+)*$/;
 const TOPIC_ID = /^[a-z]+(-[a-z]+)*$/;
-const HTTPS = /^https:\/\/\S+$/;
-/** An image is a key on the image host (e.g. "illustrations/ward.webp") or a full https URL. */
-const IMAGE_SRC = /^(https:\/\/\S+|[a-z0-9][a-z0-9._/-]*\.(webp|avif|png|jpe?g|svg))$/;
+/** Illustrations are referred to by their id in src/data/illustrations.json (scripts/lib/illustration-schema.mjs). */
+const ILLUSTRATION_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 /** Pearl of the Day's first day: no word can have joined before it. */
 export const FIRST_ADDED = '2026-09-24';
@@ -43,7 +42,7 @@ export function validateTopics(topics) {
     if (!Number.isInteger(t.order)) errors.push(`${at}: order must be an integer`);
     else if (orders.has(t.order)) errors.push(`${at}: duplicate order ${t.order}`);
     orders.add(t.order);
-    if (t.cover !== undefined && !IMAGE_SRC.test(t.cover)) errors.push(`${at}: cover must be an image key or https URL`);
+    if (t.cover !== undefined && !ILLUSTRATION_ID.test(t.cover)) errors.push(`${at}: cover must be an illustration id`);
   });
   return { errors, warnings };
 }
@@ -110,17 +109,8 @@ export function validateWords(words, topics = []) {
     if (w.status !== undefined && w.status !== 'draft' && w.status !== 'reviewed')
       err('status must be "draft" or "reviewed" (or absent: draft)');
 
-    if (w.image !== undefined) {
-      const im = w.image;
-      if (!im || typeof im !== 'object') err('image must be an object');
-      else {
-        if (!IMAGE_SRC.test(im.src ?? '')) err('image.src must be an image key (e.g. illustrations/ward.webp) or https URL');
-        if (!text(im.alt)) err('image needs alt text');
-        if (!text(im.credit)) err('image needs a credit');
-        if (!text(im.license)) err('image needs a license');
-        if (im.sourceUrl !== undefined && !HTTPS.test(im.sourceUrl)) err('image.sourceUrl must be an https URL');
-      }
-    }
+    // The id must exist in src/data/illustrations.json: validateIllustrations checks that, with the credit.
+    if (w.image !== undefined && !ILLUSTRATION_ID.test(w.image ?? '')) err('image must be an illustration id (src/data/illustrations.json)');
   });
 
   if (words.length < 100 || words.length > 1000) errors.push(`expected 100–1000 words, found ${words.length}`);

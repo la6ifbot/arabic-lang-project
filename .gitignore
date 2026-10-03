@@ -11,3 +11,5 @@ playwright-report
 .env.*.local
 dist-email
 sheet-export
+.cards
+.illustrations

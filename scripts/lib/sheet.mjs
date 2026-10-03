@@ -116,8 +116,12 @@ export function rowsToWords(rows, current = []) {
     if (status && !STATUSES.includes(status)) errors.push(`${at}: status must be blank, draft or reviewed`);
     if (status === 'reviewed') w.status = 'reviewed';
     const old = bySlug.get(w.slug);
-    if (old) for (const [k, v] of Object.entries(old)) if (!known.has(k)) w[k] = v;
-    return w;
+    if (!old) return w;
+    for (const [k, v] of Object.entries(old)) if (!known.has(k)) w[k] = v;
+    // Keep the word's existing key order, so an unchanged row writes an unchanged line.
+    const ordered = {};
+    for (const k of Object.keys(old)) if (k in w) ordered[k] = w[k];
+    return Object.assign(ordered, w);
   });
   return { words, errors, warnings };
 }

@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { formatWords } from './migrate-tags-to-topics.mjs';
 import { diffById, parseCsv, rowsToTopics, rowsToWords } from './lib/sheet.mjs';
+import { validateIllustrations } from './lib/illustration-schema.mjs';
 import { validateTopics, validateWords } from './lib/word-schema.mjs';
 
 const formatTopics = (topics) => `${JSON.stringify(topics, null, 2)}\n`;
@@ -32,13 +33,15 @@ async function load(source) {
  * The whole import as a pure function, so tests can run it on fixture sheets.
  * Returns the new data, what changed, the problems found and a Markdown summary for the PR.
  */
-export function importSheet({ wordsCsv, topicsCsv, currentWords, currentTopics, allowRemovals = false }) {
+export function importSheet({ wordsCsv, topicsCsv, currentWords, currentTopics, illustrations, allowRemovals = false }) {
   const t = topicsCsv === undefined ? { topics: currentTopics, errors: [], warnings: [] } : rowsToTopics(parseCsv(topicsCsv));
   const w = rowsToWords(parseCsv(wordsCsv), currentWords);
   const tv = t.errors.length ? { errors: [], warnings: [] } : validateTopics(t.topics);
   // Missing columns leave no words to check; bad cells still let the validator report every other row.
   const wv = w.words.length === 0 || t.errors.length ? { errors: [], warnings: [] } : validateWords(w.words, t.topics);
-  const errors = [...t.errors, ...w.errors, ...tv.errors, ...wv.errors];
+  // Image and cover ids must exist in src/data/illustrations.json (docs/ILLUSTRATIONS.md).
+  const iv = illustrations === undefined || w.words.length === 0 || t.errors.length ? { errors: [], warnings: [] } : validateIllustrations(illustrations, w.words, t.topics);
+  const errors = [...t.errors, ...w.errors, ...tv.errors, ...wv.errors, ...iv.errors];
   if (w.words.length === 0 && w.errors.length === 0) errors.push('words tab has no rows');
   const warnings = [...t.warnings, ...w.warnings, ...tv.warnings, ...wv.warnings];
 
@@ -142,6 +145,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     topicsCsv: values.topics ? await load(values.topics) : undefined,
     currentWords: JSON.parse(readFileSync(wordsUrl, 'utf8')),
     currentTopics: JSON.parse(readFileSync(topicsUrl, 'utf8')),
+    illustrations: JSON.parse(readFileSync(new URL('../src/data/illustrations.json', import.meta.url), 'utf8')),
     allowRemovals: values['allow-removals'],
   });
   if (values.summary) writeFileSync(values.summary, result.summary);

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import words from '../../src/data/words.json';
 import topics from '../../src/data/topics.json';
+import illustrations from '../../src/data/illustrations.json';
 import { importSheet } from '../../scripts/import-sheet.mjs';
 import { parseCsv, toCsv, topicsToRows, wordsToRows, WORD_COLUMNS } from '../../scripts/lib/sheet.mjs';
 import { formatWords } from '../../scripts/migrate-tags-to-topics.mjs';
@@ -98,6 +99,11 @@ describe('import', () => {
     expect(r.errors.join('\n')).toMatch(/kawkab-3\): status must be blank, draft or reviewed/);
     expect(r.errors.join('\n')).toMatch(/durrah\): duplicate slug/);
     expect(r.summary).toContain('Nothing was imported');
+  });
+
+  test('an image id that is not in the illustrations registry fails', () => {
+    const r = importSheet({ wordsCsv: sheet((rows) => [...rows, newRow({ image: 'no-such-plate' })]), ...current, illustrations });
+    expect(r.errors.join('\n')).toMatch(/no-such-plate/);
   });
 
   test('a missing column fails', () => {

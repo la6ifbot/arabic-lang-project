@@ -23,23 +23,15 @@ export interface Word {
   audio?: string;
   /** ISO date the word joined the dataset (2026-09-24 for the original set); drives Pearl of the Day cycles. */
   added: string;
-  /** An illustration (decision 5): drawn faintly on the card and the share image. */
-  image?: WordImage;
+  /**
+   * An illustration (decision 5): the id of an entry in src/data/illustrations.json, which holds the
+   * picture's source, credit, licence and alt text. Meant to be drawn faintly behind the card's text.
+   */
+  image?: string;
   /** Where the word comes from, or where it went. Required for words in the "borrowed" topic. */
   etymology?: Etymology;
   /** Native-speaker review state (docs/CONTENT.md). Absent means draft. */
   status?: 'draft' | 'reviewed';
-}
-
-export interface WordImage {
-  /** A key on the image host (e.g. "illustrations/ward.webp") or a full https URL. */
-  src: string;
-  alt: string;
-  /** Who made it, e.g. "After Pierre-Joseph Redouté, Les Roses (1817)". */
-  credit: string;
-  /** E.g. "Public domain" or "CC0". */
-  license: string;
-  sourceUrl?: string;
 }
 
 export interface Etymology {
@@ -56,7 +48,7 @@ export interface Topic {
   description: { en: string; ar: string };
   /** Position in the topic picker; "The whole sea" always comes first. */
   order: number;
-  /** Optional cover image key or URL (topic pages, OG image). */
+  /** Optional cover: an illustration id from src/data/illustrations.json (topic pages, OG image). */
   cover?: string;
 }
 

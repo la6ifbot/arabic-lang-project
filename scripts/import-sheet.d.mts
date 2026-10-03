@@ -4,6 +4,7 @@ export function importSheet(input: {
   topicsCsv?: string;
   currentWords: any[];
   currentTopics: any[];
+  illustrations?: any[];
   allowRemovals?: boolean;
 }): {
   words: any[];
