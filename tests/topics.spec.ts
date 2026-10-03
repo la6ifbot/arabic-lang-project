@@ -204,11 +204,14 @@ test.describe('topic pages', () => {
       expect(html).toContain(t.description.ar);
       for (const slug of inTopic(t.id)) expect(html).toContain(`href="/word/${slug}"`);
     }
-    expect(titles.size).toBe(6);
+    const shown = topics.filter((x) => inTopic(x.id).size > 0);
+    expect(titles.size).toBe(shown.length);
     const sitemap = await (await request.get('/sitemap.xml')).text();
-    for (const t of ['water', 'sky', 'flowers', 'desert', 'feeling', 'poetry']) expect(sitemap).toContain(`/sea/${t}</loc>`);
-    // An empty topic has no page yet.
-    expect(sitemap).not.toContain('/sea/borrowed');
+    // A topic with words has a page; an empty one has none yet.
+    for (const t of topics) {
+      if (inTopic(t.id).size > 0) expect(sitemap).toContain(`/sea/${t.id}</loc>`);
+      else expect(sitemap).not.toContain(`/sea/${t.id}</loc>`);
+    }
   });
 
   test('word pages link to their topics', async ({ request }) => {

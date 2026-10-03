@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import words from '../../src/data/words.json';
 import topics from '../../src/data/topics.json';
 import { addDays, PEARL_EPOCH, pearlForDate, type ScheduledWord } from '../../shared/pearlOfTheDay';
@@ -159,8 +159,21 @@ describe('the topic-filtered queue', () => {
   });
 
   test('empty topics are hidden from the site until they have words', async () => {
-    const { TOPICS, isTopic } = await import('../../src/lib/topics');
-    expect(TOPICS.map((t) => t.id)).toEqual(['water', 'sky', 'flowers', 'desert', 'feeling', 'poetry']);
-    expect(isTopic('borrowed')).toBe(false);
+    const raw = (await import('../../src/data/topics.json')).default;
+    const empty = { ...raw[0], id: 'empty-topic', order: 99 };
+    vi.resetModules();
+    vi.doMock('../../src/data/topics.json', () => ({ default: [...raw, empty] }));
+    try {
+      const mocked = (await import('../../src/data/topics.json')).default;
+      expect(mocked.map((t) => t.id)).toContain('empty-topic');
+      const { TOPICS, isTopic } = await import('../../src/lib/topics');
+      const withWords = [...raw].sort((a, b) => a.order - b.order).filter((t) => WORDS.some((w) => w.topics.includes(t.id)));
+      expect(TOPICS.map((t) => t.id)).toEqual(withWords.map((t) => t.id));
+      expect(isTopic('empty-topic')).toBe(false);
+      expect(isTopic(withWords[0].id)).toBe(true);
+    } finally {
+      vi.doUnmock('../../src/data/topics.json');
+      vi.resetModules();
+    }
   });
 });
