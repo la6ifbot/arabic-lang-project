@@ -76,14 +76,10 @@ describe('validator', () => {
     expect(check(word({ topics: ['borrowed'], etymology: { text: 'Via Spanish.', source: 'OED, s.v. “zenith”' } }))).toEqual([]);
   });
 
-  test('images need a credit, a licence and alt text', () => {
-    const image = { src: 'illustrations/najm.webp', alt: 'A star', credit: 'After Bayer, Uranometria (1603)', license: 'Public domain' };
-    expect(check(word({ image }))).toEqual([]);
-    expect(check(word({ image: { ...image, credit: '' } }))).toEqual([expect.stringMatching(/credit/)]);
-    expect(check(word({ image: { ...image, license: undefined } }))).toEqual([expect.stringMatching(/license/)]);
-    expect(check(word({ image: { ...image, alt: ' ' } }))).toEqual([expect.stringMatching(/alt/)]);
-    expect(check(word({ image: { ...image, src: '../x.png' } }))).toEqual([expect.stringMatching(/image\.src/)]);
-    expect(check(word({ image: { ...image, sourceUrl: 'http://example.com' } }))).toEqual([expect.stringMatching(/sourceUrl/)]);
+  test('an image is an illustration id (its credit lives in src/data/illustrations.json)', () => {
+    expect(check(word({ image: 'rose-centifolia' }))).toEqual([]);
+    expect(check(word({ image: 'illustrations/najm.webp' }))).toEqual([expect.stringMatching(/illustration id/)]);
+    expect(check(word({ image: { src: 'x.webp' } }))).toEqual([expect.stringMatching(/illustration id/)]);
   });
 
   test('slugs are unique', () =>
