@@ -4,6 +4,9 @@ on:
   push:
     branches: [main, 'claude/**']
   pull_request:
+  # The Sheet import's pull requests are pushed with the workflow token, which starts no push or
+  # pull_request runs, so import-sheet.yml starts this workflow on its branch instead.
+  workflow_dispatch:
 
 jobs:
   database:

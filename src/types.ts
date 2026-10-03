@@ -27,6 +27,8 @@ export interface Word {
   image?: WordImage;
   /** Where the word comes from, or where it went. Required for words in the "borrowed" topic. */
   etymology?: Etymology;
+  /** Native-speaker review state (docs/CONTENT.md). Absent means draft. */
+  status?: 'draft' | 'reviewed';
 }
 
 export interface WordImage {

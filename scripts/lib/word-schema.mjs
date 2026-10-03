@@ -106,6 +106,10 @@ export function validateWords(words, topics = []) {
     if (w.topics?.includes(BORROWED_TOPIC) && !text(w.etymology?.source))
       err(`words in "${BORROWED_TOPIC}" need etymology.source`);
 
+    // Native-speaker review (section G): absent means draft; both show on the site for now.
+    if (w.status !== undefined && w.status !== 'draft' && w.status !== 'reviewed')
+      err('status must be "draft" or "reviewed" (or absent: draft)');
+
     if (w.image !== undefined) {
       const im = w.image;
       if (!im || typeof im !== 'object') err('image must be an object');
