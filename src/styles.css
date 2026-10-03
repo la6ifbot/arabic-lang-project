@@ -996,7 +996,15 @@ a.acct-item {
 .modal-privacy a,
 .prose a {
   color: var(--ink-soft);
+  text-decoration: underline;
+  text-decoration-color: rgba(214, 232, 236, 0.35);
   text-underline-offset: 3px;
+}
+.modal-privacy a:hover,
+.modal-privacy a:focus-visible,
+.prose a:hover,
+.prose a:focus-visible {
+  text-decoration-color: currentColor;
 }
 .auth-form {
   display: grid;
@@ -1896,6 +1904,41 @@ a.acct-item {
 .prose strong {
   color: var(--ink);
   font-weight: 500;
+}
+/* Credits: one row per illustration, thumbnail beside its credit. */
+.prose .credits-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0;
+  display: grid;
+  gap: 18px;
+}
+.prose .credit {
+  margin: 0;
+  scroll-margin-top: 80px; /* clear of the sticky header on /credits#ill-<id> */
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 16px;
+  align-items: center;
+}
+.credit-thumb {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: rgba(207, 238, 240, 0.04);
+  border: 1px solid var(--glass-edge);
+}
+.credit-by,
+.credit-used {
+  margin: 0;
+}
+.credit-by {
+  font-size: 0.9rem;
+}
+.credit-ar {
+  font: 600 1.35rem/1.4 var(--font-ar);
 }
 @media (max-width: 640px) {
   .lib-grid {

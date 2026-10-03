@@ -10,3 +10,5 @@ playwright-report
 .env.local
 .env.*.local
 dist-email
+.cards
+.illustrations
