@@ -140,3 +140,25 @@ describe('Pearl of the Day is unchanged by the explicit added date', () => {
     }
   });
 });
+
+describe('the topic-filtered queue', () => {
+  test('a topic queue holds only its own words behind the focused card', async () => {
+    const { topicSlugs } = await import('../../src/lib/topics');
+    const { planOrder } = await import('../../src/progress/queue');
+    const sky = topicSlugs('sky');
+    expect(sky.length).toBeGreaterThan(20);
+    expect(topicSlugs(null)).toHaveLength(WORDS.length);
+    const progress = { [sky[1]]: { slug: sky[1], box: 2 as const, dueAt: '2026-01-01T00:00:00.000Z', lastReviewedAt: '2025-12-30T00:00:00.000Z', timesSeen: 1, lapses: 0 } };
+    const order = planOrder({ slugs: sky, progress, order: [sky[0]], returning: new Set(), seed: 's', now: Date.parse('2026-10-02T00:00:00Z') });
+    expect(order[0]).toBe(sky[0]);
+    expect(new Set(order)).toEqual(new Set(sky));
+    // The due word comes after two new ones, as in the whole sea.
+    expect(order.indexOf(sky[1])).toBe(3);
+  });
+
+  test('empty topics are hidden from the site until they have words', async () => {
+    const { TOPICS, isTopic } = await import('../../src/lib/topics');
+    expect(TOPICS.map((t) => t.id)).toEqual(['water', 'sky', 'flowers', 'desert', 'feeling', 'poetry']);
+    expect(isTopic('borrowed')).toBe(false);
+  });
+});
