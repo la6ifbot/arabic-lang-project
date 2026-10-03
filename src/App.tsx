@@ -21,6 +21,7 @@ import { SearchBar } from './ui/SearchBar';
 import { StatusAnnouncer } from './ui/StatusAnnouncer';
 import { SwipeControls } from './ui/SwipeControls';
 import { TextView } from './ui/TextView';
+import { TopicPicker } from './ui/TopicPicker';
 
 // three.js + r3f load in their own chunk so the chrome, text and SEO copy paint immediately.
 const Experience = lazy(() => import('./scene/Experience').then((m) => ({ default: m.Experience })));
@@ -117,7 +118,8 @@ function Sea() {
     loadCardFonts().then(() => setFontsReady(true));
   }, [quality]);
 
-  useEffect(() => syncUrl(focused), [focused]);
+  const topic = useDurar((s) => s.topic);
+  useEffect(() => syncUrl(focused, topic), [focused, topic]);
 
   const use3D = webgl && !lost && !textMode;
 
@@ -199,6 +201,7 @@ function Sea() {
 
       {use3D && <PearlLabel />}
       <SearchBar />
+      <TopicPicker />
       <ProgressNote />
       <SwipeControls showHint={!touched} onUse={firstUse} />
 
