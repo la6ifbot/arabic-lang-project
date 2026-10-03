@@ -1,6 +1,7 @@
 import { useId, useState } from 'react';
 import { friendlyMessage } from '../account/errors';
 import { deleteAccount, useAccount } from '../account/store';
+import { emailSignupEnabled } from '../lib/flags';
 import { navigate, useRoute } from '../lib/router';
 import { WORD_BY_SLUG } from '../lib/words';
 import { Modal } from './Modal';
@@ -33,7 +34,8 @@ export default function DeleteAccountDialog() {
       </h2>
       <p id={descId} className="modal-text">
         This permanently deletes your account{user?.email ? <> (<strong>{user.email}</strong>)</> : null} and{' '}
-        {count === 1 ? 'the 1 pearl' : `the ${count} pearls`} you’ve saved, along with your progress. It can’t be undone.
+        {count === 1 ? 'the 1 pearl' : `the ${count} pearls`} you’ve saved, along with your progress
+        {emailSignupEnabled ? ', and stops any Pearl of the Day email to this address' : ''}. It can’t be undone.
       </p>
       {error && (
         <div className="form-error" role="alert">

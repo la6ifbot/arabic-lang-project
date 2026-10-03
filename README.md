@@ -135,7 +135,8 @@ All fonts are self-hosted via Fontsource (SIL Open Font License), with no third-
   of the card's text (`shared/cards.ts`), so the site and the email work out a word's image URL from
   its data. CI (`npm run cards -- --upload`) renders and uploads only the cards the host doesn't have
   yet, on every pull request and on `main`. Old `durar.space/cards/*` links redirect to the host.
-- The email runs on Vercel functions + Supabase + Amazon SES: double opt-in, one-click unsubscribe,
+- The email runs on Vercel functions + Supabase + Amazon SES: double opt-in from the form (confirmed
+  accounts get it too, with an Off switch in the account menu), one-click unsubscribe,
   no tracking, one send per subscriber per day (enforced by a primary key), and sandbox mode until the
   domain exists. Details: [`docs/EMAIL-SETUP.md`](docs/EMAIL-SETUP.md).
 

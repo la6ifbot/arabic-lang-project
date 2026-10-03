@@ -1,8 +1,18 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { friendlyMessage, toAccountError } from '../account/errors';
 import { accountsDemo } from '../account/backend';
-import { auth, closeAuth, setAuthMode, useAccount, type AuthDialog } from '../account/store';
+import {
+  auth,
+  closeAuth,
+  loadEmailToggle,
+  setAuthMode,
+  setEmailToggle,
+  useAccount,
+  useEmailToggle,
+  type AuthDialog,
+} from '../account/store';
 import { returnUrl } from '../account/urlState';
+import { emailSignupEnabled } from '../lib/flags';
 import { linkHandler } from '../lib/router';
 import { WORD_BY_SLUG } from '../lib/words';
 import { focusFirst, Modal } from './Modal';
@@ -35,6 +45,8 @@ export default function AuthModal() {
   const [error, setError] = useState<string | null>(dialog.error ?? null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [resent, setResent] = useState(false);
+  const [askedEmail, setAskedEmail] = useState(false);
+  const emailState = useEmailToggle((s) => s.state);
   const { mode } = dialog;
 
   // Each screen starts clean, with focus on its first field.
@@ -46,6 +58,21 @@ export default function AuthModal() {
     if (dialog.email) setEmail(dialog.email);
     requestAnimationFrame(() => focusFirst(body.current));
   }, [mode, dialog.error, dialog.email]);
+
+  // A confirmed account gets the daily email; the welcome says so, or offers it if the address had opted out.
+  const offerEmail = mode === 'verified' && emailSignupEnabled;
+  const showOffer = offerEmail && (emailState === 'off' || (emailState === 'loading' && askedEmail));
+  useEffect(() => {
+    if (offerEmail && useEmailToggle.getState().state === 'unknown') void loadEmailToggle();
+  }, [offerEmail]);
+
+  const askForEmail = async () => {
+    setAskedEmail(true);
+    setError(null);
+    await setEmailToggle(true);
+    const now = useEmailToggle.getState().state;
+    if (now !== 'pending' && now !== 'on') setError('That didn’t work. Check your connection and try again.');
+  };
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -164,7 +191,30 @@ export default function AuthModal() {
             <p className="modal-text">
               Welcome to Durar. You’re signed in{dialog.email ? <> as <strong>{dialog.email}</strong></> : null}.
             </p>
+            {offerEmail && emailState === 'pending' && askedEmail && (
+              <p className="modal-text" role="status">
+                Almost there: open the email <strong>Confirm your Pearl of the Day</strong> and tap the link in it.
+              </p>
+            )}
+            {offerEmail && emailState === 'on' && (
+              <p className="modal-text" role="status">
+                Your Pearl of the Day email is on: one Arabic word each morning at about 7:00, Amsterdam time. Switch it off
+                any time in the account menu.
+              </p>
+            )}
+            {showOffer && <p className="modal-text">Want the Pearl of the Day by email? One Arabic word each morning.</p>}
             <div className="modal-actions">
+              {showOffer && (
+                <button
+                  type="button"
+                  className="btn btn-quiet"
+                  onClick={() => void askForEmail()}
+                  disabled={emailState === 'loading'}
+                  aria-busy={emailState === 'loading'}
+                >
+                  {emailState === 'loading' ? 'One moment…' : 'Email me the Pearl of the Day'}
+                </button>
+              )}
               <button type="button" className="btn btn-primary" onClick={closeAuth} data-autofocus>
                 Continue
               </button>
@@ -322,6 +372,7 @@ export default function AuthModal() {
 
       <p className="modal-privacy">
         We keep only your email and the words you save.{' '}
+        {showGoogle && emailSignupEnabled && 'A new account also gets the Pearl of the Day email, which you can switch off in the menu. '}
         <a
           href="/privacy"
           onClick={(e) => {

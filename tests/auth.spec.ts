@@ -144,6 +144,46 @@ test.describe('accounts: sign up, sign in, sign out', () => {
     await expect(dialog(page)).toHaveCount(0);
   });
 
+  const signUpAndConfirm = async (page: import('@playwright/test').Page) => {
+    await page.goto('/');
+    await waitForSea(page);
+    await page.getByTestId('sign-in').click();
+    await dialog(page).getByRole('button', { name: 'Create an account' }).click();
+    await expect(dialog(page)).toContainText('A new account also gets the Pearl of the Day email');
+    await dialog(page).getByLabel('Email').fill('new.diver@example.com');
+    await dialog(page).getByLabel('Password', { exact: true }).fill('a sea of words');
+    await dialog(page).getByRole('button', { name: 'Create account' }).click();
+    await expect(dialog(page).getByRole('heading')).toHaveText('Check your inbox');
+    const link = await page.evaluate(() => (window as unknown as Mock).__durarMock.link('new.diver@example.com', 'verify'));
+    await page.goto(link!);
+    await expect(dialog(page).getByRole('heading')).toHaveText('Email confirmed');
+  };
+
+  test('confirming a new account starts the daily email, and the menu switches it off', async ({ page }) => {
+    await signUpAndConfirm(page);
+    await expect(dialog(page).getByRole('status')).toContainText('Your Pearl of the Day email is on');
+    await expect(dialog(page).getByRole('button', { name: 'Email me the Pearl of the Day' })).toHaveCount(0);
+    await dialog(page).getByRole('button', { name: 'Continue' }).click();
+    await page.getByTestId('account-button').click();
+    const toggle = page.getByTestId('email-toggle');
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  });
+
+  test('an address that unsubscribed earlier stays off, and the welcome offers it', async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!localStorage.getItem('durar-mock-email')) localStorage.setItem('durar-mock-email', JSON.stringify({ 'new.diver@example.com': 'unsubscribed' }));
+    });
+    await signUpAndConfirm(page);
+    await expect(dialog(page)).toContainText('Want the Pearl of the Day by email?');
+    await dialog(page).getByRole('button', { name: 'Email me the Pearl of the Day' }).click();
+    await expect(dialog(page).getByRole('status')).toContainText('Confirm your Pearl of the Day');
+    await dialog(page).getByRole('button', { name: 'Continue' }).click();
+    await page.getByTestId('account-button').click();
+    await expect(page.getByTestId('email-toggle')).toHaveAttribute('aria-checked', 'mixed');
+  });
+
   test('a used reset link says so, and asks for a new one', async ({ page }) => {
     await seed(page);
     await page.goto('/');

@@ -103,9 +103,23 @@ export default function SubscribeModal() {
                 data-autofocus
               />
             </div>
+            {/* A neutral name and label, and no password-manager fill: browsers and managers fill fields
+                called “website”, and a filled honeypot quietly drops a real person's request. */}
             <div className="hp" aria-hidden="true">
-              <label htmlFor="subscribe-website">Website</label>
-              <input id="subscribe-website" name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
+              <label htmlFor="subscribe-extra">Leave this empty</label>
+              <input
+                id="subscribe-extra"
+                name="extra"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                data-bwignore
+                data-form-type="other"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+              />
             </div>
             {error && (
               <div className="form-error" role="alert">

@@ -23,7 +23,8 @@ export default function PrivacyPage() {
         <h2>What we store when you create an account</h2>
         <ul>
           <li>
-            <strong>Your email address</strong>, so you can sign in and reset your password.
+            <strong>Your email address</strong>, so you can sign in and reset your password, and to send you the Pearl of
+            the Day email (below) unless you switch it off.
           </li>
           <li>
             <strong>Your password</strong>, as a one-way hash we can’t read. If you use Google, we store no password; Google
@@ -55,7 +56,10 @@ export default function PrivacyPage() {
         </p>
 
         <h2>Why</h2>
-        <p>Only to let you sign in and see your pearls on any device. We don’t sell or share this data or use it for ads.</p>
+        <p>
+          Only to let you sign in, see your pearls on any device and get the daily email. We don’t sell or share this data
+          or use it for ads.
+        </p>
 
         <h2>Where it’s kept</h2>
         <p>
@@ -79,7 +83,11 @@ export default function PrivacyPage() {
         </p>
 
         <h2>If you get the Pearl of the Day by email</h2>
-        <p>You don’t need an account for this. When you subscribe we store:</p>
+        <p>
+          Every account gets it once its address is confirmed, by the link we email you or by Google. Switch it off any
+          time in the account menu or with the link at the bottom of each email. You can also subscribe without an
+          account. For the email we store:
+        </p>
         <ul>
           <li>
             <strong>Your email address</strong> and whether you’ve confirmed it, with the dates you subscribed, confirmed or
