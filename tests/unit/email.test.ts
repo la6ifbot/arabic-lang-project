@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import words from '../../src/data/words.json';
 import { buildMime } from '../../server/email/mime';
 import { renderConfirmation, renderDaily, SUBJECTS, type EmailWord } from '../../server/email/templates';
+import { IMAGE_ORIGIN } from '../../shared/cards';
 
 const WORDS = words as EmailWord[];
 const bahr = WORDS.find((w) => w.slug === 'bahr')!;
@@ -27,7 +28,7 @@ describe('daily email', () => {
   });
 
   test('has the card image with real alt text, then live text for everything important', () => {
-    expect(daily.html).toContain(`src="${SITE}/cards/email/bahr.png"`);
+    expect(daily.html).toContain(`src="${IMAGE_ORIGIN}/cards/email/bahr-a60d7be54c8c7b0e.png"`);
     expect(daily.html).toContain('alt="بَحْر (baḥr): sea"');
     for (const s of ['baḥr', 'sea', 'أنا البحر في أحشائه الدر كامن', 'I am the sea; in its depths the pearls lie hidden.']) {
       expect(daily.html).toContain(s);
@@ -83,11 +84,12 @@ describe('no tracking, in any email', () => {
       expect(images.length).toBeLessThanOrEqual(1);
       for (const img of images) {
         expect(img).not.toMatch(/width="1"|height="1"|display:\s*none/);
-        expect(img).toMatch(new RegExp(`src="${SITE}/cards/email/[a-z0-9-]+\\.png"`));
+        // A plain, content-hashed file on the image host: nothing in the URL says who opened it.
+        expect(img).toMatch(new RegExp(`src="${IMAGE_ORIGIN}/cards/email/[a-z0-9-]+-[0-9a-f]{16}\\.png"`));
       }
       expect(email.html).not.toMatch(/background(-image)?:\s*url\(/); // no hidden image loads
       for (const u of urls(email.html, email.text)) {
-        expect(u.startsWith(SITE) || u.startsWith('mailto:'), u).toBe(true);
+        expect(u.startsWith(SITE) || u.startsWith(`${IMAGE_ORIGIN}/cards/`) || u.startsWith('mailto:'), u).toBe(true);
         expect(u, u).not.toMatch(/utm_|[?&](ref|src|cid|mc_|trk)=/i);
         const q = new URL(u.startsWith('mailto:') ? 'https://x' : u).searchParams;
         // The only query parameter any link may carry is a subscription token.

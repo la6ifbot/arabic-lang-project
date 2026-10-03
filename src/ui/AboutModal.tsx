@@ -1,6 +1,13 @@
-import { useId } from 'react';
+import { useId, type MouseEvent } from 'react';
+import { linkHandler } from '../lib/router';
 import { closeAbout } from '../state/dialogs';
 import { Modal } from './Modal';
+
+/** A footer link that also closes the dialog when it navigates in place. */
+const go = (path: string) => (e: MouseEvent) => {
+  linkHandler(path)(e);
+  if (e.defaultPrevented) closeAbout();
+};
 
 /** “What is Durar?”: the same dark-glass sheet as sign-in. */
 export default function AboutModal() {
@@ -44,6 +51,15 @@ export default function AboutModal() {
           Start exploring
         </button>
       </div>
+      <p className="modal-privacy">
+        <a href="/credits" onClick={go('/credits')}>
+          Credits
+        </a>
+        <span aria-hidden="true"> · </span>
+        <a href="/privacy" onClick={go('/privacy')}>
+          Privacy
+        </a>
+      </p>
     </Modal>
   );
 }
