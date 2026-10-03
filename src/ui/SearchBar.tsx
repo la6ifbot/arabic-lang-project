@@ -1,6 +1,9 @@
 import { useId, useMemo, useRef, useState } from 'react';
+import { TOPIC_BY_ID } from '../lib/topics';
 import { searchWords } from '../lib/words';
 import { useDurar } from '../state/store';
+
+const SHOWN = 7;
 
 export function SearchBar() {
   const [query, setQuery] = useState('');
@@ -8,7 +11,14 @@ export function SearchBar() {
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const listId = useId();
-  const results = useMemo(() => searchWords(query), [query]);
+  const topic = useDurar((s) => s.topic);
+  // Search covers every topic; with a topic chosen, its matches come first.
+  const results = useMemo(() => {
+    const all = searchWords(query, topic ? 40 : SHOWN);
+    if (!topic) return all;
+    const inTopic = all.filter((w) => w.topics.includes(topic));
+    return [...inTopic, ...all.filter((w) => !w.topics.includes(topic))].slice(0, SHOWN);
+  }, [query, topic]);
   const showList = open && query.trim().length > 0;
 
   const choose = (slug: string) => {
@@ -97,6 +107,20 @@ export function SearchBar() {
               <span className="search-meta">
                 <span className="search-tr">{w.translit}</span>
                 <span className="search-en">{w.meanings[0]}</span>
+                {w.topics.length > 0 && (
+                  <span className="search-chips">
+                    {w.topics.map((id) => {
+                      const t = TOPIC_BY_ID.get(id);
+                      return (
+                        t && (
+                          <span key={id} className="search-chip" data-here={id === topic || undefined}>
+                            {t.name.en}
+                          </span>
+                        )
+                      );
+                    })}
+                  </span>
+                )}
               </span>
             </li>
           ))}

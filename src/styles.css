@@ -282,6 +282,25 @@ body[data-cursor='pointer'] .scene {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.search-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.search-chip {
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge);
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+}
+.search-chip[data-here] {
+  border-color: rgba(127, 214, 214, 0.45);
+  color: var(--ink);
+}
 .search-empty {
   padding: 10px 12px;
   font: italic 500 1rem var(--font-en);
@@ -1748,6 +1767,15 @@ a.acct-item {
 .lib-sort [lang='ar'] {
   font-family: var(--font-ar);
   font-size: 1.05rem;
+}
+.lib-topics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto 18px;
+  border-radius: 20px;
 }
 .lib-grid {
   display: grid;
