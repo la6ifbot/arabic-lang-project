@@ -1,0 +1,65 @@
+[
+  {
+    "id": "water",
+    "order": 1,
+    "name": { "en": "Sea & water", "ar": "البحر والماء" },
+    "description": {
+      "en": "Pearls, waves and harbours, and the rain, springs and streams that feed them.",
+      "ar": "دُرَرٌ وأمواجٌ ومَرافئ، ومطرٌ وينابيعُ وجداولُ تُغذّيها."
+    }
+  },
+  {
+    "id": "sky",
+    "order": 2,
+    "name": { "en": "Sky & stars", "ar": "السماء والنجوم" },
+    "description": {
+      "en": "Dawn and dusk, moon and stars, wind and cloud, and the star names the world took from Arabic.",
+      "ar": "الفجرُ والغسق، والقمرُ والنجوم، والريحُ والسحاب، وأسماءُ نجومٍ أخذها العالمُ عن العربية."
+    }
+  },
+  {
+    "id": "flowers",
+    "order": 3,
+    "name": { "en": "Flowers & scent", "ar": "الزهر والعطر" },
+    "description": {
+      "en": "Roses, jasmine and narcissus, gardens and orchards, musk, amber and incense.",
+      "ar": "الوردُ والياسمينُ والنرجس، والبساتين، والمسكُ والعنبرُ والبخور."
+    }
+  },
+  {
+    "id": "borrowed",
+    "order": 4,
+    "name": { "en": "Words the world borrowed", "ar": "كلماتٌ استعارها العالم" },
+    "description": {
+      "en": "Algebra, coffee, sugar, zenith: Arabic words that travelled into other languages, each with its sourced story.",
+      "ar": "الجبرُ والقهوةُ والسكّرُ والسَّمْت: كلماتٌ عربيةٌ سافرت إلى لغاتٍ أخرى، ولكلٍّ منها قصةٌ موثَّقة."
+    }
+  },
+  {
+    "id": "desert",
+    "order": 5,
+    "name": { "en": "Desert", "ar": "الصحراء" },
+    "description": {
+      "en": "Dunes and oases, caravans and tents, the gazelle, the falcon and the mirage.",
+      "ar": "الكثبانُ والواحات، والقوافلُ والخيام، والغزالُ والصقرُ والسراب."
+    }
+  },
+  {
+    "id": "feeling",
+    "order": 6,
+    "name": { "en": "Feeling & virtue", "ar": "المشاعر والفضائل" },
+    "description": {
+      "en": "Longing, love and serenity, patience, loyalty and generosity: the inner life in Arabic.",
+      "ar": "الحنينُ والعشقُ والسكينة، والصبرُ والوفاءُ والكرم: حياةُ القلب بالعربية."
+    }
+  },
+  {
+    "id": "poetry",
+    "order": 7,
+    "name": { "en": "Poetry & language", "ar": "الشعر واللغة" },
+    "description": {
+      "en": "The pen and the letter, eloquence, the ode and its rhyme, music and night-long conversation.",
+      "ar": "القلمُ والحرف، والبلاغة، والقصيدةُ وقافيتُها، والطربُ وسمرُ الليل."
+    }
+  }
+]

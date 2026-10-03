@@ -165,13 +165,22 @@ interface Word {
   meanings: string[];
   examples: { ar: string; en: string; source?: string }[]; // 1–3
   root?: string;           // reserved: root-family feature
-  tags?: string[];
+  topics: string[];        // ids from src/data/topics.json; [] = only in "The whole sea"
   audio?: string;          // reserved: pronunciation audio
-  added?: string;          // ISO date, required for words added after launch (Pearl of the Day cycles)
+  added: string;           // ISO date it joined (2026-09-24 for the original set; Pearl of the Day cycles)
+  image?: { src: string; alt: string; credit: string; license: string; sourceUrl?: string };
+  etymology?: { text: string; source: string }; // required for the "borrowed" topic
 }
 ```
 
-Run `npm run validate:data` after editing.
+`src/data/topics.json` is the topic registry: `id` (the `/sea/<id>` URL), `name` and `description`
+in English and Arabic, `order`, and an optional `cover`. "The whole sea" is every word and isn't
+listed there.
+
+Run `npm run validate:data` after editing. It checks the rules in `scripts/lib/word-schema.mjs`:
+vowelled headwords, the transliteration format (ā ī ū, ḥ ṣ ḍ ṭ ẓ, ʿ and ʾ), 1–3 examples, known
+topic ids, an `added` date, a sourced etymology for borrowed words, credit and licence on images,
+and unique slugs. Topics under 20 words are a warning.
 
 ## Deploying
 
