@@ -2,6 +2,7 @@ import { asProgress, isDue, mergeProgress, returnsIn, review, type Progress } fr
 import { accountsMode } from '../account/backend';
 import { bootAccounts, useAccount } from '../account/store';
 import { PROGRESS_KEY, PROGRESS_OUTBOX_KEY, SEA_DEPTH_KEY } from '../account/storageKeys';
+import { topicSlugs } from '../lib/topics';
 import { WORDS } from '../lib/words';
 import { useProgress } from '../state/progress';
 import { swipeHook, useDurar, type SwipeEvent } from '../state/store';
@@ -184,7 +185,9 @@ function rebuild() {
   const { order, reviews } = useDurar.getState();
   const returning = new Set(Object.keys(reviews));
   const now = Date.now();
-  const next = planOrder({ slugs: LIVE, progress: map(), order, returning, seed, now, sinceDue });
+  const { topic } = useDurar.getState();
+  // The chosen topic's words only: its queue has its own new and due words.
+  const next = planOrder({ slugs: topicSlugs(topic), progress: map(), order, returning, seed, now, sinceDue });
   useDurar.setState({ order: next });
   set({ metAll: metEveryPearl(next, map(), returning, now) });
 }
@@ -241,6 +244,10 @@ export async function start() {
   started = true;
   await reload();
   swipeHook.after = onSwipe;
+  // A new topic gets its own queue.
+  useDurar.subscribe((s, prev) => {
+    if (s.topic !== prev.topic && !loading) rebuild();
+  });
   // Sign-in (any route: password, Google, an email link), sign-out and account deletion.
   useAccount.subscribe((s) => {
     const id = s.status === 'signed-in' ? (s.user?.id ?? null) : s.status === 'signed-out' ? null : undefined;

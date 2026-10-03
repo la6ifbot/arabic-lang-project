@@ -34,11 +34,22 @@ const cleanUrls = (): Plugin => ({
     });
   },
 });
+
+/** The site only needs topic names; the descriptions are for topic pages (prerendered) and tools. */
+const slimTopics = (): Plugin => ({
+  name: 'durar-slim-topics',
+  enforce: 'pre',
+  load(id) {
+    if (!id.replace(/\\/g, '/').endsWith('/src/data/topics.json')) return null;
+    const topics = JSON.parse(readFileSync(id, 'utf8')) as { description?: unknown }[];
+    return JSON.stringify(topics.map(({ description: _drop, ...t }) => t));
+  },
+});
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), cleanUrls()],
+  plugins: [react(), tailwindcss(), cleanUrls(), slimTopics()],
   define: {
     __EMAIL_SIGNUP__: JSON.stringify(emailSignupFlag(process.env)),
     __SITE_ORIGIN__: JSON.stringify(canonicalOrigin(process.env)),

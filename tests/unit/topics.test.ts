@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import words from '../../src/data/words.json';
 import topics from '../../src/data/topics.json';
 import { addDays, PEARL_EPOCH, pearlForDate, type ScheduledWord } from '../../shared/pearlOfTheDay';
@@ -139,6 +139,41 @@ describe('Pearl of the Day is unchanged by the explicit added date', () => {
     for (let i = 0; i < 1500; i++) {
       const d = addDays(PEARL_EPOCH, i);
       expect(pearlForDate(d, WORDS)).toBe(pearlForDate(d, before));
+    }
+  });
+});
+
+describe('the topic-filtered queue', () => {
+  test('a topic queue holds only its own words behind the focused card', async () => {
+    const { topicSlugs } = await import('../../src/lib/topics');
+    const { planOrder } = await import('../../src/progress/queue');
+    const sky = topicSlugs('sky');
+    expect(sky.length).toBeGreaterThan(20);
+    expect(topicSlugs(null)).toHaveLength(WORDS.length);
+    const progress = { [sky[1]]: { slug: sky[1], box: 2 as const, dueAt: '2026-01-01T00:00:00.000Z', lastReviewedAt: '2025-12-30T00:00:00.000Z', timesSeen: 1, lapses: 0 } };
+    const order = planOrder({ slugs: sky, progress, order: [sky[0]], returning: new Set(), seed: 's', now: Date.parse('2026-10-02T00:00:00Z') });
+    expect(order[0]).toBe(sky[0]);
+    expect(new Set(order)).toEqual(new Set(sky));
+    // The due word comes after two new ones, as in the whole sea.
+    expect(order.indexOf(sky[1])).toBe(3);
+  });
+
+  test('empty topics are hidden from the site until they have words', async () => {
+    const raw = (await import('../../src/data/topics.json')).default;
+    const empty = { ...raw[0], id: 'empty-topic', order: 99 };
+    vi.resetModules();
+    vi.doMock('../../src/data/topics.json', () => ({ default: [...raw, empty] }));
+    try {
+      const mocked = (await import('../../src/data/topics.json')).default;
+      expect(mocked.map((t) => t.id)).toContain('empty-topic');
+      const { TOPICS, isTopic } = await import('../../src/lib/topics');
+      const withWords = [...raw].sort((a, b) => a.order - b.order).filter((t) => WORDS.some((w) => w.topics.includes(t.id)));
+      expect(TOPICS.map((t) => t.id)).toEqual(withWords.map((t) => t.id));
+      expect(isTopic('empty-topic')).toBe(false);
+      expect(isTopic(withWords[0].id)).toBe(true);
+    } finally {
+      vi.doUnmock('../../src/data/topics.json');
+      vi.resetModules();
     }
   });
 });
