@@ -28,6 +28,7 @@ const Experience = lazy(() => import('./scene/Experience').then((m) => ({ defaul
 // Pages and dialogs that most visits never open are their own small chunks too.
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const CreditsPage = lazy(() => import('./pages/CreditsPage'));
 const EmailLinkPage = lazy(() => import('./pages/EmailLinkPage'));
 const SubscribeModal = lazy(() => import('./ui/SubscribeModal'));
 const AuthModal = lazy(() => import('./ui/AuthModal'));
@@ -61,12 +62,13 @@ export function App() {
 
   // Auth redirects (email links, Google) must be handled right away, wherever they land.
   useEffect(() => {
-    if (hasAuthCallback() || route.name === 'library' || route.name === 'privacy') void bootAccounts();
+    if (hasAuthCallback() || route.name === 'library' || route.name === 'privacy' || route.name === 'credits') void bootAccounts();
   }, [route.name]);
 
   useEffect(() => {
     if (route.name === 'library') document.title = 'My Pearls · Durar';
     else if (route.name === 'privacy') document.title = 'Privacy · Durar';
+    else if (route.name === 'credits') document.title = 'Credits · Durar';
   }, [route.name]);
 
   return (
@@ -79,6 +81,8 @@ export function App() {
             <LibraryPage />
           ) : route.name === 'privacy' ? (
             <PrivacyPage />
+          ) : route.name === 'credits' ? (
+            <CreditsPage />
           ) : (
             <EmailLinkPage kind={route.name} />
           )}

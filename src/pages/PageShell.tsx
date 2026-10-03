@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { linkHandler } from '../lib/router';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { linkHandler, navigatedInApp } from '../lib/router';
 import { topicPath } from '../lib/topics';
 import { useDurar } from '../state/store';
 import { AccountMenu } from '../ui/AccountMenu';
@@ -11,6 +11,16 @@ import { AccountMenu } from '../ui/AccountMenu';
 export function PageShell({ back, children }: { back?: string; children: ReactNode }) {
   // By default, back to the part of the sea the visitor was in.
   back ??= topicPath(useDurar.getState().topic);
+  const main = useRef<HTMLElement>(null);
+  useEffect(() => {
+    // Arriving from a dialog or menu that is now gone leaves focus on <body>: start at the page's heading.
+    const h1 = main.current?.querySelector('h1');
+    if (h1 && navigatedInApp() && (!document.activeElement || document.activeElement === document.body)) {
+      if (!h1.hasAttribute('tabindex')) h1.tabIndex = -1;
+      h1.focus({ preventScroll: true });
+    }
+  }, []);
+
   return (
     <div className="page">
       <div className="page-light" aria-hidden="true" />
@@ -31,7 +41,9 @@ export function PageShell({ back, children }: { back?: string; children: ReactNo
           <AccountMenu />
         </div>
       </header>
-      <main className="page-main">{children}</main>
+      <main ref={main} className="page-main">
+        {children}
+      </main>
     </div>
   );
 }
