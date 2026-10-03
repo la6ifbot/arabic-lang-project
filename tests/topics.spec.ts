@@ -132,10 +132,12 @@ test.describe('topic picker', () => {
       (window as unknown as { __DURAR_MOCK__: boolean }).__DURAR_MOCK__ = true;
       localStorage.setItem('durar-help-seen', '1');
       if (!localStorage.getItem('durar-mock-db')) localStorage.setItem('durar-mock-db', value);
+      // No 3D here: the account loads after the scene is up, and a second software-WebGL scene on a
+      // busy CI machine can take longer than the test. The text view loads the account straight away.
+      delete (window as unknown as { WebGL2RenderingContext?: unknown }).WebGL2RenderingContext;
     }, db);
     await page2.goto('/');
-    // A second browser on a busy machine: the account loads once its scene is up, which can take a while.
-    await expect.poll(() => page2.evaluate(() => localStorage.getItem('durar-topic')), { timeout: 40_000 }).toBe('sky');
+    await expect.poll(() => page2.evaluate(() => localStorage.getItem('durar-topic')), { timeout: 20_000 }).toBe('sky');
     await page2.goto('/');
     await expect(picker(page2)).toContainText('Sky & stars');
     await other.close();
