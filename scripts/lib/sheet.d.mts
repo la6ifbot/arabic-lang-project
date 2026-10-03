@@ -1,0 +1,11 @@
+export const WORD_COLUMNS: string[];
+export const TOPIC_COLUMNS: string[];
+export const STATUSES: string[];
+export function parseCsv(text: string): string[][];
+export function toCsv(rows: unknown[][]): string;
+export function rowsToWords(rows: string[][], current?: any[]): { words: any[]; errors: string[]; warnings: string[] };
+export function rowsToTopics(rows: string[][]): { topics: any[]; errors: string[]; warnings: string[] };
+export function wordsToRows(words: any[]): string[][];
+export function topicsToRows(topics: any[]): unknown[][];
+export function diffById(before: any[], after: any[], key?: string): { added: any[]; changed: { id: string; fields: string[] }[]; removed: any[]; reordered: boolean };
+export function todayInAmsterdam(at?: Date): string;
