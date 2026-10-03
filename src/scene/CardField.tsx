@@ -3,12 +3,13 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { isDue } from '../../shared/mastery';
 import { WORD_BY_SLUG } from '../lib/words';
 import { useProgress } from '../state/progress';
-import { EXIT_MS, useDurar } from '../state/store';
+import { EXIT_MS, sceneCards, useDurar } from '../state/store';
 import { Layout } from './layout';
 import { PearlCard } from './PearlCard';
 
 export function CardField({ visibleCount, reducedMotion }: { visibleCount: number; reducedMotion: boolean }) {
   const order = useDurar((s) => s.order);
+  const topic = useDurar((s) => s.topic);
   const departures = useDurar((s) => s.departures);
   const progress = useProgress((s) => s.map);
   const drifting = useRef<string[]>([]);
@@ -46,7 +47,11 @@ export function CardField({ visibleCount, reducedMotion }: { visibleCount: numbe
   const maxDrift = visibleCount >= 10 ? 5 : 3;
   const wall = Date.now();
   const candidate = (slug: string) =>
-    !visible.includes(slug) && WORD_BY_SLUG.has(slug) && !!progress[slug] && !isDue(progress[slug], wall);
+    !visible.includes(slug) &&
+    !!WORD_BY_SLUG.get(slug) &&
+    (!topic || WORD_BY_SLUG.get(slug)!.topics.includes(topic)) &&
+    !!progress[slug] &&
+    !isDue(progress[slug], wall);
   const kept = drifting.current.filter(candidate);
   if (kept.length < maxDrift) {
     const fresh = [
@@ -58,6 +63,7 @@ export function CardField({ visibleCount, reducedMotion }: { visibleCount: numbe
     kept.push(...fresh.slice(0, maxDrift - kept.length));
   }
   drifting.current = kept;
+  sceneCards.visible = [...visible, ...kept];
 
   for (const d of departing) {
     if (!kept.includes(d.slug)) cards.push({ slug: d.slug, index: -1, departAt: d.at });
