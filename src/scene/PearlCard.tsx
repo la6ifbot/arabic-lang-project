@@ -115,9 +115,10 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
 
     if (departAt !== undefined) {
       const k = (now - departAt) / EXIT_MS;
-      target = layout.sunk(s.pose.x, depth);
+      // Reduced motion: no sinking, the card fades where it is.
+      target = reducedMotion ? { ...s.pose } : layout.sunk(s.pose.x, depth);
       smooth = 1.2;
-      opacityTarget = k < 0.35 ? 1 : 0;
+      opacityTarget = k < (reducedMotion ? 0.05 : 0.35) ? 1 : 0;
     } else if (idx === 0) {
       target = layout.focus();
       // Zoom only as far as this card's widest line still fits across the screen.
