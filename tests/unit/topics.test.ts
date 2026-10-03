@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import words from '../../src/data/words.json';
 import topics from '../../src/data/topics.json';
 import { addDays, PEARL_EPOCH, pearlForDate, type ScheduledWord } from '../../shared/pearlOfTheDay';
@@ -27,7 +27,8 @@ describe('the data in the repo', () => {
   });
 
   test('every word keeps its slug (no /word/<slug> URL changes) and has topics and added', () => {
-    expect(WORDS).toHaveLength(140);
+    // The original 140 words are all still here; batches add words with later dates.
+    expect(WORDS.filter((w) => w.added === ORIGINAL_ADDED)).toHaveLength(140);
     for (const w of WORDS) {
       expect(Array.isArray(w.topics)).toBe(true);
       expect(w.added).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -85,9 +86,10 @@ describe('validator', () => {
     expect(check(word({ slug: WORDS[1].slug }))).toEqual([expect.stringMatching(/duplicate slug/)]));
 
   test('topics short of 20 words are warnings, not errors', () => {
-    const { errors, warnings } = validateWords(WORDS, topics);
+    const empty = { ...topics[0], id: 'empty', order: 99 };
+    const { errors, warnings } = validateWords(WORDS, [...topics, empty]);
     expect(errors).toEqual([]);
-    expect(warnings).toContain('topic "borrowed" has 0 words (target 20)');
+    expect(warnings).toContain('topic "empty" has 0 words (target 20)');
   });
 
   test('the registry needs bilingual names and descriptions, unique ids and orders', () => {
@@ -157,8 +159,21 @@ describe('the topic-filtered queue', () => {
   });
 
   test('empty topics are hidden from the site until they have words', async () => {
-    const { TOPICS, isTopic } = await import('../../src/lib/topics');
-    expect(TOPICS.map((t) => t.id)).toEqual(['water', 'sky', 'flowers', 'desert', 'feeling', 'poetry']);
-    expect(isTopic('borrowed')).toBe(false);
+    const raw = (await import('../../src/data/topics.json')).default;
+    const empty = { ...raw[0], id: 'empty-topic', order: 99 };
+    vi.resetModules();
+    vi.doMock('../../src/data/topics.json', () => ({ default: [...raw, empty] }));
+    try {
+      const mocked = (await import('../../src/data/topics.json')).default;
+      expect(mocked.map((t) => t.id)).toContain('empty-topic');
+      const { TOPICS, isTopic } = await import('../../src/lib/topics');
+      const withWords = [...raw].sort((a, b) => a.order - b.order).filter((t) => WORDS.some((w) => w.topics.includes(t.id)));
+      expect(TOPICS.map((t) => t.id)).toEqual(withWords.map((t) => t.id));
+      expect(isTopic('empty-topic')).toBe(false);
+      expect(isTopic(withWords[0].id)).toBe(true);
+    } finally {
+      vi.doUnmock('../../src/data/topics.json');
+      vi.resetModules();
+    }
   });
 });

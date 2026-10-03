@@ -3,6 +3,8 @@ import words from '../../src/data/words.json';
 import { addDays, amsterdamDate, amsterdamHour, PEARL_EPOCH, pearlForDate, pearlOfTheDay, type ScheduledWord } from '../../shared/pearlOfTheDay';
 
 const WORDS = words as ScheduledWord[];
+/** The words present since day 0. Later words (batches) join later cycles, so the schedule's mechanics are tested on these. */
+const BASE = WORDS.filter((w) => !w.added || w.added <= PEARL_EPOCH);
 const days = (n: number, from = PEARL_EPOCH) => Array.from({ length: n }, (_, i) => addDays(from, i));
 
 describe('Amsterdam calendar day', () => {
@@ -48,32 +50,32 @@ describe('Amsterdam calendar day', () => {
 
 describe('schedule', () => {
   test('deterministic: the same date always gives the same word', () => {
-    for (const d of days(30)) expect(pearlForDate(d, WORDS)).toBe(pearlForDate(d, [...WORDS].reverse()));
+    for (const d of days(30)) expect(pearlForDate(d, BASE)).toBe(pearlForDate(d, [...BASE].reverse()));
   });
 
   test('every word gets its day before any repeats, cycle after cycle', () => {
-    const n = WORDS.length;
+    const n = BASE.length;
     for (let cycle = 0; cycle < 3; cycle++) {
-      const slugs = days(n, addDays(PEARL_EPOCH, cycle * n)).map((d) => pearlForDate(d, WORDS));
+      const slugs = days(n, addDays(PEARL_EPOCH, cycle * n)).map((d) => pearlForDate(d, BASE));
       expect(new Set(slugs).size).toBe(n);
     }
   });
 
   test('no word two days in a row across a cycle boundary', () => {
-    const n = WORDS.length;
+    const n = BASE.length;
     for (let cycle = 1; cycle < 6; cycle++) {
       const boundary = addDays(PEARL_EPOCH, cycle * n);
-      expect(pearlForDate(boundary, WORDS)).not.toBe(pearlForDate(addDays(boundary, -1), WORDS));
+      expect(pearlForDate(boundary, BASE)).not.toBe(pearlForDate(addDays(boundary, -1), BASE));
     }
   });
 
   test('adding words mid-cycle changes nothing already scheduled; they join the next cycle', () => {
-    const n = WORDS.length;
+    const n = BASE.length;
     const today = addDays(PEARL_EPOCH, 200); // part-way through the second cycle
-    const grown: ScheduledWord[] = [...WORDS, { slug: 'new-one', added: today }, { slug: 'new-two', added: today }];
+    const grown: ScheduledWord[] = [...BASE, { slug: 'new-one', added: today }, { slug: 'new-two', added: today }];
     const nextCycle = addDays(PEARL_EPOCH, 2 * n);
     // Everything up to the end of the current cycle is identical…
-    for (const d of days(2 * n)) expect(pearlForDate(d, grown)).toBe(pearlForDate(d, WORDS));
+    for (const d of days(2 * n)) expect(pearlForDate(d, grown)).toBe(pearlForDate(d, BASE));
     // …and the next cycle includes the new words exactly once.
     const next = days(n + 2, nextCycle).map((d) => pearlForDate(d, grown));
     expect(new Set(next).size).toBe(n + 2);
@@ -82,10 +84,10 @@ describe('schedule', () => {
   });
 
   test('a word added on a cycle start day joins that cycle, not earlier ones', () => {
-    const n = WORDS.length;
+    const n = BASE.length;
     const start = addDays(PEARL_EPOCH, n);
-    const grown: ScheduledWord[] = [...WORDS, { slug: 'fresh', added: start }];
-    for (const d of days(n)) expect(pearlForDate(d, grown)).toBe(pearlForDate(d, WORDS));
+    const grown: ScheduledWord[] = [...BASE, { slug: 'fresh', added: start }];
+    for (const d of days(n)) expect(pearlForDate(d, grown)).toBe(pearlForDate(d, BASE));
     expect(days(n + 1, start).map((d) => pearlForDate(d, grown))).toContain('fresh');
   });
 });
