@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import type { Page } from '@playwright/test';
 import { expect, seed, test, waitForSea } from './accounts';
+import { routeIllustrations } from './helpers';
 
 const SAVED = [
   { slug: 'bahr', savedAt: '2026-09-01T10:00:00.000Z' },
@@ -54,6 +55,14 @@ test.describe('accessibility (axe)', () => {
     await page.goto('/privacy');
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Privacy');
     ({ violations } = await scan(page).analyze());
+    expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`)).toEqual([]);
+  });
+
+  test('Credits', async ({ page }) => {
+    await routeIllustrations(page);
+    await page.goto('/credits');
+    await expect(page.locator('.credit-thumb').first()).toBeVisible();
+    const { violations } = await scan(page).analyze();
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`)).toEqual([]);
   });
 });
