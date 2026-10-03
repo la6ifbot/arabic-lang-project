@@ -20,10 +20,10 @@ Google Sheet ──Run "Import from the Sheet"──▶ pull request (summary + 
 
 The Sheet is the editing surface; `src/data/words.json` and `src/data/topics.json` in the repo
 are what the site is built from. Words sometimes arrive another way (a batch written by Claude as
-its own pull request). After such a pull request is merged, append its rows to the Sheet so the
-next import doesn't see them as removals: the pull request comes with a small CSV file for that
-(**File → Import → Upload → Append to current sheet**). `node scripts/export-sheet.mjs` writes the
-whole current data as CSV at any time.
+its own pull request). After such a pull request is merged, bring the Sheet up to date before
+editing it again, or the next import will see those words as removals: import the refreshed words
+file that comes with the batch into the `words` tab with **File → Import → Upload → Replace current
+sheet**. `node scripts/export-sheet.mjs` writes the whole current data as CSV at any time.
 
 ### Removing a word
 
