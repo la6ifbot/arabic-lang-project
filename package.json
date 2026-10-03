@@ -6,7 +6,7 @@
   "description": "Durar (درر) — an immersive 3D Arabic vocabulary experience.",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/cards.mjs --check && tsc -b && vite build && node scripts/prerender.mjs",
+    "build": "tsc -b && vite build && tsx scripts/prerender.mjs",
     "build:preview-artifact": "vite build --config vite.artifact.config.ts",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc -b",
@@ -14,7 +14,8 @@
     "test:e2e": "playwright test",
     "test:db": "node --test --test-concurrency=1 tests/db/rls.test.mjs tests/db/subscriptions.test.mjs tests/db/progress.test.mjs",
     "test:unit": "vitest run",
-    "cards": "node scripts/cards.mjs",
+    "cards": "tsx scripts/cards.mjs",
+    "illustrations": "tsx scripts/illustrations.mjs",
     "check:functions": "tsc -p tsconfig.functions.json && node -e \"Promise.all(['subscribe','confirm','unsubscribe','cron/daily','cron/health'].map(f=>import('./node_modules/.functions-check/api/'+f+'.js').then(m=>{if(typeof (m.POST||m.GET)!=='function')throw new Error(f)}))).then(()=>console.log('functions: all 5 load in plain Node ESM'))\"",
     "email:render": "tsx scripts/email.ts render",
     "email:dry-run": "tsx scripts/email.ts dry-run",
@@ -34,6 +35,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@aws-sdk/client-s3": "^3.1145.0",
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "1.56.1",
     "@tailwindcss/vite": "^4.1.0",
