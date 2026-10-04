@@ -128,8 +128,9 @@ from here · **[ ]** not done
 
 ## G. Content pipeline (PR #23, merged 3 Oct 06:44 UTC)
 
-- [~] **The Google Sheet.** Owner steps written (`phase-0.6/durar-sheet-your-steps.md`). **Waiting on
-  you and on Actions:** the import runs as a GitHub Actions workflow.
+- [x] **The Google Sheet.** You set it up on 4 Oct from the owner steps
+  (`phase-0.6/durar-sheet-your-steps.md`). The test import found “Nothing to change: the Sheet matches
+  the repo”, with all 300 words in their seven topics.
 - [x] `scripts/import-sheet.mjs` reads the published CSVs, validates every row, and writes the data files
   only if all are valid. **Actions → Import from the Sheet** then opens a pull request listing new,
   changed and removed words, words per topic, and what is still unreviewed. Removals are refused unless
@@ -188,11 +189,10 @@ files:
 3. Add the custom MAIL FROM.
 4. Optional: `ALERT_EMAIL`.
 5. Optional: the Outlook and iCloud subscribe test.
-6. Set up the Google Sheet (its import runs on GitHub Actions, which works again).
-7. Send your music track for PR #16.
+6. Send your music track for PR #16.
 
 Done: #17, #21, #18, #20, the image-storage steps, #19, #23, #22, #24–#31, #32, making the
-repository public, #33, and Google's brand check.
+repository public, #33, Google's brand check, and the Google Sheet.
 
 Deferred (your call, 4 Oct): confirming or renaming the seven topics and the tags → topics mapping
 waits for a later refinements phase; the focus first is the full backend.
