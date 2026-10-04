@@ -6,15 +6,15 @@ Production READY). The sea now holds **300 words in seven topics**, and each top
 come from `https://img.durar.space`.
 
 The phase ran from 1 to 4 October, in four threads: carry-over (A), data model and topics (B–E), images
-and storage (F), and content (G–H). Two things are open at the end:
+and storage (F), and content (G–H). Two things stand out at the end:
 
-- **GitHub Actions has started no jobs since 3 Oct 07:37 UTC.** GitHub's message on every job: “The
-  job was not started because recent account payments have failed or your spending limit needs to be
-  increased.” This private repository gets 2,000 free Actions minutes a month, and October's checks used
-  about 2,190 in three days (measured from job timings). Claude's own pushes used them: every push to a
-  Claude branch ran the checks twice. PR #33 stops that. On 4 Oct you chose to **make the repository
-  public**, which makes the checks free (a scan of the whole git history found no keys or passwords).
-  Changing the visibility is step 1 of your list; then the checks re-run on `main`.
+- **GitHub Actions started no jobs from 3 Oct 07:37 UTC to 4 Oct 08:10 UTC.** GitHub's message on every
+  job: “The job was not started because recent account payments have failed or your spending limit needs
+  to be increased.” The repository, private then, got 2,000 free Actions minutes a month, and October's
+  checks used about 2,190 in three days (measured from job timings). Claude's own pushes used them:
+  every push to a Claude branch ran the checks twice. PR #33 stops that. On 4 Oct you chose to **make
+  the repository public**, which makes the checks free (a scan of the whole git history found no keys or
+  passwords). You did that at 08:10 UTC, and the checks run again.
 - **Pictures for 22 star and flower words are on hold** (your call, 4 Oct). They are ready in draft
   PR #34.
 
@@ -28,13 +28,15 @@ from here · **[ ]** not done
 - [x] **First-visit help (decision 10).** “How it works” opens by itself on a plain first visit. It
   never covers a shared `/word/<slug>` link (the “?” glows instead), nor an email or sign-in link
   landing. In PR #17.
-- [~] **The friend's subscription.** The Email thread found that your friend most likely created a Durar
-  account, which at the time never subscribed anyone; the subscribe form itself worked. PR #18
-  (merged 2 Oct 23:55 UTC) removed the silent subscribe failures and renamed the honeypot field so
-  autofill can't trip it. By your decision, every confirmed account now gets the daily email, existing
-  accounts too, with Off in the menu (you ran both SQL parts on 2 Oct at 23:58 UTC). It relies on
-  Supabase's **Confirm email** staying on. **Waiting on you:** the 2-minute check of your friend's row,
-  and the subscribe test with an Outlook and an iCloud address.
+- [x] **The friend's subscription.** Your friend had created a Durar account, and at the time an account
+  never subscribed anyone; the subscribe form itself worked. PR #18 (merged 2 Oct 23:55 UTC) removed the
+  silent subscribe failures and renamed the honeypot field so autofill can't trip it. By your decision,
+  every confirmed account now gets the daily email, existing accounts too, with Off in the menu (you ran
+  both SQL parts on 2 Oct at 23:58 UTC). It relies on Supabase's **Confirm email** staying on.
+  Subscribers went from 1 to 3, and on 4 Oct you confirmed your friend received the 07:00 email.
+- [~] **Non-Gmail inboxes.** The test script is written (`reports/durar-email-friend-and-inbox-test.md`,
+  part 3). **Optional, waiting on you:** subscribe an Outlook and an iCloud address and note whether the
+  email lands in the inbox or in spam.
 - [~] **Custom MAIL FROM (`mail.durar.space`).** Steps written: section B of your list, and
   [`OPERATIONS.md`](OPERATIONS.md) “Custom MAIL FROM”. Namecheap's Mail Settings switch to Custom MX,
   `hello@` forwarding is kept with Namecheap's five `eforward` MX records, then the `mail` MX and SPF
@@ -55,16 +57,17 @@ from here · **[ ]** not done
 - [~] **Music (PR #16).** Built to decision 9: off by default, one invite ripple on a first visit,
   sound only after a tap, paused in background tabs, Safari's silent switch respected, the choice
   remembered, and nothing loaded until asked. **Waiting on you:** your track and one credit line.
-- [~] **Google brand.** No answer from Google is recorded yet. **Waiting on you:** request the re-check
-  on Google's Branding page. Decision 11 (Google's own button with Supabase ID-token sign-in) stays the
-  fallback, only if Google refuses.
+- [x] **Google brand.** Verified: on 4 Oct Google's Branding page said “Your branding has been verified
+  and is being shown to users”. That should replace the Supabase address on Google's account picker with
+  Durar's name (not checked from here). Decision 11's fallback isn't needed.
 
 ## B. Data model (PR #20, merged 3 Oct 00:06 UTC)
 
 - [x] `src/data/topics.json`: id (its `/sea/<id>` address), English and Arabic name and description,
   order and an optional cover.
 - [x] Words list their `topics` (migrated from `tags` by `scripts/migrate-tags-to-topics.mjs`) and an
-  `added` date, with an optional `image` and `etymology`.
+  `added` date, with an optional `image` and `etymology`. The topic names and the tag mapping are
+  Claude's proposal; you'll review them in a later refinements phase.
 - [x] The validator (`scripts/lib/word-schema.mjs`) enforces a vowelled headword, the transliteration
   format, 1–3 examples, known topic ids, the `added` date, a source on every borrowed word's etymology,
   credit, licence and alt text on images, and unique slugs. A topic under 20 words is a warning.
@@ -157,12 +160,12 @@ from here · **[ ]** not done
   the topic-filtered queue, the image URL lookup, the picker, topic pages, the
   remembered choice, search chips, the Library filter, the email line, the 404 page, first-visit help
   on a shared word, music off by default, and the Credits page.
-- [~] **Main's checks.** GitHub's checks were green on `main` through PR #22 (`7bc218f`, 3 Oct). PRs #24,
-  #31 and #32 merged while Actions was down, so they were checked locally instead: the build and unit
-  tests after #31 (Thread 1), and on #32's content the data checks, typecheck, 191 unit tests and the
-  full browser suite, 134 of 134 (Thread 3). Before merging, test merges also caught two tests that broke
-  only in combination (#23's word counts and #22's “borrowed is hidden” test with #24's words); both were
-  fixed before #24 merged. GitHub's checks run on `main` again once Actions works.
+- [x] **Main's checks are green.** PRs #24, #31 and #32 merged while Actions was down and were checked
+  locally then (Thread 1: build and unit tests after #31; Thread 3: data checks, typecheck, 191 unit
+  tests and the full browser suite, 134 of 134, on #32's content). Once Actions worked again, GitHub's
+  full checks passed on `main` at `4b0157d` (#32) and at `cc57d1a` (#33) on 4 Oct. Before merging,
+  test merges also caught two tests that broke only in combination (#23's word counts and #22's
+  “borrowed is hidden” test with #24's words); both were fixed before #24 merged.
 
 ## Quality bar
 
@@ -180,19 +183,19 @@ from here · **[ ]** not done
 The click-by-click version, kept up to date, is `reports/durar-phase-0.6-your-steps.md` in the project
 files:
 
-1. Make the repository public (you chose this on 4 Oct), so GitHub's checks run again.
-2. Merge PR #33 (each change is tested once).
-3. Confirm or rename the seven topics and the tags → topics mapping.
-4. Read the new words' examples, diacritics and etymologies.
-5. Request Google's brand re-check.
-6. Raise `SES_RATE_PER_SECOND` to 5.
-7. Add the custom MAIL FROM.
-8. Optional: `ALERT_EMAIL`.
-9. Check your friend's subscription, then the Outlook and iCloud subscribe test.
-10. Set up the Google Sheet (after step 1).
-11. Send your music track for PR #16.
+1. Read the new words' examples, diacritics and etymologies.
+2. Raise `SES_RATE_PER_SECOND` to 5.
+3. Add the custom MAIL FROM.
+4. Optional: `ALERT_EMAIL`.
+5. Optional: the Outlook and iCloud subscribe test.
+6. Set up the Google Sheet (its import runs on GitHub Actions, which works again).
+7. Send your music track for PR #16.
 
-Done: #17, #21, #18, #20, the image-storage steps, #19, #23, #22, #24–#31 and #32.
+Done: #17, #21, #18, #20, the image-storage steps, #19, #23, #22, #24–#31, #32, making the
+repository public, #33, and Google's brand check.
+
+Deferred (your call, 4 Oct): confirming or renaming the seven topics and the tags → topics mapping
+waits for a later refinements phase; the focus first is the full backend.
 
 ## What went wrong
 
@@ -208,6 +211,7 @@ Done: #17, #21, #18, #20, the image-storage steps, #19, #23, #22, #24–#31 and 
 
 ## Next
 
+- Your focus next (4 Oct): the full backend. Reviewing the topics waits for a later refinements phase.
 - From this phase: the pictures (#34) when you want them, together with drawing them on the 3D card and
   the share image and giving topics a link-preview image; the native-speaker review; a live Lighthouse
   check.
