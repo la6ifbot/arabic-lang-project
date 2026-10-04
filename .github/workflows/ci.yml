@@ -1,12 +1,22 @@
 name: CI
 
+# Each change is tested once (running everything twice used up the private repository's Actions minutes
+# on 3 Oct 2026): a branch's pushes are tested through its pull request, and changes to docs/ or the
+# README alone, which nothing builds or tests, run nothing.
 on:
   push:
-    branches: [main, 'claude/**']
+    branches: [main]
+    paths-ignore: ['docs/**', 'README.md']
   pull_request:
+    paths-ignore: ['docs/**', 'README.md']
   # The Sheet import's pull requests are pushed with the workflow token, which starts no push or
   # pull_request runs, so import-sheet.yml starts this workflow on its branch instead.
   workflow_dispatch:
+
+# A newer push to a pull request makes its running checks pointless, so they stop. Runs on main all finish.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   database:
