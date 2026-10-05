@@ -69,13 +69,15 @@ function tableToRecords(rows, columns, required, tab) {
   const header = rows[0].map((h) => h.trim().toLowerCase());
   for (const col of required) if (!header.includes(col)) errors.push(`${tab} tab: missing column "${col}"`);
   for (const h of header) if (h && !columns.includes(h)) warnings.push(`${tab} tab: column "${h}" is not used`);
+  // A second copy of the header (left by an "Append to current sheet" upload) is not a row.
+  const isHeader = (r) => r.map((h) => h.trim().toLowerCase()).join() === header.join();
   const records = rows.slice(1).map((r, i) => {
     const rec = { _row: i + 2 };
     header.forEach((h, j) => {
       if (columns.includes(h)) rec[h] = (r[j] ?? '').trim();
     });
-    return rec;
-  });
+    return isHeader(r) ? null : rec;
+  }).filter(Boolean);
   return { records, errors, warnings };
 }
 

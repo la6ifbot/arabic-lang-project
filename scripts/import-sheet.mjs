@@ -36,6 +36,9 @@ async function load(source) {
 export function importSheet({ wordsCsv, topicsCsv, currentWords, currentTopics, illustrations, allowRemovals = false }) {
   const t = topicsCsv === undefined ? { topics: currentTopics, errors: [], warnings: [] } : rowsToTopics(parseCsv(topicsCsv));
   const w = rowsToWords(parseCsv(wordsCsv), currentWords);
+  // Words that reached the repo without the Sheet (a batch written as its own pull request) are kept
+  // in place until they are appended to the Sheet; only a run with "Allow removals" drops them.
+  const notInSheet = allowRemovals || w.words.length === 0 ? [] : keepMissing(w, currentWords);
   const tv = t.errors.length ? { errors: [], warnings: [] } : validateTopics(t.topics);
   // Missing columns leave no words to check; bad cells still let the validator report every other row.
   const wv = w.words.length === 0 || t.errors.length ? { errors: [], warnings: [] } : validateWords(w.words, t.topics);
@@ -53,11 +56,23 @@ export function importSheet({ wordsCsv, topicsCsv, currentWords, currentTopics, 
     formatWords(w.words) !== formatWords(currentWords) ||
     (topicsCsv !== undefined && JSON.stringify(t.topics) !== JSON.stringify(currentTopics));
 
-  const summary = summarise({ words: w.words, topics: t.topics, wordDiff, topicDiff, errors, warnings, blockedRemovals });
-  return { words: w.words, topics: t.topics, wordDiff, topicDiff, errors, warnings, removals, blockedRemovals, changed, summary };
+  const summary = summarise({ words: w.words, topics: t.topics, wordDiff, topicDiff, notInSheet, errors, warnings, blockedRemovals });
+  return { words: w.words, topics: t.topics, wordDiff, topicDiff, notInSheet, errors, warnings, removals, blockedRemovals, changed, summary };
 }
 
-function summarise({ words, topics, wordDiff, topicDiff, errors, warnings, blockedRemovals }) {
+/** Puts each current word the Sheet lacks back into `w.words`, right after the word before it. */
+function keepMissing(w, currentWords) {
+  const inSheet = new Set(w.words.map((x) => x.slug));
+  const missing = currentWords.filter((x) => !inSheet.has(x.slug));
+  for (const x of missing) {
+    const i = currentWords.indexOf(x);
+    const after = i === 0 ? -1 : w.words.findIndex((y) => y.slug === currentWords[i - 1].slug);
+    w.words.splice(after + 1, 0, x);
+  }
+  return missing;
+}
+
+function summarise({ words, topics, wordDiff, topicDiff, notInSheet, errors, warnings, blockedRemovals }) {
   const out = [];
   const line = (s = '') => out.push(s);
   const n = (k, word) => `${k} ${word}${k === 1 ? '' : 's'}`;
@@ -74,6 +89,12 @@ function summarise({ words, topics, wordDiff, topicDiff, errors, warnings, block
   if (blockedRemovals) {
     line();
     line('**Removals were not confirmed, so nothing was imported.** If these should go, run the import again with "Allow removals" ticked:');
+  }
+  if (notInSheet.length) {
+    line();
+    line(`### In the repo, not in the Sheet yet (${notInSheet.length}, kept)`);
+    line('Append them to the Sheet with the new-rows file of the batch they came in (docs/CONTENT.md). If you deleted any of these rows on purpose, run the import again with "Allow removals" ticked.');
+    for (const x of notInSheet) line(`- ${x.ar} \`${x.slug}\``);
   }
   if (wordDiff.removed.length) {
     line();
