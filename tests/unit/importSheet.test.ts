@@ -113,17 +113,37 @@ describe('import', () => {
     expect(r.errors).toEqual(['words tab: missing column "translit"']);
   });
 
-  test('removals are blocked until confirmed', () => {
-    const wordsCsv = sheet((rows) => rows.filter((x) => x[0] !== 'ud'));
-    const blocked = importSheet({ wordsCsv, ...current });
+  test('words missing from the Sheet are kept in place until removals are confirmed', () => {
+    const wordsCsv = sheet((rows) => {
+      rows[1][col('status')] = 'reviewed';
+      return rows.filter((x) => x[0] !== 'ud' && x[0] !== 'shaykh');
+    });
+    const kept = importSheet({ wordsCsv, ...current });
+    expect(kept.errors).toEqual([]);
+    expect(kept.blockedRemovals).toBe(false);
+    expect(kept.notInSheet.map((w) => w.slug)).toEqual(['ud', 'shaykh']);
+    expect(kept.words.map((w) => w.slug)).toEqual(words.map((w) => w.slug));
+    expect(kept.wordDiff.changed).toEqual([{ id: 'durrah', fields: ['status'] }]);
+    expect(kept.summary).toContain('### In the repo, not in the Sheet yet (2, kept)');
+    expect(kept.summary).toContain('0 removed words');
+    const allowed = importSheet({ wordsCsv, ...current, allowRemovals: true });
+    expect(allowed.words).toHaveLength(words.length - 2);
+    expect(allowed.summary).toContain('### Removed');
+  });
+
+  test('topic removals are blocked until confirmed', () => {
+    const spare = { ...topics[0], id: 'spare', order: 99 };
+    const topicsCsv = toCsv(topicsToRows(topics));
+    const blocked = importSheet({ wordsCsv: sheet(), topicsCsv, currentWords: words, currentTopics: [...topics, spare] });
     expect(blocked.errors).toEqual([]);
     expect(blocked.blockedRemovals).toBe(true);
-    expect(blocked.removals).toEqual(['word "ud"']);
     expect(blocked.summary).toContain('Removals were not confirmed');
-    const allowed = importSheet({ wordsCsv, ...current, allowRemovals: true });
-    expect(allowed.blockedRemovals).toBe(false);
-    expect(allowed.words).toHaveLength(words.length - 1);
-    expect(allowed.summary).toContain('### Removed');
+  });
+
+  test('a header row appended again is skipped', () => {
+    const r = importSheet({ wordsCsv: sheet((rows) => [...rows, rows[0], newRow()]), ...current });
+    expect(r.errors).toEqual([]);
+    expect(r.wordDiff.added.map((w) => w.slug)).toEqual(['kawkab']);
   });
 
   test('fields the Sheet has no column for are kept', () => {

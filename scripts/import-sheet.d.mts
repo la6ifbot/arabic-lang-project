@@ -11,6 +11,8 @@ export function importSheet(input: {
   topics: any[];
   wordDiff: Diff;
   topicDiff: Diff;
+  /** Words in the repo that the Sheet lacks, kept because removals were not allowed. */
+  notInSheet: any[];
   errors: string[];
   warnings: string[];
   removals: string[];
