@@ -360,7 +360,7 @@ unsubscribed, waiting to confirm), daily emails sent and failed, bounces and com
 with a problem, accounts (total, new), words reviewed and by how many people, The Deep's divers (once
 it's live), the last nightly backup and restore test, and errors. Aggregate counts only. A line that
 needs a look is marked, and the subject then says “needs a look”: a failed or missing backup (none
-for 36 hours), a restore test older than 35 days, failed sends, complaints, or errors.
+for 30 hours), a restore test older than 35 days, failed sends, complaints, or errors.
 
 - Preview the numbers without sending: `…/api/cron/weekly?dry=1` with the cron secret (§3).
 - Send it again this week: `…/api/cron/weekly?force=1`.

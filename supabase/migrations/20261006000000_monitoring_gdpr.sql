@@ -27,19 +27,20 @@ revoke all on table public.ops_checks from anon, authenticated;
 grant select, insert, update, delete on table public.ops_checks to service_role;
 
 -- Called by the GitHub backup and restore workflows (as the database owner, over the pooler) and
--- by the weekly digest (service role).
-create function public.ops_report(p_name text, p_ok boolean, p_detail jsonb default '{}'::jsonb)
+-- by the weekly digest (service role). p_at: when the job ran, if not now (e.g. the nightly backup
+-- copying the time of the latest monthly restore test from GitHub's records).
+create function public.ops_report(p_name text, p_ok boolean, p_detail jsonb default '{}'::jsonb, p_at timestamptz default null)
 returns void
 language sql
 security definer
 set search_path = ''
 as $$
   insert into public.ops_checks as c (name, last_ok, last_run_at, last_ok_at, detail)
-  values (p_name, p_ok, now(), case when p_ok then now() end, coalesce(p_detail, '{}'::jsonb))
+  values (p_name, p_ok, coalesce(p_at, now()), case when p_ok then coalesce(p_at, now()) end, coalesce(p_detail, '{}'::jsonb))
   on conflict (name) do update
      set last_ok = excluded.last_ok,
          last_run_at = excluded.last_run_at,
-         last_ok_at = coalesce(excluded.last_ok_at, c.last_ok_at),
+         last_ok_at = greatest(excluded.last_ok_at, c.last_ok_at),
          detail = excluded.detail;
 $$;
 
@@ -243,7 +244,7 @@ $$;
 -- Who may call what
 
 revoke all on function
-  public.ops_report(text, boolean, jsonb),
+  public.ops_report(text, boolean, jsonb, timestamptz),
   public.ops_status(),
   public.error_log_record(text, text, text),
   public.health_ping(),
@@ -254,7 +255,7 @@ revoke all on function
 from public, anon, authenticated;
 
 grant execute on function
-  public.ops_report(text, boolean, jsonb),
+  public.ops_report(text, boolean, jsonb, timestamptz),
   public.ops_status(),
   public.error_log_record(text, text, text),
   public.health_ping(),

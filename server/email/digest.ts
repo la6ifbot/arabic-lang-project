@@ -8,7 +8,7 @@ import { C, esc, FONT_AR, FONT_EN, FONT_UI, formatDate, shell, type Rendered } f
 
 const HOUR = 3_600_000;
 /** A nightly backup older than this, or a monthly restore test older than this, is flagged. */
-export const BACKUP_STALE_MS = 36 * HOUR;
+export const BACKUP_STALE_MS = 30 * HOUR;
 export const RESTORE_STALE_MS = 35 * 24 * HOUR;
 
 const when = (iso: string) =>

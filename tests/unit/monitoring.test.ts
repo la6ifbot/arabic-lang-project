@@ -239,7 +239,7 @@ describe('the digest email', () => {
     expect(r.text).toContain('Restore test: not reported yet');
   });
 
-  test('a backup older than 36 hours is flagged; The Deep shows its divers once live', () => {
+  test('a backup older than 30 hours is flagged; The Deep shows its divers once live', () => {
     expect(jobLine(ok(BACKUP_STALE_MS / 3_600_000 + 1), BACKUP_STALE_MS, now).warn).toBe(true);
     expect(jobLine(ok(20), BACKUP_STALE_MS, now).warn).toBe(false);
     const rows = digestSections(stats({ deep: { participants: 1 } }), now).flatMap((s) => s.rows);

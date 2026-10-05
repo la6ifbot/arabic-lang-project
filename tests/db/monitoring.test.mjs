@@ -101,6 +101,13 @@ describe('monitoring: access', () => {
     assert.equal(await server(() => one(`select public.health_ping() as v`)), true);
   });
 
+  test('a job can report when it ran (the restore test time copied by the nightly backup), never moving backwards', async () => {
+    await server(() => q(`select public.ops_report('restore_test', true, '{}'::jsonb, '2026-10-01T03:00:00Z')`));
+    await server(() => q(`select public.ops_report('restore_test', true, '{}'::jsonb, '2026-09-01T03:00:00Z')`));
+    const s = await server(() => one(`select public.ops_status() as v`));
+    assert.equal(new Date(s.restore_test.last_ok_at).toISOString(), '2026-10-01T03:00:00.000Z');
+  });
+
   test('job names and detail size are checked', async () => {
     await assert.rejects(server(() => q(`select public.ops_report('Robert''); drop table x', true)`)), /check/);
     await assert.rejects(server(() => q(`select public.ops_report('big', true, jsonb_build_object('x', repeat('a', 5000)))`)), /check/);
