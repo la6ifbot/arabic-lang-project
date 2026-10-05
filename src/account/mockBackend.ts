@@ -1,6 +1,6 @@
 import { MOCK_DB_KEY, MOCK_EMAIL_KEY } from './storageKeys';
 import { mergeProgress, type Progress } from '../../shared/mastery';
-import { AccountError, type AccountErrorCode, type AccountUser, type AuthChange, type Backend, type EmailLinkResult, type SavedPearl, type SubscriptionStatus } from './types';
+import { AccountError, type AccountErrorCode, type AccountUser, type AuthChange, type Backend, type EmailLinkResult, type MyData, type SavedPearl, type SubscriptionStatus } from './types';
 import { isEmailLink, readAuthUrl, urlNotice } from './urlState';
 
 /**
@@ -16,6 +16,7 @@ interface MockUser {
   verified: boolean;
   provider: string;
   topic?: string | null;
+  createdAt?: string;
 }
 
 interface MockDb {
@@ -144,7 +145,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       if (confirmEmail && db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
       const e = email.trim().toLowerCase();
       if (db.users.some((u) => u.email === e)) throw new AccountError('email_taken');
-      const user = { id: crypto.randomUUID(), email: e, password, verified: !confirmEmail, provider: 'email' };
+      const user = { id: crypto.randomUUID(), email: e, password, verified: !confirmEmail, provider: 'email', createdAt: new Date().toISOString() };
       db.users.push(user);
       if (!confirmEmail) {
         // “Confirm email” off (or a demo): the account is ready at once, like Supabase.
@@ -175,7 +176,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       const db = load();
       let u = db.users.find((x) => x.provider === 'google');
       if (!u) {
-        u = { id: crypto.randomUUID(), email: 'pearl.diver@gmail.com', password: '', verified: true, provider: 'google' };
+        u = { id: crypto.randomUUID(), email: 'pearl.diver@gmail.com', password: '', verified: true, provider: 'google', createdAt: new Date().toISOString() };
         db.users.push(u);
         subscribeAccount(u.email);
       }
@@ -292,6 +293,27 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       await step('unsubscribeMe');
       const email = current(load()).email;
       writeMockEmail({ ...readMockEmail(), [email]: 'unsubscribed' });
+    },
+
+    async exportMyData(): Promise<MyData> {
+      await step('exportMyData');
+      const db = load();
+      const u = current(db);
+      const status = readMockEmail()[u.email];
+      return {
+        account: { email: u.email, created_at: u.createdAt ?? null, sign_in_method: u.provider, sea_topic: u.topic },
+        saved_pearls: (db.saved[u.id] ?? []).map((p) => ({ word: p.slug, saved_at: p.savedAt })),
+        progress: (db.progress?.[u.id] ?? []).map((p) => ({
+          word: p.slug,
+          box: p.box,
+          due_at: p.dueAt,
+          last_reviewed_at: p.lastReviewedAt,
+          times_seen: p.timesSeen,
+          lapses: p.lapses,
+        })),
+        email_subscription: status ? { email: u.email, status, subscribed_at: null, confirmed_at: null, unsubscribed_at: null } : null,
+        the_deep: null,
+      };
     },
 
     async deleteAccount() {

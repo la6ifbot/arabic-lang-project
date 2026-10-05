@@ -7,7 +7,7 @@ import {
   type User,
 } from '@supabase/supabase-js';
 import { asProgress, type Progress } from '../../shared/mastery';
-import { AccountError, type AccountErrorCode, type AccountUser, type Backend, type EmailLinkResult, type SubscriptionStatus } from './types';
+import { AccountError, type AccountErrorCode, type AccountUser, type Backend, type EmailLinkResult, type MyData, type SubscriptionStatus } from './types';
 import { SESSION_STORAGE_KEY } from './storageKeys';
 import { isEmailLink, readAuthUrl, urlNotice } from './urlState';
 
@@ -233,6 +233,12 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
     async unsubscribeMe() {
       const { error } = await client.rpc('unsubscribe_me');
       if (error) throw dataError(error);
+    },
+
+    async exportMyData() {
+      const { data, error } = await client.rpc('export_my_data');
+      if (error) throw dataError(error);
+      return data as MyData;
     },
 
     async deleteAccount() {

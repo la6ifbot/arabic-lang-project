@@ -1,5 +1,5 @@
 import { accountsMode } from '../account/backend';
-import { useAccount } from '../account/store';
+import { downloadMyData, useAccount, useDataExport } from '../account/store';
 import { linkHandler } from '../lib/router';
 import { PageShell } from './PageShell';
 
@@ -61,19 +61,65 @@ export default function PrivacyPage() {
           or use it for ads.
         </p>
 
-        <h2>Where it’s kept</h2>
+        <h2 id="services">Services that handle data</h2>
         <p>
-          Accounts and saved words are stored by <strong>Supabase</strong>, our database and sign-in provider
-          {REGION ? (
-            <>
-              , on servers in <strong>{REGION}</strong>
-            </>
-          ) : null}
-          . The website itself is served by <strong>Vercel</strong>, which keeps standard, short-lived server logs. Fonts are
-          served from our own site, not from Google. Pictures (the word cards in link previews and in the daily email, and the
-          illustrations) come from <strong>img.durar.space</strong>, our image host on{' '}
-          <strong>Amazon CloudFront</strong> in our own Amazon Web Services account, with its access logs switched off.
+          Durar uses a few services to run. Each one sees only what it needs for its job:
         </p>
+        <ul data-testid="privacy-services">
+          <li>
+            <strong>Vercel</strong> (our host) serves the website and runs our small server functions, in Frankfurt
+            (Germany, EU): subscribing, confirming, unsubscribing, the daily email and the health check. Like any web
+            server it sees your IP address and browser with each request, in short-lived logs.
+          </li>
+          <li>
+            <strong>Supabase</strong> (our database and sign-in) keeps accounts, saved words, progress and the email
+            list{REGION ? <>, on servers in <strong>{REGION}</strong></> : null}.
+          </li>
+          <li>
+            <strong>Amazon Web Services</strong>, in our own account: <strong>Amazon SES</strong> sends our emails from its
+            Frankfurt region, so it handles your address and each email it delivers. <strong>Amazon S3</strong> and{' '}
+            <strong>CloudFront</strong> store and serve the pictures from <strong>img.durar.space</strong>, with access
+            logs switched off. Our encrypted backups are kept in a separate, private S3 store in Frankfurt.
+          </li>
+          <li>
+            <strong>Cloudflare Turnstile</strong> checks that the subscribe, sign-up and password-reset forms are used by a
+            person and not a bot. It looks at your browser and IP address when you use those forms.
+          </li>
+          <li>
+            <strong>Namecheap</strong> registers our domain and forwards email sent to our address to our mailbox, which{' '}
+            <strong>Google</strong> (Gmail) hosts. If you write to us, those two handle your message.
+          </li>
+          <li>
+            <strong>Google</strong> handles your sign-in only if you choose “Continue with Google”: it tells us your email
+            address and that you signed in.
+          </li>
+          <li>
+            <strong>GitHub</strong> holds the site’s code and runs our nightly backup: it copies the database, encrypts the
+            copy, and stores it in our private storage in Frankfurt. Only the encrypted copy is kept, for up to a year.
+          </li>
+          <li>
+            <strong>UptimeRobot</strong> visits a few of our public pages every few minutes and tells us if the site is down.
+            It never sees anything about you.
+          </li>
+        </ul>
+        <p>
+          We don’t sell or share data with anyone else. Fonts are served from our own site, not from Google.
+        </p>
+        {/* The Deep (leaderboard): its section goes here (Phase 0.7, section F). */}
+
+        <h2 id="retention">How long we keep things</h2>
+        <ul>
+          <li>Your account, saved words and progress: until you delete them or your account.</li>
+          <li>Email sign-ups that are never confirmed: 7 days.</li>
+          <li>Which day’s email was sent to whom: 60 days.</li>
+          <li>The scrambled (hashed) IP address used to stop abuse of the subscribe form: 1 day.</li>
+          <li>
+            Our error log, which notes which part of the site failed and how, never who it was for: 30 days.
+          </li>
+          <li>Encrypted backups: the last 30 nightly copies and 12 monthly copies, then they’re deleted.</li>
+        </ul>
+        <p>Deleting your account removes your data at once; it disappears from the backups as the older copies expire.</p>
+
         <p>
           Who made the pictures and fonts we use, and their licences, is on the{' '}
           <a href="/credits" onClick={linkHandler('/credits')}>
@@ -137,6 +183,14 @@ export default function PrivacyPage() {
           </p>
         )}
 
+        <h2 id="your-data">A copy of your data</h2>
+        <p>
+          Signed in, choose <strong>Download my data</strong> in the account menu or below. You get a JSON file with your
+          account’s email address and creation date, your saved pearls, your progress, and your email subscription. Only you
+          can download your own.
+        </p>
+        {accountsMode !== 'off' && signedIn && <DownloadMyData />}
+
         {CONTACT && (
           <>
             <h2>Questions</h2>
@@ -147,5 +201,23 @@ export default function PrivacyPage() {
         )}
       </div>
     </PageShell>
+  );
+}
+
+function DownloadMyData() {
+  const { state, message } = useDataExport();
+  return (
+    <>
+      <p>
+        <button type="button" className="link-btn" onClick={() => void downloadMyData()} disabled={state === 'working'} data-testid="privacy-download">
+          Download my data
+        </button>
+      </p>
+      {state !== 'idle' && (
+        <p data-testid="privacy-download-status">
+          {message}
+        </p>
+      )}
+    </>
   );
 }

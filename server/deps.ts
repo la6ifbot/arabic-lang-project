@@ -2,7 +2,7 @@ import { loadConfig } from './config.js';
 import { memorySender } from './email/memory.js';
 import { sesSender } from './email/ses.js';
 import type { EmailSender } from './email/types.js';
-import type { AccountUser, Deps } from './handlers.js';
+import { reportError, type AccountUser, type Deps } from './handlers.js';
 import { restStore } from './store.js';
 import { WORDS } from './words.js';
 
@@ -45,14 +45,35 @@ export function productionDeps(env: Record<string, string | undefined> = process
   };
 }
 
-/** Wraps a handler for Vercel's Node.js runtime (Web Request/Response signature). */
-export function route(handler: (req: Request, deps: Deps) => Promise<Response>) {
+/**
+ * Wraps a handler for Vercel's Node.js runtime (Web Request/Response signature). An unexpected
+ * failure answers 500 and is recorded, scrubbed, in the error log under `source`.
+ */
+export function route(handler: (req: Request, deps: Deps) => Promise<Response>, source: string) {
+  return async (req: Request): Promise<Response> => {
+    let deps: Deps | null = null;
+    try {
+      deps = productionDeps();
+      return await handler(req, deps);
+    } catch (e) {
+      if (deps) await reportError(deps, source, e);
+      else console.error(e);
+      return new Response(JSON.stringify({ error: 'server_error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+  };
+}
+
+/** /api/health: missing settings or any failure is simply “not ok”, with no details in public. */
+export function healthRoute(handler: (req: Request, deps: Deps) => Promise<Response>) {
   return async (req: Request): Promise<Response> => {
     try {
       return await handler(req, productionDeps());
     } catch (e) {
-      console.error(e);
-      return new Response(JSON.stringify({ error: 'server_error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      console.error('health:', e instanceof Error ? e.message : e);
+      return new Response(req.method === 'HEAD' ? null : JSON.stringify({ ok: false }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+      });
     }
   };
 }

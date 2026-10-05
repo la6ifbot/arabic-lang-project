@@ -14,11 +14,11 @@
     "import:sheet": "node scripts/import-sheet.mjs",
     "export:sheet": "node scripts/export-sheet.mjs",
     "test:e2e": "playwright test",
-    "test:db": "node --test --test-concurrency=1 tests/db/rls.test.mjs tests/db/subscriptions.test.mjs tests/db/progress.test.mjs",
+    "test:db": "node --test --test-concurrency=1 tests/db/rls.test.mjs tests/db/subscriptions.test.mjs tests/db/progress.test.mjs tests/db/monitoring.test.mjs",
     "test:unit": "vitest run",
     "cards": "tsx scripts/cards.mjs",
     "illustrations": "tsx scripts/illustrations.mjs",
-    "check:functions": "tsc -p tsconfig.functions.json && node -e \"Promise.all(['subscribe','confirm','unsubscribe','cron/daily','cron/health'].map(f=>import('./node_modules/.functions-check/api/'+f+'.js').then(m=>{if(typeof (m.POST||m.GET)!=='function')throw new Error(f)}))).then(()=>console.log('functions: all 5 load in plain Node ESM'))\"",
+    "check:functions": "tsc -p tsconfig.functions.json && node -e \"Promise.all(['subscribe','confirm','unsubscribe','health','cron/daily','cron/health','cron/weekly'].map(f=>import('./node_modules/.functions-check/api/'+f+'.js').then(m=>{if(typeof (m.POST||m.GET)!=='function')throw new Error(f)}))).then(()=>console.log('functions: all 7 load in plain Node ESM'))\"",
     "email:render": "tsx scripts/email.ts render",
     "email:dry-run": "tsx scripts/email.ts dry-run",
     "email:test": "tsx scripts/email.ts test"

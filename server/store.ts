@@ -53,7 +53,39 @@ export interface Store {
   health(date: string): Promise<DayHealth>;
   /** Due words of subscribers linked to an account (mastery), oldest due first, by subscriber id. */
   revisits(subscriberIds: string[], now: Date): Promise<Map<string, RevisitCandidate[]>>;
+  /** One cheap round trip: true when the database answers. */
+  ping(): Promise<boolean>;
+  /** Writes one scrubbed failure to the error log (see server/errors.ts). */
+  logError(source: string, code: string | null, message: string): Promise<void>;
+  /** Records a background job's outcome (backup, restore_test, weekly_digest). */
+  opsReport(name: string, ok: boolean, detail?: Record<string, number | string | boolean>): Promise<void>;
+  opsStatus(): Promise<Record<string, OpsCheck>>;
+  /** Aggregate counts for the weekly digest, for Amsterdam days [from, to). */
+  weeklyStats(from: string, to: string): Promise<WeeklyStats>;
 }
+
+export interface OpsCheck {
+  last_ok: boolean;
+  last_run_at: string;
+  last_ok_at: string | null;
+  detail: Record<string, unknown>;
+}
+
+export interface WeeklyStats {
+  from: string;
+  to: string;
+  subscribers: { total: number; new: number; unsubscribed: number; pending: number };
+  emails: { sent: number; failed: number; bounces: number; complaints: number; days_complete: number; days_with_problems: number };
+  accounts: { total: number; new: number };
+  reviews: { words: number; people: number };
+  /** Null until The Deep is live. */
+  deep: { participants: number; [k: string]: number } | null;
+  errors: { total: number; by_source: Record<string, number> };
+  ops: Record<string, OpsCheck>;
+}
+
+const numbers = <T extends Record<string, unknown>>(o: T): T =>
+  Object.fromEntries(Object.entries(o ?? {}).map(([k, v]) => [k, Number(v ?? 0)])) as T;
 
 export interface RevisitCandidate {
   slug: string;
@@ -119,6 +151,28 @@ function storeFrom(call: Call): Store {
         out.set(r.subscriber_id, list);
       }
       return out;
+    },
+    ping: async () => (await call('health_ping', {}, false)) === true,
+    async logError(source, code, message) {
+      await call('error_log_record', { p_source: source, p_code: code, p_message: message }, false);
+    },
+    async opsReport(name, ok, detail = {}) {
+      await call('ops_report', { p_name: name, p_ok: ok, p_detail: detail }, false);
+    },
+    opsStatus: async () => ((await call('ops_status', {}, false)) ?? {}) as Record<string, OpsCheck>,
+    async weeklyStats(from, to) {
+      const w = (await call('weekly_digest_stats', { p_from: from, p_to: to }, false)) as WeeklyStats;
+      return {
+        from: String(w.from).slice(0, 10),
+        to: String(w.to).slice(0, 10),
+        subscribers: numbers(w.subscribers),
+        emails: numbers(w.emails),
+        accounts: numbers(w.accounts),
+        reviews: numbers(w.reviews),
+        deep: w.deep ? numbers(w.deep) : null,
+        errors: { total: Number(w.errors?.total ?? 0), by_source: numbers(w.errors?.by_source ?? {}) },
+        ops: w.ops ?? {},
+      };
     },
     async health(date) {
       const h = (await call('daily_health', { p_date: date }, false)) as DayHealth;
