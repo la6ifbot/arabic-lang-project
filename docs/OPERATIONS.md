@@ -32,7 +32,7 @@ variable can't be turned into a Secret: delete it and add it again.
 | --- | --- | --- |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server access to the database (bypasses RLS). | Secret |
 | `EMAIL_TOKEN_SECRET` | Signs unsubscribe links and hashes IPs for rate limiting. 32+ characters. | Secret |
-| `CRON_SECRET` | The password pg_cron sends to `/api/cron/daily` and `/api/cron/health`. Must match the Supabase vault secret `durar_cron_secret`. | Secret |
+| `CRON_SECRET` | The password pg_cron sends to `/api/cron/daily`, `/api/cron/health` and `/api/cron/weekly`. Must match the Supabase vault secret `durar_cron_secret`. | Secret |
 | `SES_ACCESS_KEY_ID` | IAM user `durar-email-sender`, send-only policy `DurarSendEmailOnly`. | Secret |
 | `SES_SECRET_ACCESS_KEY` | Same IAM user. | Secret |
 | `EMAIL_FROM` | The sender: `Durar <pearl@durar.space>`. Must be on an identity verified in SES. | Config |
@@ -49,7 +49,7 @@ Optional, with working defaults (leave unset unless you mean to change them):
 
 | Name | Default | What it does |
 | --- | --- | --- |
-| `ALERT_EMAIL` | first `EMAIL_SANDBOX_TO` address | Who the morning health check emails. |
+| `ALERT_EMAIL` | first `EMAIL_SANDBOX_TO` address | Who the morning health check and the weekly digest email. |
 | `SES_REGION` | `eu-central-1` | SES region. |
 | `SES_RATE_PER_SECOND` | `1` | Top speed of the daily email, in emails a second. **Set it to `5`** (Phase 0.6); see “Sending capacity” below. |
 | `EMAIL_SEND_HOUR` | `7` | Amsterdam hour the daily email goes out. |
@@ -156,7 +156,11 @@ Both jobs live in Supabase `pg_cron` (Database → Cron, or `select * from cron.
 | `durar-daily-email` | `*/10 5-6 * * *` | `/api/cron/daily` | Every 10 minutes 05:00–06:59 UTC. Only the calls that fall in **07:xx Amsterdam** send (summer and winter); the rest return `outside_send_window`. Each sending call works through up to 45 seconds of recipients; a later call picks up anyone left. Nobody gets two emails on one day. |
 | `durar-email-health` | `15 6,7 * * *` | `/api/cron/health` | One of the two calls is **08:15 Amsterdam**; only that one checks. If today's run is missing, stopped with an error, left people waiting, or had failed sends, it emails the owner. |
 
-Set up by `supabase/setup/daily-email-cron.sql` and `supabase/setup/health-check-cron.sql`.
+| `durar-weekly-digest` | `0 6,7 * * 1` | `/api/cron/weekly` | Mondays. Only the **08:00 Amsterdam** call sends the owner's weekly digest (§8); a second call for the same week is skipped. |
+| `durar-cron-history-cleanup` | `30 3 * * *` | (SQL) | Deletes pg_cron's own run history after 30 days. |
+
+Set up by `supabase/setup/daily-email-cron.sql`, `supabase/setup/health-check-cron.sql` and
+`supabase/setup/weekly-digest-cron.sql`.
 
 ## 3. How to check a run
 
@@ -313,3 +317,79 @@ delivered to the inbox, and Gmail showed its one-click **Unsubscribe** link.
 DKIM passes for `durar.space` (the three CNAMEs), DMARC passes through DKIM, and SPF passes for
 SES's own envelope domain. DMARC is `p=none` with reports to `hello@durar.space`; tighten it to
 `p=quarantine` once the reports have been clean for a few weeks.
+
+## 8. Monitoring and retention
+
+### `/api/health` and the uptime monitor
+
+`https://durar.space/api/health` is public. It answers `200 {"ok":true}` when the database answers
+(one `health_ping()` call, 5-second limit) and the email settings are present (`CRON_SECRET`, a real
+`EMAIL_FROM`, the SES keys unless `EMAIL_MODE=dry-run`). Otherwise `503 {"ok":false}`, with no
+details. It sends nothing. What failed goes to the error log (below) and Vercel's function log.
+
+An external monitor (UptimeRobot, free plan) checks four addresses every 5 minutes and emails
+`hello@durar.space` when one fails. It is outside our own stack on purpose, so it still alerts when
+Vercel, Supabase or SES is down:
+
+| Monitor | URL | Up when |
+| --- | --- | --- |
+| Durar · home | `https://durar.space/` | 200 |
+| Durar · word page | `https://durar.space/word/bahr` | 200 |
+| Durar · health | `https://durar.space/api/health` | 200 (503 means the database or the email settings) |
+| Durar · images | `https://img.durar.space/cards/og/bahr.png` | 200 |
+
+When the health monitor alerts: open the URL. If it says `{"ok":false}`, check Supabase's status
+page and the project (paused? over a limit?), then Vercel → Logs filtered to `/api/health`, then
+`select * from public.error_log order by at desc limit 20;` in the SQL Editor.
+
+### The error log
+
+API functions write failures to `public.error_log`: which part failed (`source`, e.g. `daily:send`,
+`subscribe:confirmation-email`, `health`, or a route name for an unexpected 500), the error's name
+and a short message. Messages are scrubbed before they're written (`server/errors.ts`): email
+addresses, ids, IP addresses, tokens and keys are replaced, and they're cut to 300 characters. Only
+the service role can read it. The weekly digest shows the count by source.
+
+    select at, source, code, message from public.error_log order by at desc limit 50;
+
+### The weekly digest
+
+Mondays at 08:00 Amsterdam, `/api/cron/weekly` emails the owner (`ALERT_EMAIL`, else the first
+`EMAIL_SANDBOX_TO`) last week's numbers, Monday to Sunday in Amsterdam: subscribers (total, new,
+unsubscribed, waiting to confirm), daily emails sent and failed, bounces and complaints, mornings
+with a problem, accounts (total, new), words reviewed and by how many people, The Deep's divers (once
+it's live), the last nightly backup and restore test, and errors. Aggregate counts only. A line that
+needs a look is marked, and the subject then says “needs a look”: a failed or missing backup (none
+for 36 hours), a restore test older than 35 days, failed sends, complaints, or errors.
+
+- Preview the numbers without sending: `…/api/cron/weekly?dry=1` with the cron secret (§3).
+- Send it again this week: `…/api/cron/weekly?force=1`.
+- The backup and restore-test lines come from `public.ops_checks`, which the GitHub backup
+  workflows write with `select public.ops_report('backup', true)` (and `'restore_test'`). Until
+  they run, the digest says “not reported yet”. `select * from public.ops_checks;` shows them.
+
+### What is deleted, and when
+
+| What | Kept | How |
+| --- | --- | --- |
+| Unconfirmed email sign-ups | 7 days | `subscriptions_housekeeping()`, run by every daily email call |
+| Hashed IP addresses (subscribe rate limit) | 1 day | same |
+| Daily send log (`daily_sends`) | 60 days | same |
+| Daily run summaries (`daily_runs`) | 60 days | same |
+| Error log (`error_log`) | 30 days | same |
+| pg_cron run history (`cron.job_run_details`) | 30 days | `durar-cron-history-cleanup` |
+| pg_net responses | 6 hours | pg_net's own default |
+| Encrypted backups (S3) | 30 dailies, 12 monthlies | S3 lifecycle rules (Phase 0.7, section C) |
+| Accounts, saved pearls, progress | until deleted | Delete my account, or Reset my progress |
+
+The send log is kept 60 days, which is stricter than the 90 days the Phase 0.7 checklist allows.
+Because the housekeeping runs with the daily email, it stops if the daily email stops; the
+health check and the weekly digest would both show that.
+
+### Download my data
+
+The account menu and the Privacy page offer **Download my data**: `export_my_data()` returns the
+caller's account (email, creation date, sign-in method, chosen topic), saved pearls, progress, email
+subscription and The Deep entry, as a JSON file. It runs as the signed-in user and reads only their
+own rows (`auth.uid()`); signed out, it's refused.
+

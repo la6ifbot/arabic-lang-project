@@ -82,6 +82,8 @@ export interface Backend {
   saveProgress(rows: Progress[]): Promise<void>;
   /** Deletes all of the signed-in user's progress. Saved pearls stay. */
   resetProgress(): Promise<void>;
+  /** Everything Durar keeps about the signed-in user, for “Download my data” (export_my_data()). */
+  exportMyData(): Promise<MyData>;
   /** Permanently deletes the signed-in user and everything they saved. */
   deleteAccount(): Promise<void>;
   /** The current session's access token, for calls to our own server. */
@@ -92,3 +94,13 @@ export interface Backend {
 }
 
 export type SubscriptionStatus = 'none' | 'pending' | 'confirmed' | 'unsubscribed' | 'bounced' | 'complained';
+
+/** “Download my data”: the same shape from Supabase (export_my_data()) and the mock. */
+export interface MyData {
+  account: { email: string | null; created_at: string | null; sign_in_method: string; sea_topic?: string | null };
+  saved_pearls: { word: string; saved_at: string }[];
+  progress: { word: string; box: number; due_at: string; last_reviewed_at: string; times_seen: number; lapses: number }[];
+  email_subscription: { email: string; status: string; subscribed_at: string | null; confirmed_at: string | null; unsubscribed_at: string | null } | null;
+  /** The Deep (leaderboard) entry; null when not joined. */
+  the_deep: unknown;
+}

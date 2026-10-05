@@ -28,9 +28,9 @@ export interface Rendered {
 
 export type SubjectStyle = 'a' | 'b' | 'c';
 
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+export const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-const C = {
+export const C = {
   deep: '#041621',
   panel: '#0b2a36',
   ink: '#f4efe3',
@@ -40,9 +40,9 @@ const C = {
   buttonInk: '#06232b',
 };
 
-const FONT_EN = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
-const FONT_UI = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-const FONT_AR = "'Noto Naskh Arabic', 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif";
+export const FONT_EN = "'Cormorant Garamond', Georgia, 'Times New Roman', serif";
+export const FONT_UI = "-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+export const FONT_AR = "'Noto Naskh Arabic', 'Geeza Pro', 'Arabic Typesetting', 'Traditional Arabic', Tahoma, serif";
 
 export const SUBJECTS: Record<SubjectStyle, (w: EmailWord) => string> = {
   a: (w) => `دُرَّةُ اليَوْم · ${w.ar} — ${w.meanings[0]}`,
@@ -56,7 +56,7 @@ export function formatDate(iso: string): string {
   );
 }
 
-function shell({ lang, title, preheader, body }: { lang: string; title: string; preheader: string; body: string }) {
+export function shell({ lang, title, preheader, body }: { lang: string; title: string; preheader: string; body: string }) {
   return `<!doctype html>
 <html lang="${lang}" xmlns="http://www.w3.org/1999/xhtml">
 <head>

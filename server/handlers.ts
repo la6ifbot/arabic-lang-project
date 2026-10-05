@@ -3,12 +3,14 @@
  * they run unchanged on Vercel and in tests. Dependencies are injected (see deps.ts).
  */
 import { pickRevisit } from '../shared/mastery.js';
-import { amsterdamDate, amsterdamHour, pearlForDate } from '../shared/pearlOfTheDay.js';
+import { addDays, amsterdamDate, amsterdamHour, pearlForDate } from '../shared/pearlOfTheDay.js';
 import type { Config } from './config.js';
 import type { EmailMessage, EmailSender } from './email/types.js';
 import { renderAlert } from './email/alert.js';
+import { renderDigest } from './email/digest.js';
 import { renderConfirmation, renderDaily, type EmailWord } from './email/templates.js';
 import type { DayHealth, RevisitCandidate, Store } from './store.js';
+import { describeError } from './errors.js';
 import { ipHash, randomToken, sha256, unsubscribeToken, verifyUnsubscribeToken } from './tokens.js';
 
 export interface AccountUser {
@@ -28,6 +30,13 @@ export interface Deps {
   now(): Date;
   sleep(ms: number): Promise<void>;
   log(...args: unknown[]): void;
+}
+
+/** Logs a failure and records it, scrubbed, in the error log. Never throws. */
+export async function reportError(deps: Pick<Deps, 'store' | 'log'>, source: string, e: unknown): Promise<void> {
+  deps.log(`${source}:`, e);
+  const { code, message } = describeError(e);
+  await deps.store.logError(source, code, message).catch((err) => deps.log('error log: could not record', err));
 }
 
 const json = (status: number, body: unknown, headers: Record<string, string> = {}) =>
@@ -118,7 +127,7 @@ export async function handleSubscribe(req: Request, deps: Deps): Promise<Respons
       try {
         await deps.mailer.send({ to: email, from: config.from, replyTo: config.replyTo, ...r, headers: listUnsubscribeHeaders(links.oneClick) });
       } catch (e) {
-        deps.log('subscribe: confirmation email failed', e);
+        await reportError(deps, 'subscribe:confirmation-email', e);
       }
     } else {
       deps.log(`subscribe: ${config.emailMode} mode, not emailing a non-allow-listed address`);
@@ -194,7 +203,7 @@ export async function handleDaily(req: Request, deps: Deps): Promise<Response> {
         if (await store.suppress(s.email, s.reason)) suppressed++;
       }
     } catch (e) {
-      deps.log('daily: could not read the suppression list (needs ses:ListSuppressedDestinations)', e);
+      await reportError(deps, 'daily:suppression-list', e);
     }
   }
 
@@ -249,7 +258,7 @@ export async function handleDaily(req: Request, deps: Deps): Promise<Response> {
           now,
         );
       } catch (e) {
-        deps.log('daily: could not look up words to revisit', e);
+        await reportError(deps, 'daily:revisits', e);
       }
       for (const r of batch) {
         const t0 = Date.now();
@@ -260,7 +269,7 @@ export async function handleDaily(req: Request, deps: Deps): Promise<Response> {
           sent++;
         } catch (e) {
           failed++;
-          deps.log(`daily: send failed for subscriber ${r.subscriberId}`, e);
+          await reportError(deps, 'daily:send', e);
           await store.mark(r.subscriberId, date, 'failed');
         }
         const wait = gap - (Date.now() - t0);
@@ -276,7 +285,7 @@ export async function handleDaily(req: Request, deps: Deps): Promise<Response> {
   }
   // A missing run log must never stop the email itself; the health check notices the gap.
   const status = await store.recordRun({ ...run, claimed, sent, failed, remaining }).catch((e) => {
-    deps.log('daily: could not record the run summary', e);
+    void reportError(deps, 'daily:run-summary', e);
     return 'unrecorded';
   });
   return json(200, { date, slug, mode: config.emailMode, sent, failed, remaining, status, housekeeping, suppressed });
@@ -337,8 +346,106 @@ export async function handleHealth(req: Request, deps: Deps): Promise<Response> 
       await deps.mailer.send({ to: config.alertTo, from: config.from, ...r });
       alerted = true;
     } catch (e) {
-      deps.log('health: could not email the alert', e);
+      await reportError(deps, 'health:alert-email', e);
     }
   }
   return json(200, { date, ok, problems, alerted, details });
+}
+
+// ---------------------------------------------------------------------------------------------
+// GET|HEAD /api/health   public, for the external uptime monitor
+// 200 {"ok":true} when the database answers and the email settings are present; otherwise 503
+// {"ok":false}. Sends nothing and says nothing more in public: what failed goes to the error log.
+
+/** Names of missing email settings (never their values). */
+export function missingEmailSettings(config: Config): string[] {
+  const missing: string[] = [];
+  if (!config.cronSecret) missing.push('CRON_SECRET');
+  if (/@example\.com>?$/.test(config.from)) missing.push('EMAIL_FROM');
+  if (config.emailMode !== 'dry-run' && (!config.ses.accessKeyId || !config.ses.secretAccessKey)) missing.push('SES keys');
+  return missing;
+}
+
+const PING_TIMEOUT_MS = 5000;
+
+export async function handlePublicHealth(req: Request, deps: Deps): Promise<Response> {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return json(405, { error: 'method_not_allowed' }, { Allow: 'GET, HEAD' });
+  let dbOk = false;
+  try {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`database did not answer within ${PING_TIMEOUT_MS} ms`)), PING_TIMEOUT_MS);
+    });
+    dbOk = await Promise.race([deps.store.ping(), timeout]).finally(() => clearTimeout(timer));
+  } catch (e) {
+    deps.log('health: database check failed', e);
+  }
+  const missing = missingEmailSettings(deps.config);
+  const ok = dbOk && missing.length === 0;
+  if (!ok) {
+    const what = [!dbOk && 'database', missing.length && `missing ${missing.join(', ')}`].filter(Boolean).join('; ');
+    // Only possible while the database answers; when it doesn't, the uptime monitor is the record.
+    if (dbOk) await reportError(deps, 'health', new Error(what));
+    else deps.log(`health: ${what}`);
+  }
+  const res = json(ok ? 200 : 503, { ok });
+  return req.method === 'HEAD' ? new Response(null, { status: res.status, headers: res.headers }) : res;
+}
+
+// ---------------------------------------------------------------------------------------------
+// GET /api/cron/weekly   (Authorization: Bearer $CRON_SECRET)
+// The owner's weekly digest: aggregate numbers for last week (Monday to Sunday, Amsterdam), sent on
+// Monday in the 08:xx Amsterdam hour to ALERT_EMAIL (else the first EMAIL_SANDBOX_TO). Once a week:
+// a second call for the same week is skipped.
+//   ?dry=1   return the numbers and subject, send nothing
+//   ?force=1 ignore the Monday 08:00 window and the once-a-week guard
+
+export const DIGEST_HOUR = 8;
+
+/** Monday (YYYY-MM-DD) of the Amsterdam week containing `date`. */
+export function mondayOf(date: string): string {
+  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay(); // 0 = Sunday
+  return addDays(date, -((weekday + 6) % 7));
+}
+
+/** Last full week, as Amsterdam days [from, to): the Monday before this week's Monday, and this one. */
+export function lastWeek(now: Date): { from: string; to: string } {
+  const to = mondayOf(amsterdamDate(now));
+  return { from: addDays(to, -7), to };
+}
+
+export async function handleWeekly(req: Request, deps: Deps): Promise<Response> {
+  const { config, store } = deps;
+  if (!config.cronSecret || req.headers.get('authorization') !== `Bearer ${config.cronSecret}`) {
+    return json(401, { error: 'unauthorized' });
+  }
+  const url = new URL(req.url);
+  const flag = (k: string) => url.searchParams.get(k) === '1';
+  const now = deps.now();
+  const today = amsterdamDate(now);
+  if (!flag('force') && !flag('dry') && (mondayOf(today) !== today || amsterdamHour(now) !== DIGEST_HOUR)) {
+    return json(200, { skipped: 'outside_digest_window', date: today, amsterdamHour: amsterdamHour(now) });
+  }
+
+  const week = lastWeek(now);
+  const stats = await store.weeklyStats(week.from, week.to);
+  const r = renderDigest({ stats, siteUrl: config.siteUrl, now });
+  if (flag('dry')) return json(200, { week, dryRun: true, subject: r.subject, stats });
+
+  const previous = stats.ops.weekly_digest;
+  if (!flag('force') && previous?.last_ok && previous.detail?.week === week.from) {
+    return json(200, { week, skipped: 'already_sent' });
+  }
+  if (!config.alertTo) return json(200, { week, skipped: 'no_recipient' });
+  if (config.emailMode === 'dry-run') return json(200, { week, skipped: 'dry_run_mode' });
+
+  try {
+    await deps.mailer.send({ to: config.alertTo, from: config.from, ...r });
+  } catch (e) {
+    await reportError(deps, 'weekly:email', e);
+    await store.opsReport('weekly_digest', false, { week: week.from }).catch(() => {});
+    return json(502, { week, sent: false });
+  }
+  await store.opsReport('weekly_digest', true, { week: week.from }).catch((e) => reportError(deps, 'weekly:ops-report', e));
+  return json(200, { week, sent: true });
 }
