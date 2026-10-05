@@ -1,0 +1,65 @@
+name: Restore drill (staging)
+
+# Practises docs/OPERATIONS.md's restore runbook end to end on staging, which holds fake data only:
+# backs staging up with the nightly backup's own script (locked to a key made for this run), restores
+# all of it into a throwaway Supabase on the runner, then restores one table back into staging
+# itself. The job summary shows how long each step took. Run it by hand from the Actions tab.
+on:
+  workflow_dispatch:
+    inputs:
+      table:
+        description: The table to restore back into staging
+        default: public.saved_pearls
+
+permissions:
+  contents: read
+
+jobs:
+  drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0
+      - name: Install age (encryption)
+        run: command -v age > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq age > /dev/null; }
+      - name: A key for this run only
+        run: |
+          umask 077
+          age-keygen -o "$RUNNER_TEMP/drill-key.txt" 2> /dev/null
+          age-keygen -y "$RUNNER_TEMP/drill-key.txt" > "$RUNNER_TEMP/drill-recipient.txt"
+      - name: 1. Back up staging
+        env:
+          DB_URL: ${{ secrets.STAGING_DB_URL }}
+          BACKUP_RECIPIENTS: ${{ runner.temp }}/drill-recipient.txt
+        run: |
+          start=$(date +%s)
+          scripts/backup/make-backup.sh "$RUNNER_TEMP/drill.tar.gz.age"
+          echo "1. Backup of staging: $(($(date +%s) - start)) s" >> "$GITHUB_STEP_SUMMARY"
+      - name: 2. Start a throwaway Supabase
+        run: |
+          start=$(date +%s)
+          scripts/backup/throwaway-supabase.sh "$RUNNER_TEMP/target"
+          echo "2. Empty Supabase to restore into: $(($(date +%s) - start)) s" >> "$GITHUB_STEP_SUMMARY"
+      - name: 3. Restore everything into it
+        run: |
+          start=$(date +%s)
+          scripts/backup/restore.sh "$RUNNER_TEMP/drill.tar.gz.age" "$RUNNER_TEMP/drill-key.txt" \
+            postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          echo "3. Full restore and row-count check: $(($(date +%s) - start)) s" >> "$GITHUB_STEP_SUMMARY"
+      - name: 4. Restore one table back into staging
+        env:
+          STAGING_DB_URL: ${{ secrets.STAGING_DB_URL }}
+          TABLE: ${{ inputs.table }}
+        run: |
+          start=$(date +%s)
+          scripts/backup/restore.sh "$RUNNER_TEMP/drill.tar.gz.age" "$RUNNER_TEMP/drill-key.txt" "$STAGING_DB_URL" --table "$TABLE"
+          echo "4. One table ($TABLE) back into staging: $(($(date +%s) - start)) s" >> "$GITHUB_STEP_SUMMARY"
+      - name: Throw it all away
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP"/drill*
+          scripts/backup/throwaway-supabase.sh "$RUNNER_TEMP/target" --stop

@@ -1,0 +1,53 @@
+name: Encrypted database backup
+description: >-
+  Dumps the database (Supabase's documented method, sign-in accounts included), encrypts the dump to
+  the public keys in supabase/backup/recipients.txt, uploads it to the private backup bucket in
+  Frankfurt, verifies the upload, and records it for the weekly digest (public.ops_report).
+  Nothing from the dump is printed.
+inputs:
+  db-url:
+    description: The database's session pooler connection string.
+    required: true
+  bucket:
+    required: true
+  aws-access-key-id:
+    required: true
+  aws-secret-access-key:
+    required: true
+  github-token:
+    description: Reads when the monthly restore test last passed (Actions API), to record it too.
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: supabase/setup-cli@v1
+      with:
+        version: 2.119.0
+    - name: Install age (encryption)
+      shell: bash
+      run: command -v age > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq age > /dev/null; }
+    - name: Dump and encrypt
+      shell: bash
+      env:
+        DB_URL: ${{ inputs.db-url }}
+      run: scripts/backup/make-backup.sh "$RUNNER_TEMP/backup.tar.gz.age"
+    - name: Upload and verify
+      shell: bash
+      env:
+        BACKUP_BUCKET: ${{ inputs.bucket }}
+        AWS_ACCESS_KEY_ID: ${{ inputs.aws-access-key-id }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.aws-secret-access-key }}
+      run: scripts/backup/upload.sh "$RUNNER_TEMP/backup.tar.gz.age"
+    - name: Record it for the weekly digest
+      shell: bash
+      env:
+        DB_URL: ${{ inputs.db-url }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        bytes=$(stat -c %s "$RUNNER_TEMP/backup.tar.gz.age")
+        rm -f "$RUNNER_TEMP/backup.tar.gz.age"
+        scripts/backup/report-status.sh backup true "{\"bytes\": $bytes}"
+        # The restore test can't reach production, so its latest success is copied from GitHub's records.
+        restore_test=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/restore-test.yml/runs?status=success&per_page=1" \
+          --jq '.workflow_runs[0].updated_at // ""' 2> /dev/null || true)
+        if [ -n "$restore_test" ]; then scripts/backup/report-status.sh restore_test true '{}' "$restore_test"; fi
