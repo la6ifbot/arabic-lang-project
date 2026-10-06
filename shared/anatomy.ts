@@ -9,7 +9,7 @@
  * Counting rules (decision 19): written letters. لا is two (lām + alif). A doubled letter
  * (shadda) counts once and is marked `doubled`. ة and ى are letters. Spaces separate words.
  */
-import LETTER_TABLE from '../src/data/letters.json';
+import LETTER_TABLE from '../src/data/letters.json' with { type: 'json' };
 
 export type Joins = 'both' | 'back' | 'none';
 export type Form = 'alone' | 'start' | 'middle' | 'end';
