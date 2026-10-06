@@ -1,0 +1,55 @@
+name: Monthly restore test
+
+# Proves the backups can actually be restored: downloads the newest nightly backup, decrypts it with
+# the restore-test key (each backup is locked to Lativ's key and this one), loads it into a throwaway
+# Supabase on the runner, compares every table's row count with the backup's, and throws it all
+# away. Real data never goes anywhere else, staging included, and nothing from it is printed.
+on:
+  schedule:
+    - cron: '43 2 2 * *' # the 2nd of each month, 02:43 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write # a failure opens an issue, which emails Lativ
+
+jobs:
+  restore-test:
+    if: github.repository == 'la6ifbot/arabic-lang-project'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The "restore-test" environment only serves main, so no other branch can read its secrets.
+    environment: restore-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0
+      - name: Install age (encryption)
+        run: command -v age > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq age > /dev/null; }
+      - name: Download the newest backup (still encrypted)
+        env:
+          BACKUP_BUCKET: ${{ secrets.BACKUP_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.RESTORE_AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.RESTORE_AWS_SECRET_ACCESS_KEY }}
+        run: scripts/backup/fetch-latest.sh "$RUNNER_TEMP/latest.tar.gz.age"
+      - name: Start a throwaway Supabase
+        run: scripts/backup/throwaway-supabase.sh "$RUNNER_TEMP/target"
+      - name: Restore and compare row counts
+        env:
+          RESTORE_AGE_KEY: ${{ secrets.RESTORE_AGE_KEY }}
+        run: |
+          umask 077
+          printf '%s\n' "$RESTORE_AGE_KEY" > "$RUNNER_TEMP/restore-key.txt"
+          scripts/backup/restore.sh "$RUNNER_TEMP/latest.tar.gz.age" "$RUNNER_TEMP/restore-key.txt" \
+            postgresql://postgres:postgres@127.0.0.1:54322/postgres | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Throw it all away
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/restore-key.txt" "$RUNNER_TEMP/latest.tar.gz.age"
+          scripts/backup/throwaway-supabase.sh "$RUNNER_TEMP/target" --stop
+      - name: Tell Lativ
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/backup/report-failure.sh "Monthly restore test failed"

@@ -313,3 +313,118 @@ delivered to the inbox, and Gmail showed its one-click **Unsubscribe** link.
 DKIM passes for `durar.space` (the three CNAMEs), DMARC passes through DKIM, and SPF passes for
 SES's own envelope domain. DMARC is `p=none` with reports to `hello@durar.space`; tighten it to
 `p=quarantine` once the reports have been clean for a few weeks.
+
+## 8. Backups
+
+Every night at 01:17 UTC GitHub Actions (`.github/workflows/backup.yml`) dumps production the way
+Supabase documents it (`supabase db dump`: roles, schema, and data **including sign-in accounts**),
+encrypts the dump with [age](https://age-encryption.org) before it leaves the runner, and uploads it
+to the private S3 bucket `durar-backups-<account id>` in **Frankfurt**. S3 checks the upload against
+our SHA-256 and refuses it if anything differs. The repository is public, so nothing from the dump is
+printed or kept as a workflow artifact.
+
+- **Keys.** Each backup is locked to the two public keys in `supabase/backup/recipients.txt`, and
+  either private key opens it: **Lativ's own key**, kept by Lativ in two safe places and nowhere
+  else, and the **restore-test key**, the `RESTORE_AGE_KEY` secret of the `restore-test`
+  environment. If Lativ's key is lost, the backups can still be opened with the restore-test key,
+  but make a new key pair at once and swap the public key in `recipients.txt`.
+- **Kept:** `daily/<UTC time>.tar.gz.age` for 31 days and `monthly/<YYYY-MM>.tar.gz.age` (from the
+  first three nights of each month) for a year, by the bucket's lifecycle rules. Versioning is on and
+  a replaced or deleted version stays 7 days. The upload user can only add files, so a leaked upload
+  key can't read or delete backups.
+- **A fresh backup also runs** before every production migration (section 11).
+- **Failure:** the run opens (or comments on) a GitHub issue "Nightly backup failed", which emails
+  Lativ, and records the failure for the weekly digest (`public.ops_report('backup', false)`). A
+  success records `ops_report('backup', true, {"bytes": …})`. The nightly run also copies the time of
+  the latest successful restore test into `ops_report('restore_test', …)`.
+- **Monthly restore test** (`.github/workflows/restore-test.yml`, the 2nd of each month): downloads
+  the newest daily (it fails if that is more than two days old), decrypts it with the restore-test
+  key, loads it into a throwaway Supabase on the runner, compares every table's row count with the
+  counts saved inside the backup, and throws everything away. It never touches staging or
+  production. A failure opens the issue "Monthly restore test failed".
+- **Backup check on pull requests** (`.github/workflows/backup-check.yml`): any change to the
+  backups, migrations or these workflows is tried end to end with fake data and a throwaway key.
+- **Cost:** a few MB in S3 Frankfurt, well under $0.05 a month.
+
+| Where | What |
+| --- | --- |
+| GitHub → Settings → Secrets → Actions (repository) | `BACKUP_BUCKET`, `BACKUP_AWS_ACCESS_KEY_ID`, `BACKUP_AWS_SECRET_ACCESS_KEY` (IAM user `durar-backup-uploader`, inline policy `DurarBackupUploadOnly`: `s3:PutObject` on `daily/*` and `monthly/*` only). |
+| GitHub environment `backup` (main only) | `PROD_DB_URL`: production's **session pooler** URI (port 5432). |
+| GitHub environment `production` (main only, Lativ must approve) | `PROD_DB_URL`. |
+| GitHub environment `restore-test` (main only) | `RESTORE_AGE_KEY`, `RESTORE_AWS_ACCESS_KEY_ID`, `RESTORE_AWS_SECRET_ACCESS_KEY` (IAM user `durar-backup-restore-test`, policy `DurarBackupReadDailies`: list and read `daily/*` only). |
+| GitHub environment `staging` (any branch) | `STAGING_DB_URL`: staging's session pooler URI. |
+
+Rotating: make a new access key for the IAM user (IAM → Users → Security credentials), replace the
+GitHub secret, delete the old key. After resetting a database password, update `PROD_DB_URL` in
+**both** `backup` and `production` (or `STAGING_DB_URL`).
+
+## 9. Restoring a backup
+
+Practised with `.github/workflows/restore-drill.yml` (Actions → **Restore drill (staging)** → Run
+workflow): it backs up staging (fake data), restores all of it into a throwaway Supabase and one table
+back into staging, and its summary shows how long each step took. At today's size a full restore and
+check takes under a minute; making a new Supabase project and putting its settings back takes about
+half an hour more.
+
+**What you need:** a computer with `psql` and [`age`](https://github.com/FiloSottile/age/releases),
+this repository, and Lativ's key file (a text file with the `AGE-SECRET-KEY-…` line).
+
+1. **Download a backup:** AWS console (Frankfurt) → S3 → `durar-backups-…` → `daily/` (or
+   `monthly/`) → the one from before the problem → **Download**.
+2. **Look inside (optional):**
+   `age -d -i key.txt daily-….tar.gz.age | tar -xzf -` gives `roles.sql`, `schema.sql`, `data.sql`
+   (the rows, sign-in accounts included) and `counts.tsv` (rows per table). Delete them afterwards.
+3. **Restore one table** (rows deleted or damaged by mistake):
+   `scripts/backup/restore.sh daily-….tar.gz.age key.txt "<session pooler URI>" --table public.saved_pearls`
+   replaces that table's rows with the backup's, in one transaction, and checks the count. Rows
+   added to that table since the backup are lost, so for a few rows, restore everything into a
+   throwaway copy on your computer first (`scripts/backup/throwaway-supabase.sh`, needs Docker) and
+   copy just those rows across. Never into staging: real data never goes there.
+4. **Restore everything** (the database is lost or badly damaged):
+   1. Create a new Supabase project in Frankfurt (or use the damaged one only if it's empty).
+   2. `scripts/backup/restore.sh daily-….tar.gz.age key.txt "<new project's session pooler URI>" --keep-cron`
+      Without `--keep-cron`, the scheduled jobs come back paused (right for a copy, wrong for the
+      real thing). The script runs Supabase's documented restore as one transaction and compares
+      every table's rows with the backup.
+   3. What a dump doesn't carry, put back by hand: the triggers on `auth.users` (run the two
+      `create trigger` statements of `supabase/migrations/20261003000000_account_daily_email.sql`),
+      the **Vault** secrets `durar_daily_url` and `durar_cron_secret` (section 1), and the project
+      settings in section 1's Supabase table (SMTP, email templates, URL configuration, Confirm email,
+      Google sign-in).
+   4. Run `supabase/baseline-check.sql` in the SQL editor: every line should say `ok`. Then Actions
+      → **Migrations** → Run workflow → `production` records the history again (section 11).
+   5. If it's a new project: point Vercel's Production `VITE_SUPABASE_URL`,
+      `VITE_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` at it, update `PROD_DB_URL` in
+      GitHub, then redeploy the deployment marked **Production · Current**.
+
+## 10. Staging
+
+A second free Supabase project, `durar-staging` (Frankfurt), used by Vercel **preview** deployments
+(Vercel's Preview environment has its URL and keys; Production keeps its own). It holds fake data
+only: accounts `diver1…12@example.com` (no passwords), a few `reader…@example.com` subscribers,
+saved pearls and progress, from `supabase/seed.sql`, which the Migrations workflow loads after each
+run. No cron jobs run there, and Supabase's built-in email only reaches the project's own team, so
+nothing can email anyone but Lativ. Real data never goes to staging, not even from a backup.
+
+## 11. Migrations
+
+Every database change is a new file in `supabase/migrations/` (`YYYYMMDDHHMMSS_name.sql`, never
+edited once merged), and `.github/workflows/migrations.yml` applies it:
+
+- **Pull request:** applied to staging, then the fake data is loaded again.
+- **Merged to `main`:** the production job waits for Lativ (GitHub emails "review pending
+  deployment": Actions → the run → **Review deployments** → `production` → **Approve and deploy**).
+  Then it takes a fresh encrypted backup and applies the new files.
+- **By hand:** Actions → **Migrations** → Run workflow → `staging` or `production`.
+
+Supabase records what it applied in `supabase_migrations.schema_migrations` and never runs a file
+twice. Each file runs in its own transaction, so a failing file changes nothing.
+
+**Baseline.** The migrations up to Phase 0.7 were run by hand in the SQL editor. The first
+production run finds no history, runs `supabase/baseline-check.sql` (read-only), records every
+migration it shows as `ok` as already applied, and applies the rest. If a line says `MISSING` or
+`PARTIAL`, it stops without changing anything: compare production with that migration file and fix
+it by hand (or ask Claude), then run the workflow again.
+
+A file already applied to staging from a pull request that changes again before merging won't run
+again on staging. Make the change a new file instead.

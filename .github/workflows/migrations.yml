@@ -1,0 +1,92 @@
+name: Migrations
+
+# Every database change goes through here (docs/OPERATIONS.md, "Migrations"):
+#   a pull request that adds a file to supabase/migrations → applied to staging (fake data only);
+#   merged to main → a fresh encrypted backup of production, then applied to production, after
+#   Lativ approves the "production" environment's deployment.
+# Supabase records what it applied in supabase_migrations.schema_migrations and never runs a file
+# twice. The migrations applied by hand before this existed are recorded once, after
+# supabase/baseline-check.sql confirms production has them.
+on:
+  pull_request:
+    paths: ['supabase/migrations/**', 'supabase/seed.sql', 'supabase/baseline-check.sql', 'scripts/db/**']
+  push:
+    branches: [main]
+    # A change to the pipeline itself also runs it (applying nothing when there's nothing new).
+    paths: ['supabase/migrations/**', 'supabase/seed.sql', 'supabase/baseline-check.sql', 'scripts/db/**']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Where to apply the migrations
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+jobs:
+  staging:
+    # Pull requests from forks get no secrets, and must not touch staging anyway.
+    if: >-
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch' && inputs.target == 'staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    concurrency:
+      group: migrations-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0
+      - name: Apply new migrations to staging
+        env:
+          DB_URL: ${{ secrets.STAGING_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::warning::Staging isn't set up yet (no STAGING_DB_URL in the staging environment); skipped."
+            exit 0
+          fi
+          scripts/db/migrate.sh
+      - name: Fake data (accounts at example.com, saved pearls, progress)
+        env:
+          DB_URL: ${{ secrets.STAGING_DB_URL }}
+        run: |
+          [ -n "$DB_URL" ] || exit 0
+          scripts/backup/mask-password.sh
+          psql "$DB_URL" -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=terse -f supabase/seed.sql
+          echo "Staging has its fake data."
+
+  production:
+    if: >-
+      github.repository == 'la6ifbot/arabic-lang-project' && (
+        github.event_name == 'push' ||
+        github.event_name == 'workflow_dispatch' && inputs.target == 'production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Waits for Lativ's approval; the environment only serves main.
+    environment: production
+    permissions:
+      contents: read
+      actions: read # the backup records when the restore test last passed
+    concurrency:
+      group: migrations-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fresh backup first
+        uses: ./.github/actions/backup
+        with:
+          db-url: ${{ secrets.PROD_DB_URL }}
+          bucket: ${{ secrets.BACKUP_BUCKET }}
+          aws-access-key-id: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+          github-token: ${{ github.token }}
+      - name: Apply new migrations to production
+        env:
+          DB_URL: ${{ secrets.PROD_DB_URL }}
+        run: scripts/db/migrate.sh --baseline
