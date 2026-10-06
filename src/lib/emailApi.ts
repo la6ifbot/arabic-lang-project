@@ -3,7 +3,7 @@ import { MOCK_EMAIL_KEY } from '../account/storageKeys';
 
 /** Client for the Pearl of the Day email endpoints (/api/*). */
 export type SubscribeResult = 'check_inbox' | 'confirmed';
-export type EmailApiErrorCode = 'invalid_email' | 'rate_limited' | 'network' | 'server';
+export type EmailApiErrorCode = 'invalid_email' | 'rate_limited' | 'captcha_failed' | 'network' | 'server';
 
 export class EmailApiError extends Error {
   constructor(readonly code: EmailApiErrorCode) {
@@ -41,13 +41,17 @@ async function post(path: string, body: unknown, headers: Record<string, string>
   const data = (await res.json().catch(() => ({}))) as Record<string, string>;
   if (res.status === 429) throw new EmailApiError('rate_limited');
   if (res.status === 400 && data.error === 'invalid_email') throw new EmailApiError('invalid_email');
+  if (res.status === 403 && data.error === 'captcha_failed') throw new EmailApiError('captcha_failed');
   if (res.status >= 500) throw new EmailApiError('server');
   return { status: res.status, data };
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-export async function subscribeEmail(email: string, opts: { website?: string; accessToken?: string | null } = {}): Promise<SubscribeResult> {
+export async function subscribeEmail(
+  email: string,
+  opts: { website?: string; accessToken?: string | null; turnstileToken?: string | null } = {},
+): Promise<SubscribeResult> {
   const e = email.trim().toLowerCase();
   if (!EMAIL.test(e)) throw new EmailApiError('invalid_email');
   if (mock) {
@@ -61,7 +65,8 @@ export async function subscribeEmail(email: string, opts: { website?: string; ac
     return verified || (own && next === 'confirmed') ? 'confirmed' : 'check_inbox';
   }
   const headers: Record<string, string> = opts.accessToken ? { Authorization: `Bearer ${opts.accessToken}` } : {};
-  const { status, data } = await post('/api/subscribe', { email: e, website: opts.website ?? '' }, headers);
+  const body = { email: e, website: opts.website ?? '', ...(opts.turnstileToken ? { turnstile: opts.turnstileToken } : {}) };
+  const { status, data } = await post('/api/subscribe', body, headers);
   // Only the endpoint's own answer counts as success: never tell someone to check their inbox
   // when the request was refused or answered by something else (a 403, a 404 page).
   if (status !== 200 || (data as { ok?: unknown }).ok !== true) throw new EmailApiError('server');

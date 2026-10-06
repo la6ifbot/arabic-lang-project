@@ -258,16 +258,16 @@ export function closeAuth() {
 // Auth actions (used by the dialog). Each throws AccountError; the dialog shows friendlyMessage().
 
 export const auth = {
-  async signIn(email: string, password: string) {
+  async signIn(email: string, password: string, captchaToken?: string | null) {
     const b = await requireBackend();
-    const user = await b.signIn(email, password);
+    const user = await b.signIn(email, password, captchaToken);
     set({ auth: null });
     await signedIn(user, b);
     announce('Signed in.');
   },
-  async signUp(email: string, password: string, returnTo: string) {
+  async signUp(email: string, password: string, returnTo: string, captchaToken?: string | null) {
     const b = await requireBackend();
-    const { needsVerification } = await b.signUp(email, password, returnTo);
+    const { needsVerification } = await b.signUp(email, password, returnTo, captchaToken);
     if (needsVerification) setAuthMode('verify-sent', { email });
     else {
       // “Confirm email” is off (the interim setup): Supabase signs the new account straight in,
@@ -281,9 +281,9 @@ export const auth = {
     await b.signInWithGoogle(returnTo);
     if (b.kind === 'mock') set({ auth: null });
   },
-  async requestReset(email: string, returnTo: string) {
+  async requestReset(email: string, returnTo: string, captchaToken?: string | null) {
     const b = await requireBackend();
-    await b.requestPasswordReset(email, returnTo);
+    await b.requestPasswordReset(email, returnTo, captchaToken);
     setAuthMode('reset-sent', { email });
   },
   async updatePassword(password: string) {
@@ -292,9 +292,9 @@ export const auth = {
     set({ auth: null });
     announce('Your password has been changed.');
   },
-  async resend(email: string, returnTo: string) {
+  async resend(email: string, returnTo: string, captchaToken?: string | null) {
     const b = await requireBackend();
-    await b.resendVerification(email, returnTo);
+    await b.resendVerification(email, returnTo, captchaToken);
   },
 };
 

@@ -39,6 +39,18 @@ export function productionDeps(env: Record<string, string | undefined> = process
       // Google verifies the address; with “Confirm email” off, Supabase's own flag proves nothing.
       return { id: u.id, email: u.email ?? null, emailVerifiedByProvider: providers.includes('google') };
     },
+    async verifyTurnstile(token, ip) {
+      const form = new URLSearchParams({ secret: config.turnstileSecret ?? '', response: token });
+      if (ip) form.set('remoteip', ip);
+      const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!res.ok) return false;
+      const out = (await res.json()) as { success?: boolean };
+      return out.success === true;
+    },
     now: () => new Date(),
     sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
     log: (...args) => console.log(...args),

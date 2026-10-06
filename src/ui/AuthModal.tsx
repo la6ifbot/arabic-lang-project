@@ -13,6 +13,7 @@ import {
 } from '../account/store';
 import { returnUrl } from '../account/urlState';
 import { emailSignupEnabled } from '../lib/flags';
+import { TURNSTILE_MESSAGE, TurnstileError, useTurnstile } from '../lib/turnstile';
 import { linkHandler } from '../lib/router';
 import { WORD_BY_SLUG } from '../lib/words';
 import { focusFirst, Modal } from './Modal';
@@ -48,6 +49,9 @@ export default function AuthModal() {
   const [askedEmail, setAskedEmail] = useState(false);
   const emailState = useEmailToggle((s) => s.state);
   const { mode } = dialog;
+  // Every request that sends an email or checks a password carries a Turnstile token.
+  const checked = mode === 'signin' || mode === 'signup' || mode === 'forgot' || mode === 'verify-sent';
+  const turnstile = useTurnstile(checked && mode);
 
   // Each screen starts clean, with focus on its first field.
   useEffect(() => {
@@ -74,13 +78,17 @@ export default function AuthModal() {
     if (now !== 'pending' && now !== 'on') setError('That didn’t work. Check your connection and try again.');
   };
 
-  const run = async (fn: () => Promise<void>) => {
+  const run = async (fn: (captchaToken: string | null) => Promise<void>, captcha = false) => {
     setBusy(true);
     setError(null);
     setErrorCode(null);
     try {
-      await fn();
+      await fn(captcha ? await turnstile.getToken() : null);
     } catch (e) {
+      if (e instanceof TurnstileError) {
+        setError(TURNSTILE_MESSAGE);
+        return;
+      }
       const err = toAccountError(e);
       setError(friendlyMessage(err));
       setErrorCode(err.code);
@@ -107,16 +115,18 @@ export default function AuthModal() {
     const problem = check(mode !== 'forgot', mode === 'signup');
     if (problem) return setError(problem);
     const addr = email.trim();
-    if (mode === 'signin') void run(() => auth.signIn(addr, password));
-    else if (mode === 'signup') void run(() => auth.signUp(addr, password, returnUrl('verify')));
-    else if (mode === 'forgot') void run(() => auth.requestReset(addr, returnUrl('reset')));
+    if (mode === 'signin') void run((t) => auth.signIn(addr, password, t), true);
+    else if (mode === 'signup') void run((t) => auth.signUp(addr, password, returnUrl('verify'), t), true);
+    else if (mode === 'forgot') void run((t) => auth.requestReset(addr, returnUrl('reset'), t), true);
   };
 
   const resend = () =>
-    run(async () => {
-      await auth.resend(email.trim(), returnUrl('verify'));
+    run(async (t) => {
+      await auth.resend(email.trim(), returnUrl('verify'), t);
       setResent(true);
-    });
+    }, true);
+  const busyLabel = turnstile.waiting ? 'Checking…' : 'One moment…';
+  const turnstileBox = turnstile.enabled && checked && <div ref={turnstile.ref} className="turnstile" data-testid="turnstile" />;
 
   const word = dialog.reasonSlug ? WORD_BY_SLUG.get(dialog.reasonSlug) : undefined;
   const showGoogle = mode === 'signin' || mode === 'signup';
@@ -162,12 +172,13 @@ export default function AuthModal() {
               We sent a confirmation link to <strong>{dialog.email}</strong>. Open it to finish creating your account
               {word ? ', and we’ll keep your pearl waiting.' : '.'}
             </p>
+            {turnstileBox}
             <div className="modal-actions">
               <button type="button" className="btn btn-primary" onClick={closeAuth} data-autofocus>
                 Done
               </button>
               <button type="button" className="btn btn-quiet" onClick={resend} disabled={busy || resent}>
-                {resent ? 'Sent again' : busy ? 'Sending…' : 'Resend the link'}
+                {resent ? 'Sent again' : busy ? (turnstile.waiting ? 'Checking…' : 'Sending…') : 'Resend the link'}
               </button>
             </div>
           </>
@@ -332,8 +343,10 @@ export default function AuthModal() {
               </div>
             )}
 
+            {turnstileBox}
+
             <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
-              {busy ? 'One moment…' : submitLabel}
+              {busy ? busyLabel : submitLabel}
             </button>
 
             {mode === 'signin' && (

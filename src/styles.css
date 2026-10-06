@@ -1202,6 +1202,15 @@ a.acct-item {
   color: var(--ink-faint);
   font-size: 0.75rem;
 }
+/* Cloudflare Turnstile: takes no room unless Cloudflare asks for a click. */
+.turnstile {
+  display: flex;
+  justify-content: center;
+}
+.turnstile:empty,
+.turnstile > div:empty {
+  display: none;
+}
 .form-error {
   padding: 10px 12px;
   border-radius: 12px;

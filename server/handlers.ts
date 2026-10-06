@@ -25,6 +25,8 @@ export interface Deps {
   words: EmailWord[];
   /** Resolves a Supabase access token to its user, or null. */
   verifyUser(accessToken: string): Promise<AccountUser | null>;
+  /** Asks Cloudflare whether a Turnstile token is valid (only called when a secret is configured). */
+  verifyTurnstile(token: string, ip: string | null): Promise<boolean>;
   now(): Date;
   sleep(ms: number): Promise<void>;
   log(...args: unknown[]): void;
@@ -76,7 +78,7 @@ function listUnsubscribeHeaders(oneClick: string): Record<string, string> {
 }
 
 // ---------------------------------------------------------------------------------------------
-// POST /api/subscribe  { email, website? }   (website is a honeypot: humans never fill it)
+// POST /api/subscribe  { email, website?, turnstile? }   (website is a honeypot: humans never fill it)
 
 export async function handleSubscribe(req: Request, deps: Deps): Promise<Response> {
   if (req.method !== 'POST') return json(405, { error: 'method_not_allowed' }, { Allow: 'POST' });
@@ -99,6 +101,16 @@ export async function handleSubscribe(req: Request, deps: Deps): Promise<Respons
   const own = user && user.email?.toLowerCase() === email ? user : null;
 
   const ip = (req.headers.get('x-forwarded-for') ?? '').split(',')[0].trim() || req.headers.get('x-real-ip') || 'unknown';
+
+  // Turnstile: anyone not signed in with this address proves they're a person (the account did at sign-up).
+  if (config.turnstileSecret && !own) {
+    const token = typeof body.turnstile === 'string' ? body.turnstile : '';
+    const ok = token.length > 0 && token.length <= 2048 && (await deps.verifyTurnstile(token, ip === 'unknown' ? null : ip).catch(() => false));
+    if (!ok) {
+      deps.log('subscribe: turnstile check failed');
+      return json(403, { error: 'captcha_failed' });
+    }
+  }
   const token = randomToken();
   const { outcome, subscriberId } = await store.request({
     email,
