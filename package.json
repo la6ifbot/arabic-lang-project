@@ -10,7 +10,7 @@
     "build:preview-artifact": "vite build --config vite.artifact.config.ts",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc -b",
-    "validate:data": "node scripts/validate-words.mjs",
+    "validate:data": "tsx scripts/validate-words.mjs",
     "import:sheet": "node scripts/import-sheet.mjs",
     "export:sheet": "node scripts/export-sheet.mjs",
     "test:e2e": "playwright test",

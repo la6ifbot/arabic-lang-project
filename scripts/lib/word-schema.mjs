@@ -109,6 +109,16 @@ export function validateWords(words, topics = []) {
     if (w.status !== undefined && w.status !== 'draft' && w.status !== 'reviewed')
       err('status must be "draft" or "reviewed" (or absent: draft)');
 
+    // Anatomy override (docs/CONTENT.md): the letters must also match the headword, which
+    // scripts/validate-words.mjs checks with shared/anatomy.ts.
+    if (
+      w.syllables !== undefined &&
+      (!Array.isArray(w.syllables) ||
+        w.syllables.length === 0 ||
+        !w.syllables.every((b) => b && ARABIC.test(b.ar ?? '') && /^[a-zāīūḥṣḍṭẓʿʾ]+$/.test(b.tr ?? '')))
+    )
+      err('syllables must be a list of beads like { "ar": "دُرْ", "tr": "dur" }');
+
     // The id must exist in src/data/illustrations.json: validateIllustrations checks that, with the credit.
     if (w.image !== undefined && !ILLUSTRATION_ID.test(w.image ?? '')) err('image must be an illustration id (src/data/illustrations.json)');
   });

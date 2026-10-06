@@ -67,6 +67,28 @@ Every word starts as **draft**. A native speaker reads it (headword, diacritics,
 Arabic of each example) and sets `status` to **reviewed**. Both show on the site for now. Each
 import's summary counts the unreviewed words per topic.
 
+## The anatomy of a word
+
+Tapping a headword (or the Letters button, or L) unthreads it into its letters and syllables. It
+works from the vowelled headword alone, using the letter table in `src/data/letters.json` (names,
+sound hints, and whether each letter joins the next one) and the rules in `shared/anatomy.ts`.
+
+- **Headwords need full vowel marks** for the syllables to come out right. `npm run validate:data`
+  runs every headword through the anatomy and lists the words whose syllables are a guess (al-,
+  tanwīn, a letter with no mark, or syllables that don't spell the card's transliteration). Those go
+  into the native-speaker review.
+- **Override** a wrong split with an optional `syllables` field in `words.json`: the beads in reading
+  order, each with its letters as written and its sound. A doubled letter may open the next bead:
+
+  ```json
+  "syllables": [{ "ar": "الدْ", "tr": "ad" }, { "ar": "دَ", "tr": "da" }, { "ar": "بَ", "tr": "ba" }, { "ar": "رَان", "tr": "rān" }]
+  ```
+
+  The beads must use every letter of the headword, in order, or the validator fails. The Sheet has
+  no column for it: the import keeps a word's `syllables` as it is.
+- **The letter table** is part of the review too: each letter's Arabic and transliterated name, and
+  its sound hint for English speakers.
+
 ## Style guide
 
 **Tone.** Durar is calm and a little poetic, never cute. Write for a curious adult who loves

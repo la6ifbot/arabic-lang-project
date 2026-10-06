@@ -102,6 +102,10 @@ export function HelpBox({ ready = false }: { ready?: boolean }) {
             <span className="help-key">Tap a pearl</span> in the background to bring it forward.
           </li>
           <li>
+            <span className="help-key">Tap the Arabic word</span>
+            <span className="help-kbd"> or press L</span> to see its letters, one pearl at a time.
+          </li>
+          <li>
             <span className="help-key">Search</span> in Arabic or English, top right.<span className="help-kbd"> Press / to jump there.</span>
           </li>
           {accountsMode !== 'off' && (
