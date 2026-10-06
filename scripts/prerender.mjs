@@ -2,6 +2,7 @@
 // (unique <title>, description, canonical, Open Graph / Twitter tags, JSON-LD and the card's text),
 // and every topic at dist/sea/<topic>/index.html (both languages, the word list), plus sitemap.xml
 // when SITE_URL is set. Live visitors get the same SPA, which boots into that word.
+import { createHash } from 'node:crypto';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -217,9 +218,66 @@ writeFileSync(join(dist, 'index.html'), home);
 
 // Not found: a static page Vercel serves with a real 404 status for any path that isn't a file
 // (vercel.json has no catch-all rewrite, so every app route must be prerendered above). It uses
-// the app's stylesheet but none of its JavaScript; a few lines of inline script search the words.
+// the app's stylesheet but none of its JavaScript; a few lines of script search the words.
 const stylesheet = template.match(/<link rel="stylesheet"[^>]*>/)?.[0] ?? '';
 const lost = words.map((w) => ({ s: w.slug, ar: w.ar, tr: w.translit, en: w.meanings.join('; ') }));
+// Its search script is a separate file, so the Content-Security-Policy needs no inline scripts.
+const lostScript = `  (() => {
+    const words = ${JSON.stringify(lost).replace(/</g, '\\u003c')};
+    const ar = (s) => s.replace(/[\\u0610-\\u061a\\u064b-\\u065f\\u0670\\u06d6-\\u06ed\\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي');
+    const la = (s) => s.normalize('NFD').replace(/\\p{M}/gu, '').replace(/[ʿʾ'’\`-]/g, '').toLowerCase();
+    const form = document.querySelector('.lost-search');
+    const input = form.querySelector('input');
+    const status = form.querySelector('.lost-status');
+    const list = form.querySelector('.lost-results');
+    form.hidden = false;
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      list.querySelector('a')?.click();
+    });
+    input.addEventListener('input', () => {
+      // Best matches first: the word itself, then a meaning that is a whole word, then the rest.
+      const q = input.value.trim();
+      const isAr = /[\\u0600-\\u06ff]/.test(q);
+      const nq = isAr ? ar(q).replace(/^ال/, '') : la(q);
+      const c = nq.replace(/\\s+/g, '');
+      const hits = !nq ? [] : words.map((w) => {
+        let s = 0;
+        if (isAr) {
+          const a = ar(w.ar);
+          s = a === nq ? 100 : a.startsWith(nq) ? 70 : a.includes(nq) ? 40 : 0;
+        } else {
+          const t = la(w.tr).replace(/\\s+/g, '');
+          const en = la(w.en);
+          const mw = en.split(/[^a-z]+/);
+          s = t === c ? 100 : t.startsWith(c) ? 75 : 0;
+          if (mw.includes(nq)) s = Math.max(s, 90);
+          else if (mw.some((m) => m.startsWith(nq))) s = Math.max(s, 60);
+          else if (nq.length > 2 && en.includes(nq)) s = Math.max(s, 35);
+        }
+        return { w, s };
+      }).filter((h) => h.s).sort((a, b) => b.s - a.s).map((h) => h.w);
+      list.replaceChildren(...hits.slice(0, 6).map((w) => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = '/word/' + w.s;
+        const word = document.createElement('span');
+        word.lang = 'ar';
+        word.dir = 'rtl';
+        word.textContent = w.ar;
+        const en = document.createElement('span');
+        en.className = 'lost-en';
+        en.textContent = w.tr + ' · ' + w.en.split(';')[0];
+        a.append(word, en);
+        li.append(a);
+        return li;
+      }));
+      status.textContent = !nq ? '' : hits.length ? hits.length + (hits.length === 1 ? ' word' : ' words') : 'No word matches that yet.';
+    });
+  })();
+`;
+const lostJs = `lost-${createHash('sha256').update(lostScript).digest('hex').slice(0, 8)}.js`;
+writeFileSync(join(dist, 'assets', lostJs), lostScript);
 const notFound = `<!doctype html>
 <html lang="en">
   <head>
@@ -281,61 +339,7 @@ const notFound = `<!doctype html>
         <a class="lost-home" href="/">Back to the sea</a>
       </main>
     </div>
-    <script>
-      (() => {
-        const words = ${JSON.stringify(lost).replace(/</g, '\\u003c')};
-        const ar = (s) => s.replace(/[\\u0610-\\u061a\\u064b-\\u065f\\u0670\\u06d6-\\u06ed\\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي');
-        const la = (s) => s.normalize('NFD').replace(/\\p{M}/gu, '').replace(/[ʿʾ'’\`-]/g, '').toLowerCase();
-        const form = document.querySelector('.lost-search');
-        const input = form.querySelector('input');
-        const status = form.querySelector('.lost-status');
-        const list = form.querySelector('.lost-results');
-        form.hidden = false;
-        form.addEventListener('submit', (e) => {
-          e.preventDefault();
-          list.querySelector('a')?.click();
-        });
-        input.addEventListener('input', () => {
-          // Best matches first: the word itself, then a meaning that is a whole word, then the rest.
-          const q = input.value.trim();
-          const isAr = /[\\u0600-\\u06ff]/.test(q);
-          const nq = isAr ? ar(q).replace(/^ال/, '') : la(q);
-          const c = nq.replace(/\\s+/g, '');
-          const hits = !nq ? [] : words.map((w) => {
-            let s = 0;
-            if (isAr) {
-              const a = ar(w.ar);
-              s = a === nq ? 100 : a.startsWith(nq) ? 70 : a.includes(nq) ? 40 : 0;
-            } else {
-              const t = la(w.tr).replace(/\\s+/g, '');
-              const en = la(w.en);
-              const mw = en.split(/[^a-z]+/);
-              s = t === c ? 100 : t.startsWith(c) ? 75 : 0;
-              if (mw.includes(nq)) s = Math.max(s, 90);
-              else if (mw.some((m) => m.startsWith(nq))) s = Math.max(s, 60);
-              else if (nq.length > 2 && en.includes(nq)) s = Math.max(s, 35);
-            }
-            return { w, s };
-          }).filter((h) => h.s).sort((a, b) => b.s - a.s).map((h) => h.w);
-          list.replaceChildren(...hits.slice(0, 6).map((w) => {
-            const li = document.createElement('li');
-            const a = document.createElement('a');
-            a.href = '/word/' + w.s;
-            const word = document.createElement('span');
-            word.lang = 'ar';
-            word.dir = 'rtl';
-            word.textContent = w.ar;
-            const en = document.createElement('span');
-            en.className = 'lost-en';
-            en.textContent = w.tr + ' · ' + w.en.split(';')[0];
-            a.append(word, en);
-            li.append(a);
-            return li;
-          }));
-          status.textContent = !nq ? '' : hits.length ? hits.length + (hits.length === 1 ? ' word' : ' words') : 'No word matches that yet.';
-        });
-      })();
-    </script>
+    <script src="/assets/${lostJs}" defer></script>
   </body>
 </html>
 `;

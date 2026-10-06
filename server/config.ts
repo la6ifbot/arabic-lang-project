@@ -18,6 +18,8 @@ export interface Config {
   subjectStyle: 'a' | 'b' | 'c';
   tokenSecret: string;
   cronSecret: string | null;
+  /** Cloudflare Turnstile secret. Set: /api/subscribe requires a valid token from anyone not signed in. */
+  turnstileSecret: string | null;
   /** Amsterdam hour in which the daily email goes out. */
   sendHour: number;
   /** Amsterdam hour in which the health check looks at today's run. */
@@ -54,6 +56,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     subjectStyle: style === 'a' || style === 'c' ? style : 'b', // b chosen by the owner
     tokenSecret: env.EMAIL_TOKEN_SECRET || '',
     cronSecret: env.CRON_SECRET || null,
+    turnstileSecret: env.TURNSTILE_SECRET_KEY || null,
     sendHour: Number(env.EMAIL_SEND_HOUR ?? 7),
     healthHour: Number(env.EMAIL_HEALTH_HOUR ?? 8),
     ratePerSecond: Math.max(0.2, Number(env.SES_RATE_PER_SECOND ?? 1)),
