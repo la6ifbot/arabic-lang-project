@@ -45,7 +45,8 @@ run_psql() {
   fi
 }
 
-pause_cron="do \$\$ begin if to_regclass('cron.job') is not null then update cron.job set active = false; end if; end \$\$;"
+# Only pg_cron's own function may change a job (the table itself is read-only to postgres on Supabase).
+pause_cron="do \$\$ begin if to_regclass('cron.job') is not null then perform cron.alter_job(jobid, active := false) from cron.job; end if; end \$\$;"
 
 if [ -z "$table" ]; then
   extra=()
