@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 const FOCUSABLE =
@@ -24,12 +24,16 @@ export function Modal({
   onClose,
   children,
   className = '',
+  backdropClassName = '',
+  style,
 }: {
   labelledBy: string;
   describedBy?: string;
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  backdropClassName?: string;
+  style?: CSSProperties;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
@@ -73,7 +77,7 @@ export function Modal({
 
   return createPortal(
     <div
-      className="modal-backdrop"
+      className={`modal-backdrop ${backdropClassName}`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) close.current();
       }}
@@ -86,6 +90,7 @@ export function Modal({
         aria-describedby={describedBy}
         tabIndex={-1}
         className={`modal ${className}`}
+        style={style}
       >
         {children}
       </div>

@@ -8,7 +8,7 @@ import { loadCardFonts } from './lib/fonts';
 import { cancelIdle, whenIdle } from './lib/idle';
 import { linkHandler, syncUrl, useRoute } from './lib/router';
 import { saveAnchor } from './state/anchors';
-import { useDialogs } from './state/dialogs';
+import { loadAnatomy, openAnatomy, useDialogs } from './state/dialogs';
 import { startProgress } from './state/progress';
 import { useDurar } from './state/store';
 import { AccountMenu } from './ui/AccountMenu';
@@ -35,6 +35,7 @@ const AuthModal = lazy(() => import('./ui/AuthModal'));
 const DeleteAccountDialog = lazy(() => import('./ui/DeleteAccountDialog'));
 const ResetProgressDialog = lazy(() => import('./ui/ResetProgressDialog'));
 const AboutModal = lazy(() => import('./ui/AboutModal'));
+const Anatomy = lazy(loadAnatomy);
 
 class SceneBoundary extends Component<{ fallback: ReactNode; onError: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -59,6 +60,7 @@ export function App() {
   const subscribeOpen = useDialogs((s) => s.subscribe);
   const resetOpen = useDialogs((s) => s.resetProgress);
   const aboutOpen = useDialogs((s) => s.about);
+  const anatomyOpen = useDialogs((s) => s.anatomy !== null);
 
   // Auth redirects (email links, Google) must be handled right away, wherever they land.
   useEffect(() => {
@@ -95,6 +97,7 @@ export function App() {
         {subscribeOpen && <SubscribeModal />}
         {resetOpen && <ResetProgressDialog />}
         {aboutOpen && <AboutModal />}
+        {anatomyOpen && route.name === 'scene' && <Anatomy />}
       </Suspense>
     </>
   );
@@ -133,7 +136,7 @@ function Sea() {
     return () => cancelIdle(id);
   }, [use3D, sceneReady]);
 
-  // Keyboard: “/” jumps to search, “S” saves the focused pearl.
+  // Keyboard: “/” jumps to search, “S” saves the focused pearl, “L” unthreads it into its letters.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
@@ -144,6 +147,9 @@ function Sea() {
       } else if ((e.key === 's' || e.key === 'S') && accountsMode !== 'off') {
         e.preventDefault();
         void toggleSave(useDurar.getState().order[0]);
+      } else if (e.key === 'l' || e.key === 'L') {
+        e.preventDefault();
+        openAnatomy(useDurar.getState().order[0]);
       }
     };
     window.addEventListener('keydown', onKey);
