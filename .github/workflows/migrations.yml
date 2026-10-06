@@ -5,7 +5,8 @@ name: Migrations
 #   merged to main → a fresh encrypted backup of production, then applied to production, after
 #   Lativ approves the "production" environment's deployment.
 # Supabase records what it applied in supabase_migrations.schema_migrations and never runs a file
-# twice. The migrations applied by hand before this existed are recorded once (supabase/baseline.txt).
+# twice. The migrations applied by hand before this existed are recorded once, after
+# supabase/baseline-check.sql confirms production has them.
 on:
   pull_request:
     paths: ['supabase/migrations/**', 'supabase/seed.sql', 'supabase/baseline-check.sql', 'scripts/db/**']

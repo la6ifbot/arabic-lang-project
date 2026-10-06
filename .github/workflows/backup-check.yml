@@ -54,8 +54,9 @@ jobs:
           psql "$LOCAL_DB" -X -q -c "create database prodsim"
           sim=${LOCAL_DB%/postgres}/prodsim
           psql "$sim" -X -q -v ON_ERROR_STOP=1 -f tests/db/supabase-shim.sql > /dev/null
-          for v in $(grep -E '^[0-9]{14}$' supabase/baseline.txt); do
-            psql "$sim" -X -q -v ON_ERROR_STOP=1 -f supabase/migrations/${v}_*.sql > /dev/null
+          # The five run by hand in the SQL editor before Phase 0.7.
+          for f in $(ls supabase/migrations/*.sql | head -n 5); do
+            psql "$sim" -X -q -v ON_ERROR_STOP=1 -f "$f" > /dev/null
           done
           DB_URL=$sim scripts/db/migrate.sh --baseline
           test "$(psql "$sim" -X -qtA -c 'select count(*) from supabase_migrations.schema_migrations')" = \
