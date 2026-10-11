@@ -12,7 +12,7 @@ Each new word has one main topic and sometimes a second one, as today. 28 everyd
 | Sky & stars | 59 | +18 | **77** |
 | Flowers & scent | 41 | +35 | **76** |
 | Words the world borrowed | 49 | +29 | **78** |
-| Desert | 42 | +34 | **76** |
+| Desert | 42 | +35 | **77** |
 | Feeling & virtue | 49 | +29 | **78** |
 | Poetry & language | 45 | +35 | **80** |
 | No topic (whole sea only) | 17 | +29 | 46 |
@@ -130,7 +130,7 @@ Batch numbers spread every topic across all eight batches, so the topics grow ev
 | # | Arabic | Transliteration | Meaning | Also in | Batch | Note |
 | ---: | --- | --- | --- | --- | ---: | --- |
 | 1 | قَصْر | qaṣr | palace, castle |  | 1 | English alcazar, via Spanish |
-| 2 | غَرَّافَة | gharrāfah | a jug for drawing water |  | 1 | English carafe, via Italian and French |
+| 2 | طُوب | ṭūb | bricks; sun-dried mud bricks | Desert | 1 | English adobe, via Spanish; replaces gharrafah (carafe): no dictionary confirms غرّافة as a jug today |
 | 3 | مَطْرَح | maṭraḥ | a place where something is thrown down; a cushion, a mat |  | 1 | English mattress, via Italian and French |
 | 4 | سِكَّة | sikkah | a coin die; a minted coin; a road, a rail |  | 2 | English sequin, via Italian zecchino |
 | 5 | غَرْبَلَة | gharbalah | sifting, sieving |  | 2 | English garble |
