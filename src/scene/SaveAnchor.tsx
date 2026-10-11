@@ -1,11 +1,12 @@
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { saveAnchor } from '../state/anchors';
+import { headAnchor, saveAnchor } from '../state/anchors';
 import { gesture } from '../state/store';
 import { CARD_H, CARD_W } from './layout';
 import { focusedCard } from './PearlCard';
 
 const corner = new THREE.Vector3();
+const head = new THREE.Vector3();
 
 /**
  * Pins the Save control to the focused 3D card every frame, and fades it while the card is in
@@ -24,6 +25,15 @@ export function SaveAnchor() {
     const transform = `translate3d(${x}px, ${y}px, 0)`;
     if (el.style.transform !== transform) el.style.transform = transform;
     if ((el.dataset.visible === 'true') !== settled) el.dataset.visible = String(settled);
+
+    // The headword's centre, for the anatomy layer (mirrored for tests as data-head).
+    const band = focusedCard.head;
+    head.set(0, CARD_H / 2 - ((band.top + band.bottom) / 2) * CARD_H, 0).applyMatrix4(focusedCard.matrix).project(camera);
+    const hx = Math.round(((head.x + 1) / 2) * size.width);
+    const hy = Math.round(((1 - head.y) / 2) * size.height);
+    Object.assign(headAnchor, { x: hx, y: hy, visible: settled });
+    const mirror = `${hx},${hy}`;
+    if (el.dataset.head !== mirror) el.dataset.head = mirror;
   });
   return null;
 }
