@@ -63,7 +63,7 @@ test('static pages break no rule', async ({ page }) => {
   expect(seen).toEqual([]);
 });
 
-test('the sea, a word, a topic, the text-only view, the forms and Share break no rule', async ({ page }) => {
+test('the sea, a word, a topic, Share, the anatomy layer, the text-only view and the forms break no rule', async ({ page }) => {
   test.setTimeout(150_000);
   const seen = await watchViolations(page);
   await page.goto('/sea/water');
@@ -74,6 +74,13 @@ test('the sea, a word, a topic, the text-only view, the forms and Share break no
   await page.getByTestId('share-button').click();
   await Promise.all([page.waitForEvent('download'), page.getByTestId('share-download').click()]);
   await page.keyboard.press('Escape');
+  // The anatomy layer: letters apart, one letter's detail with its four shapes.
+  await page.keyboard.press('l');
+  await expect(page.getByTestId('anatomy')).toBeVisible();
+  await page.getByTestId('anatomy-letter').first().click();
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('anatomy')).toHaveCount(0);
 
   await page.getByTestId('mode-toggle').click();
   await expect(page.getByTestId('html-card')).toBeVisible();
