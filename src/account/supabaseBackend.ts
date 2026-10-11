@@ -33,6 +33,8 @@ const AUTH_CODES: Partial<Record<string, AccountErrorCode>> = {
   // Until custom SMTP is set up, Supabase's built-in mailer refuses addresses outside the team.
   email_address_not_authorized: 'email_unavailable',
   email_address_invalid: 'invalid_email',
+  // Supabase's CAPTCHA protection refused the Turnstile token (missing, spent or failed).
+  captcha_failed: 'captcha_failed',
 };
 
 function authError(error: unknown): AccountError {
@@ -117,16 +119,18 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
       return () => data.subscription.unsubscribe();
     },
 
-    async signUp(email, password, returnTo) {
-      const { data } = await guard(client.auth.signUp({ email, password, options: { emailRedirectTo: returnTo } }));
+    async signUp(email, password, returnTo, captchaToken) {
+      const { data } = await guard(
+        client.auth.signUp({ email, password, options: { emailRedirectTo: returnTo, captchaToken: captchaToken ?? undefined } }),
+      );
       // With email confirmation on, Supabase answers an existing address with an empty identity
       // list instead of an error (so addresses can't be probed silently).
       if (data.user && data.user.identities && data.user.identities.length === 0) throw new AccountError('email_taken');
       return { needsVerification: !data.session };
     },
 
-    async signIn(email, password) {
-      const { data } = await guard(client.auth.signInWithPassword({ email, password }));
+    async signIn(email, password, captchaToken) {
+      const { data } = await guard(client.auth.signInWithPassword({ email, password, options: { captchaToken: captchaToken ?? undefined } }));
       if (!data.user) throw new AccountError('unknown', 'no user returned');
       return toUser(data.user);
     },
@@ -139,8 +143,8 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
       await guard(client.auth.signOut());
     },
 
-    async requestPasswordReset(email, returnTo) {
-      await guard(client.auth.resetPasswordForEmail(email, { redirectTo: returnTo }));
+    async requestPasswordReset(email, returnTo, captchaToken) {
+      await guard(client.auth.resetPasswordForEmail(email, { redirectTo: returnTo, captchaToken: captchaToken ?? undefined }));
     },
 
     async updatePassword(password) {
@@ -152,8 +156,10 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
       await guard(client.auth.updateUser({ data: { sea_topic: topic } }));
     },
 
-    async resendVerification(email, returnTo) {
-      await guard(client.auth.resend({ type: 'signup', email, options: { emailRedirectTo: returnTo } }));
+    async resendVerification(email, returnTo, captchaToken) {
+      await guard(
+        client.auth.resend({ type: 'signup', email, options: { emailRedirectTo: returnTo, captchaToken: captchaToken ?? undefined } }),
+      );
     },
 
     async listSaved() {

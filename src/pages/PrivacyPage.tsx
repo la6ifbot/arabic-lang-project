@@ -82,8 +82,8 @@ export default function PrivacyPage() {
             logs switched off. Our encrypted backups are kept in a separate, private S3 store in Frankfurt.
           </li>
           <li>
-            <strong>Cloudflare Turnstile</strong> checks that the subscribe, sign-up and password-reset forms are used by a
-            person and not a bot. It looks at your browser and IP address when you use those forms.
+            <strong>Cloudflare Turnstile</strong> checks that the subscribe, sign-up, sign-in and password-reset forms are
+            used by a person and not a bot. It looks at your browser and IP address when you use those forms.
           </li>
           <li>
             <strong>Namecheap</strong> registers our domain and forwards email sent to our address to our mailbox, which{' '}

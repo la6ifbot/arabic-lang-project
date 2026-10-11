@@ -82,7 +82,11 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
     return u;
   }
 
+  // The Turnstile tokens each request carried, newest last, so tests can check they were sent.
+  const captchas: { op: Op; token: string | null }[] = [];
+
   const hooks = {
+    captchas: () => captchas.slice(),
     /** Acts as the user clicking the confirmation link in their inbox. */
     verify(email: string) {
       const db = load();
@@ -137,7 +141,8 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       return () => listeners.delete(cb);
     },
 
-    async signUp(email, password) {
+    async signUp(email, password, _returnTo, captchaToken) {
+      captchas.push({ op: 'signUp', token: captchaToken ?? null });
       await step('signUp');
       if (password.length < 8) throw new AccountError('weak_password');
       const db = load();
@@ -159,7 +164,8 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       return { needsVerification: true };
     },
 
-    async signIn(email, password) {
+    async signIn(email, password, captchaToken) {
+      captchas.push({ op: 'signIn', token: captchaToken ?? null });
       await step('signIn');
       const db = load();
       const u = db.users.find((x) => x.email === email.trim().toLowerCase() && x.provider === 'email');
@@ -193,7 +199,8 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       emit('signed-out', null);
     },
 
-    async requestPasswordReset(email) {
+    async requestPasswordReset(email, _returnTo, captchaToken) {
+      captchas.push({ op: 'requestPasswordReset', token: captchaToken ?? null });
       await step('requestPasswordReset');
       const db = load();
       if (db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
@@ -219,7 +226,8 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       store(db);
     },
 
-    async resendVerification(email) {
+    async resendVerification(email, _returnTo, captchaToken) {
+      captchas.push({ op: 'resendVerification', token: captchaToken ?? null });
       await step('resendVerification');
       const db = load();
       if (db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');

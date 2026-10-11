@@ -6,14 +6,21 @@ import { canonicalOrigin } from './shared/site';
 
 /**
  * `vite preview` parity with Vercel: a file is served as is, /word/x serves dist/word/x/index.html
- * (clean URLs), and any other path gets dist/404.html with a 404 status (no SPA fallback).
+ * (clean URLs), and any other path gets dist/404.html with a 404 status (no SPA fallback). Every
+ * response carries vercel.json's site-wide headers, so the browser tests run under the same
+ * Content-Security-Policy as durar.space.
  */
 const cleanUrls = (): Plugin => ({
   name: 'durar-clean-urls',
   configurePreviewServer(server) {
     const dist = resolve(server.config.root, server.config.build.outDir);
     const isFile = (p: string) => existsSync(p) && statSync(p).isFile();
+    const vercel = JSON.parse(readFileSync(resolve(server.config.root, 'vercel.json'), 'utf8')) as {
+      headers: { source: string; headers: { key: string; value: string }[] }[];
+    };
+    const siteWide = vercel.headers.find((h) => h.source === '/(.*)')?.headers ?? [];
     server.middlewares.use((req, res, next) => {
+      for (const { key, value } of siteWide) res.setHeader(key, value);
       const [path, query] = (req.url ?? '/').split(/\?(.*)/s);
       let url: string;
       try {

@@ -1,0 +1,32 @@
+# Weekly version updates, grouped so each ecosystem opens at most one pull request a week
+# (plus one for major npm versions, which need a closer look). Security updates are separate:
+# GitHub opens those as soon as an alert appears (Settings → Code security → Dependabot security updates).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Amsterdam
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
+    commit-message:
+      prefix: deps
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/Amsterdam
+    groups:
+      github-actions:
+        patterns: ['*']
+    commit-message:
+      prefix: ci

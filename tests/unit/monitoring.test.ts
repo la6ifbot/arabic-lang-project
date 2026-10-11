@@ -65,6 +65,7 @@ function makeDeps(env: Record<string, string> = {}, store = fakeStore(), now = n
     mailer,
     words: [],
     verifyUser: async () => null,
+    verifyTurnstile: async () => true,
     now: () => now,
     sleep: async () => {},
     log: () => {},
