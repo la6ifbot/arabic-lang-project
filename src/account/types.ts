@@ -39,6 +39,7 @@ export type AccountErrorCode =
   | 'email_unavailable'
   | 'invalid_email'
   | 'rate_limited'
+  | 'captcha_failed'
   | 'network'
   | 'limit_reached'
   | 'not_configured'
@@ -63,15 +64,16 @@ export interface Backend {
   /** Restores the session (and completes any auth redirect sitting in the URL). */
   init(): Promise<{ user: AccountUser | null; notice?: UrlNotice }>;
   onChange(cb: (change: AuthChange, user: AccountUser | null) => void): () => void;
-  signUp(email: string, password: string, returnTo: string): Promise<{ needsVerification: boolean }>;
-  signIn(email: string, password: string): Promise<AccountUser>;
+  // `captchaToken`: a Turnstile token, required by Supabase once its CAPTCHA protection is on.
+  signUp(email: string, password: string, returnTo: string, captchaToken?: string | null): Promise<{ needsVerification: boolean }>;
+  signIn(email: string, password: string, captchaToken?: string | null): Promise<AccountUser>;
   signInWithGoogle(returnTo: string): Promise<void>;
   signOut(): Promise<void>;
-  requestPasswordReset(email: string, returnTo: string): Promise<void>;
+  requestPasswordReset(email: string, returnTo: string, captchaToken?: string | null): Promise<void>;
   updatePassword(password: string): Promise<void>;
   /** Remembers the chosen sea topic (null: the whole sea) on the account. */
   setTopic(topic: string | null): Promise<void>;
-  resendVerification(email: string, returnTo: string): Promise<void>;
+  resendVerification(email: string, returnTo: string, captchaToken?: string | null): Promise<void>;
   listSaved(): Promise<SavedPearl[]>;
   /** Idempotent. `savedAt` restores the original date when undoing a removal. */
   save(slug: string, savedAt?: string): Promise<void>;

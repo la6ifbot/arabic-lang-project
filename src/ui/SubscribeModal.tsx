@@ -2,6 +2,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { useAccount } from '../account/store';
 import { EmailApiError, subscribeEmail } from '../lib/emailApi';
 import { linkHandler } from '../lib/router';
+import { TURNSTILE_MESSAGE, TurnstileError, useTurnstile } from '../lib/turnstile';
 import { closeSubscribe } from '../state/dialogs';
 import { Modal } from './Modal';
 
@@ -10,6 +11,7 @@ const MESSAGES: Record<string, string> = {
   rate_limited: 'Too many tries from here just now. Please try again in an hour.',
   network: 'We couldn’t reach the server. Check your connection and try again.',
   server: 'Something went wrong on our side. Please try again in a moment.',
+  captcha_failed: TURNSTILE_MESSAGE,
 };
 
 /** “Get the Pearl of the Day by email”: the same dark-glass sheet as sign-in. */
@@ -21,6 +23,7 @@ export default function SubscribeModal() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<null | 'check_inbox' | 'confirmed'>(null);
   const titleId = useId();
+  const turnstile = useTurnstile(!done);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,9 +34,12 @@ export default function SubscribeModal() {
       const { bootAccounts } = await import('../account/store');
       const backend = account ? await bootAccounts() : null;
       const own = account?.email && account.email.toLowerCase() === email.trim().toLowerCase();
-      setDone(await subscribeEmail(email, { website, accessToken: own && backend ? await backend.accessToken() : null }));
+      const accessToken = own && backend ? await backend.accessToken() : null;
+      // Signed in with this very address: the account already passed the check at sign-up.
+      const turnstileToken = accessToken ? null : await turnstile.getToken();
+      setDone(await subscribeEmail(email, { website, accessToken, turnstileToken }));
     } catch (err) {
-      setError(MESSAGES[err instanceof EmailApiError ? err.code : 'server']);
+      setError(err instanceof TurnstileError ? TURNSTILE_MESSAGE : MESSAGES[err instanceof EmailApiError ? err.code : 'server']);
     } finally {
       setBusy(false);
     }
@@ -126,8 +132,9 @@ export default function SubscribeModal() {
                 <p>{error}</p>
               </div>
             )}
+            {turnstile.enabled && <div ref={turnstile.ref} className="turnstile" data-testid="turnstile" />}
             <button type="submit" className="btn btn-primary" disabled={busy} aria-busy={busy}>
-              {busy ? 'One moment…' : 'Send me the pearls'}
+              {busy ? (turnstile.waiting ? 'Checking…' : 'One moment…') : 'Send me the pearls'}
             </button>
           </form>
         )}
