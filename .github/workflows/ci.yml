@@ -52,9 +52,10 @@ jobs:
   images:
     # Renders what img.durar.space doesn't have yet (illustrations, then word cards) and uploads it, so a
     # pull request's preview and, after merging, the live site find it there. Pull requests from forks get
-    # no secrets, so they skip this.
+    # no secrets, so they skip this, and so do Dependabot's (it gets none of the repository's secrets, and
+    # a dependency update adds no words or pictures).
     if: >-
-      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository ||
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]' ||
       github.event_name == 'push' && github.ref == 'refs/heads/main' ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
@@ -128,6 +129,14 @@ jobs:
       - run: npm run test:e2e
         env:
           CI: 'true'
+      # What the page showed when a test failed (its accessibility tree), so a failure can be read here
+      # without downloading the report. The tests use made-up accounts only.
+      - name: Page snapshots of failed tests
+        if: failure()
+        run: |
+          find test-results -name error-context.md 2>/dev/null | while read -r f; do
+            echo "::group::$f"; cat "$f"; echo "::endgroup::"
+          done
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
