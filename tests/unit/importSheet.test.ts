@@ -143,7 +143,7 @@ describe('import', () => {
   test('a header row appended again is skipped', () => {
     const r = importSheet({ wordsCsv: sheet((rows) => [...rows, rows[0], newRow()]), ...current });
     expect(r.errors).toEqual([]);
-    expect(r.wordDiff.added.map((w) => w.slug)).toEqual(['kawkab']);
+    expect(r.wordDiff.added.map((w) => w.slug)).toEqual([newRow()[col('slug')]]);
   });
 
   test('fields the Sheet has no column for are kept', () => {
