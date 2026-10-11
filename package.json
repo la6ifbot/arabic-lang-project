@@ -41,20 +41,20 @@
     "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "1.56.1",
     "@tailwindcss/vite": "^4.1.0",
-    "@types/node": "^22.0.0",
+    "@types/node": "^26.6.4",
     "@types/pg": "^8.23.1",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@types/three": "^0.180.0",
-    "@vitejs/plugin-react": "^5.0.0",
+    "@vitejs/plugin-react": "^6.1.2",
     "pg": "^8.23.0",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.1.0",
     "tsx": "^4.23.15",
-    "typescript": "~5.9.2",
-    "vite": "^7.1.0",
+    "typescript": "~7.0.2",
+    "vite": "^8.3.4",
     "vite-plugin-singlefile": "^2.3.3",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.3"
   },
   "engines": {
     "node": "22.x"
