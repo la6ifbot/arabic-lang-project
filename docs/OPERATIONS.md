@@ -351,9 +351,9 @@ when Cloudflare is unsure. Each request spends one token, and the next one is fe
 ### Security headers
 
 Set for every path in `vercel.json` (the local preview server sends the same ones, so the browser
-tests run under them): the Content-Security-Policy (sent as `Content-Security-Policy-Report-Only`,
-which only reports, until the preview has shown no violations; then it becomes the enforcing
-`Content-Security-Policy`), `Strict-Transport-Security`
+tests run under them): `Content-Security-Policy` (enforced since Phase 0.7, after it ran in report-only mode and
+neither the browser tests nor a pass over every page type on durar.space found a violation),
+`Strict-Transport-Security`
 (two years, subdomains included), `Cross-Origin-Opener-Policy: same-origin`, `X-Frame-Options: DENY`,
 `X-Content-Type-Options: nosniff`, `Referrer-Policy` and `Permissions-Policy`.
 
