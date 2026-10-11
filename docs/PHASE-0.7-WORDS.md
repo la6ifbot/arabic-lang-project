@@ -48,7 +48,7 @@ Batch numbers spread every topic across all eight batches, so the topics grow ev
 | ---: | --- | --- | --- | --- | ---: | --- |
 | 1 | مَصَبّ | maṣabb | river mouth, estuary |  | 1 | shares a root with ṣabābah (the tender ardor of love), different meaning |
 | 2 | خَلِيج | khalīj | gulf, bay |  | 1 |  |
-| 3 | مَحَار | maḥār | oysters; pearl oysters |  | 1 | shells that make the pearls |
+| 3 | مَحَار | maḥār | oysters; pearl oysters |  | 1 | shells that make the pearls; sadaf is the shell itself and mother-of-pearl |
 | 4 | تَيَّار | tayyār | current (of water or air) |  | 1 |  |
 | 5 | دَوَّامَة | dawwāmah | whirlpool, eddy |  | 2 | shares a root with dīmah (a gentle, steady, lasting rain), different meaning |
 | 6 | جَلِيد | jalīd | ice |  | 2 |  |
@@ -63,7 +63,7 @@ Batch numbers spread every topic across all eight batches, so the topics grow ev
 | 15 | حَوْض | ḥawḍ | basin, pool, cistern |  | 5 |  |
 | 16 | سَاقِيَة | sāqiyah | water wheel; irrigation channel | Words the world borrowed | 5 | English acequia, via Spanish |
 | 17 | نَجْم البَحْر | najm al baḥr | starfish (literally, star of the sea) |  | 6 | new compound; najm and bahr exist alone |
-| 18 | قِنْدِيل البَحْر | qindīl al baḥr | jellyfish (literally, lantern of the sea) |  | 6 | new compound; qindil exists alone |
+| 18 | مَوْرِد | mawrid | a watering place; a source, a resource |  | 6 | replaces qindīl al-baḥr (jellyfish), already a meaning of qindil; shares a root with ward (roses), different meaning |
 | 19 | سُلَحْفَاة | sulaḥfāh | turtle, tortoise |  | 6 |  |
 | 20 | عَذْب | ʿadhb | fresh, sweet (of water) |  | 6 |  |
 | 21 | مُحِيط | muḥīṭ | ocean |  | 7 |  |
