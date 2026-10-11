@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAccount } from '../account/store';
+import { openAnatomy } from '../state/dialogs';
 import { acquireCardTexture, releaseCardTexture } from './texturePool';
 import { WORD_BY_SLUG } from '../lib/words';
 import { depthOf } from '../progress/queue';
@@ -27,7 +28,11 @@ const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's'] as const;
 const GLINT_MS = 1150;
 
 /** Live pose of the focused card, read by the scene to pin HTML controls (e.g. Save) to it. */
-export const focusedCard = { slug: '', matrix: new THREE.Matrix4(), focus: 0, opacity: 0 };
+export const focusedCard = { slug: '', matrix: new THREE.Matrix4(), focus: 0, opacity: 0, head: { top: 0.08, bottom: 0.4 } };
+
+/** True when a point on the card (uv) is on its headword or transliteration. */
+const onHeadword = (uv: THREE.Vector2 | undefined, head: { top: number; bottom: number } | undefined) =>
+  !!uv && !!head && 1 - uv.y >= head.top && 1 - uv.y <= head.bottom;
 
 interface Sim {
   pose: Pose;
@@ -205,6 +210,7 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
       focusedCard.matrix.copy(g.matrixWorld);
       focusedCard.focus = s.focus;
       focusedCard.opacity = s.opacity;
+      if (texture.userData.head) focusedCard.head = texture.userData.head;
     }
 
     // Light shaft + bubble wake while surfacing.
@@ -222,13 +228,26 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
 
   const onClick = (e: ThreeEvent<MouseEvent>) => {
     e.stopPropagation();
-    if (e.delta > 8 || indexRef.current === 0 || indexRef.current === -1) return;
+    if (e.delta > 8 || indexRef.current === -1) return;
+    // The focused card: a tap on its headword unthreads it into its letters.
+    if (indexRef.current === 0) {
+      if (onHeadword(e.uv, texture.userData.head) && (sim.current?.focus ?? 0) > 0.6) openAnatomy(slug);
+      return;
+    }
     useDurar.getState().surface(slug);
   };
   const onOver = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     hovered.current = true;
     if (indexRef.current > 0 || indexRef.current === -2) document.body.dataset.cursor = 'pointer';
+  };
+  const onMove = (e: ThreeEvent<PointerEvent>) => {
+    if (indexRef.current !== 0 || gesture.dragging) return;
+    const over = onHeadword(e.uv, texture.userData.head);
+    if (over !== (document.body.dataset.cursor === 'pointer')) {
+      if (over) document.body.dataset.cursor = 'pointer';
+      else delete document.body.dataset.cursor;
+    }
   };
   const onOut = () => {
     hovered.current = false;
@@ -237,7 +256,7 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
 
   return (
     <group ref={group}>
-      <mesh geometry={CARD_GEOMETRY} material={material} onClick={onClick} onPointerOver={onOver} onPointerOut={onOut} />
+      <mesh geometry={CARD_GEOMETRY} material={material} onClick={onClick} onPointerOver={onOver} onPointerMove={onMove} onPointerOut={onOut} />
       <mesh
         ref={shaft}
         geometry={SHAFT_GEOMETRY}
