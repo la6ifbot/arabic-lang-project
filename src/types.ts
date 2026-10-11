@@ -32,6 +32,11 @@ export interface Word {
   etymology?: Etymology;
   /** Native-speaker review state (docs/CONTENT.md). Absent means draft. */
   status?: 'draft' | 'reviewed';
+  /**
+   * Overrides the automatic syllables of the anatomy view (shared/anatomy.ts) where they're wrong:
+   * beads in reading order, each with its letters as written and its sound, e.g. دُرْ dur, رَة rah.
+   */
+  syllables?: { ar: string; tr: string }[];
 }
 
 export interface Etymology {
