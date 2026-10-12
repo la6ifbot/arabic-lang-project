@@ -8,7 +8,7 @@ import { normalizeArabic, WORD_BY_SLUG } from '../lib/words';
 import { openResetProgress } from '../state/dialogs';
 import { progressLabel, startProgress, useProgress } from '../state/progress';
 import { useDurar } from '../state/store';
-import type { Word } from '../types';
+import type { WordCore } from '../types';
 import { PageShell } from './PageShell';
 
 type Sort = 'newest' | 'alpha';
@@ -33,7 +33,7 @@ function readSort(): Sort {
 }
 
 interface Item {
-  word: Word;
+  word: WordCore;
   savedAt?: string;
   progress?: Progress;
   /** Latest of saved / last reviewed, for “Newest”. */
@@ -71,7 +71,7 @@ export default function LibraryPage() {
   const [sort, setSort] = useState<Sort>(readSort);
   const [filter, setFilter] = useState<Filter>('all');
   const [topicFilter, setTopicFilter] = useState<string | null>(null);
-  const [undo, setUndo] = useState<{ word: Word; savedAt: string; id: number } | null>(null);
+  const [undo, setUndo] = useState<{ word: WordCore; savedAt: string; id: number } | null>(null);
   const undoButton = useRef<HTMLButtonElement>(null);
   const signedIn = status === 'signed-in';
 
@@ -147,7 +147,7 @@ export default function LibraryPage() {
     }
   };
 
-  const remove = async (word: Word) => {
+  const remove = async (word: WordCore) => {
     const savedAt = await removePearl(word.slug);
     if (savedAt) setUndo({ word, savedAt, id: Date.now() });
   };

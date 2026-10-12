@@ -125,6 +125,8 @@ jobs:
         env:
           # Any absolute URL: lets the build emit sitemap.xml and canonical tags for the tests.
           SITE_URL: https://durar.example
+      - name: First-paint JS stays within budget and free of word details
+        run: npm run check:bundle
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
         env:

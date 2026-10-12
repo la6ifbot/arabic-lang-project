@@ -11,6 +11,7 @@
     "preview": "vite preview --port 4173",
     "typecheck": "tsc -b",
     "validate:data": "tsx scripts/validate-words.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs",
     "import:sheet": "node scripts/import-sheet.mjs",
     "export:sheet": "node scripts/export-sheet.mjs",
     "test:e2e": "playwright test",
