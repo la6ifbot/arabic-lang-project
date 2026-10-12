@@ -41,6 +41,8 @@ describe('validator', () => {
   test('a well-formed word passes', () => expect(check(word())).toEqual([]));
 
   test('the headword needs diacritics', () => expect(check(word({ ar: 'نجم' }))).toEqual([expect.stringMatching(/diacritics/)]));
+  test('alif madda carries its own vowel, so آس needs no other mark', () =>
+    expect(check(word({ ar: 'آس', translit: 'ās' }))).toEqual([]));
 
   test.each([['Najm'], ["sa'adah"], ['saʿadah '], ['qaws  quzaḥ'], ['sa’adah'], ['māʾ']])('rejects transliteration %j', (translit) =>
     expect(check(word({ translit }))).toEqual([expect.stringMatching(/translit/)]),
