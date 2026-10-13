@@ -551,6 +551,12 @@ saved pearls and progress, from `supabase/seed.sql`, which the Migrations workfl
 run. No cron jobs run there, and Supabase's built-in email only reaches the project's own team, so
 nothing can email anyone but Lativ. Real data never goes to staging, not even from a backup.
 
+Free projects pause after about a week without use. If a pull request's staging job can't connect,
+open `durar-staging` in the Supabase dashboard → **Restore project**, wait for it to come up, and
+re-run the job. Nothing on staging needs keeping: if it is ever lost, make a new project the same
+way and put its address into the `staging` environment (`STAGING_DB_URL`) and Vercel's Preview
+settings.
+
 ## 13. Migrations
 
 Every database change is a new file in `supabase/migrations/` (`YYYYMMDDHHMMSS_name.sql`, never
