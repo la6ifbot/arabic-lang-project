@@ -77,8 +77,10 @@ const blockHeight = (lines: Line[]) => lines.reduce((h, l) => h + l.gapBefore + 
  * Arabic is shaped by the browser's text engine (connected letterforms, diacritics) with
  * `direction = 'rtl'`, then uploaded as a texture so it takes part in the scene's lighting.
  * Returns the widest line's width as a fraction of the card width (how far a pinch can zoom).
+ * `head`, when given, receives the band the transliteration and headword cover, as fractions of the
+ * card's height from the top (a tap there unthreads the word).
  */
-export function drawCard(canvas: HTMLCanvasElement, word: Word): number {
+export function drawCard(canvas: HTMLCanvasElement, word: Word, head?: { top: number; bottom: number }): number {
   const W = canvas.width;
   const H = canvas.height;
   const ctx = canvas.getContext('2d')!;
@@ -111,6 +113,10 @@ export function drawCard(canvas: HTMLCanvasElement, word: Word): number {
   ctx.fillText(word.ar, W / 2, headBase);
   widest = Math.max(widest, inkWidth(ctx, word.ar));
   ctx.shadowBlur = 0;
+  if (head) {
+    head.top = (100 * u) / H;
+    head.bottom = Math.min(1, (headBase + size * 0.45) / H);
+  }
 
   // Ornament: a hairline with a small pearl.
   const oy = headBase + 70 * u;

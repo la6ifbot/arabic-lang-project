@@ -32,7 +32,18 @@ export interface Word {
   etymology?: Etymology;
   /** Native-speaker review state (docs/CONTENT.md). Absent means draft. */
   status?: 'draft' | 'reviewed';
+  /**
+   * Overrides the automatic syllables of the anatomy view (shared/anatomy.ts) where they're wrong:
+   * beads in reading order, each with its letters as written and its sound, e.g. دُرْ dur, رَة rah.
+   */
+  syllables?: { ar: string; tr: string }[];
 }
+
+/** The heavy fields of a word, kept out of the first-paint bundle (src/lib/wordDetails.ts). */
+export type WordDetailKey = 'examples' | 'etymology' | 'root' | 'syllables';
+
+/** What first paint needs (lists, search, the schedule, topics); WORDS and WORD_BY_SLUG hold these. */
+export type WordCore = Omit<Word, WordDetailKey>;
 
 export interface Etymology {
   /** Original writing for Durar (decision 8), never copied from a dictionary. */

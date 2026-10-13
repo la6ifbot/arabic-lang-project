@@ -11,6 +11,9 @@ something goes wrong. Secret **values** never go in this file, in chats, or in t
 - **Email:** Amazon SES, region **eu-central-1 (Frankfurt)**, domain `durar.space`.
 - **DNS:** Namecheap. `hello@durar.space` forwards to the owner through Namecheap Email Forwarding.
 - **Scheduler:** Supabase `pg_cron` + `pg_net`. There is no Vercel cron.
+- **Functions:** Vercel region **`fra1` (Frankfurt)**, set by `"regions"` in `vercel.json` (Phase 0.7;
+  before that `iad1`, Washington). The database and SES are in Frankfurt too.
+- **Bot check:** Cloudflare Turnstile on the subscribe, sign-up, sign-in and password-reset forms (§8).
 
 **Where things stand (28 September 2026):** email is live. SES production access in Frankfurt was
 approved on 28 September (50,000 emails a day, 14 a second). Since 17:10 UTC that day
@@ -44,6 +47,8 @@ variable can't be turned into a Secret: delete it and add it again.
 | `VITE_SUPABASE_ANON_KEY` | Supabase public (anon) key, for the browser. Public by design. | Config |
 | `VITE_CONTACT_EMAIL` | The contact address shown on the Privacy page and in emails. | Config |
 | `VITE_DATA_REGION` | The data region named on the Privacy page. | Config |
+| `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (public by design). **Build-time**: needs a redeploy. Unset: the forms run without the check. See §8. | Config |
+| `TURNSTILE_SECRET_KEY` | Turnstile secret, used by `/api/subscribe` to check tokens. Set: subscribing needs a valid token (unless signed in with that address). | Secret |
 
 Optional, with working defaults (leave unset unless you mean to change them):
 
@@ -69,6 +74,7 @@ Vercel sets `VERCEL_ENV`, `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL` itsel
 | **Authentication → Emails → SMTP Settings** | SES SMTP user name (`AKIA…`) and password (separate from the API keys above), host `email-smtp.eu-central-1.amazonaws.com`, port 587, sender `pearl@durar.space`, name `Durar`. Set up 28 September 2026. Never switch Custom SMTP off: that resets both templates to Supabase's defaults and drops the email limit to 2 an hour. |
 | **Authentication → Rate Limits** | **Rate limit for sending emails**: the default 30 an hour, plenty at launch and a brake if someone abuses the sign-up form. |
 | **Authentication → Emails → Templates** | **Confirm sign up** (subject `Confirm your Durar account`) and **Reset password** (subject `Reset your Durar password`), pasted into **Body → Source** from `supabase/auth-templates/`. Their links are built from `{{ .SiteURL }}` and `{{ .TokenHash }}`, so **Site URL** under URL Configuration must stay exactly `https://durar.space`. Never build them from `{{ .RedirectTo }}`: a sign-in link sent to any other address would let that site sign in as the person. |
+| **Authentication → Attack Protection** | **Enable CAPTCHA protection** on, provider **Turnstile by Cloudflare**, with the same secret as `TURNSTILE_SECRET_KEY`. Supabase then wants a token on sign-up, email-and-password sign-in, password reset and resending the confirmation link; Google sign-in needs none. See §8. |
 | **Authentication → Sign In / Providers → User Signups** | **Confirm email** on (since 28 September 2026). |
 | **Authentication → URL Configuration** | Site URL `https://durar.space`; Redirect URLs `https://durar.space/**` and `https://www.durar.space/**`. The Site URL is where the sign-up and reset emails link to; the Redirect URLs are for Google sign-in. |
 
@@ -314,7 +320,67 @@ DKIM passes for `durar.space` (the three CNAMEs), DMARC passes through DKIM, and
 SES's own envelope domain. DMARC is `p=none` with reports to `hello@durar.space`; tighten it to
 `p=quarantine` once the reports have been clean for a few weeks.
 
-## 8. Backups
+## 8. Security: Turnstile, headers and the Content-Security-Policy
+
+### Turnstile
+
+Cloudflare Turnstile (free) checks that a person, not a script, is behind the forms that send
+email or check a password. It runs in the background while a form is open and only shows a box
+when Cloudflare is unsure. Each request spends one token, and the next one is fetched at once.
+
+| Where | What |
+| --- | --- |
+| Cloudflare → Turnstile → widget **Durar** | Hostnames `durar.space` and `www.durar.space`, mode **Managed**. Site key and secret. |
+| Vercel Production | `VITE_TURNSTILE_SITE_KEY` (site key) and `TURNSTILE_SECRET_KEY` (secret, type Secret). |
+| Vercel Preview | Cloudflare's **test keys**: site key `1x00000000000000000000BB`, secret `1x0000000000000000000000000000000AA` (always pass). |
+| Supabase (production) → Authentication → Attack Protection | CAPTCHA on, Turnstile, the real secret. |
+| Supabase (staging) | CAPTCHA on, Turnstile, the test secret above, so previews can sign up. |
+| CI | The browser tests set the test site key themselves (`tests/turnstile.spec.ts`). |
+
+- **Order when switching it on:** the code is already in place, so (1) add both keys to Vercel and
+  redeploy Production, (2) check that sign-in still works on durar.space, (3) only then turn on
+  Supabase's CAPTCHA setting. Turning Supabase's setting on before the redeploy would refuse every
+  email-and-password sign-in.
+- **Switching it off in an emergency:** turn off Supabase's CAPTCHA setting first, then delete
+  `TURNSTILE_SECRET_KEY` and `VITE_TURNSTILE_SITE_KEY` in Vercel and redeploy.
+- **People who can't pass it** see *“We couldn’t finish the quick check that keeps bots out…”*.
+  Usually an ad blocker or a privacy extension blocks `challenges.cloudflare.com`.
+- Signing in with Google and the account menu's email switch need no token: Google sign-in is a
+  redirect, and the switch only works for a signed-in account's own address.
+
+### Security headers
+
+Set for every path in `vercel.json` (the local preview server sends the same ones, so the browser
+tests run under them): `Content-Security-Policy` (enforced since Phase 0.7, after it ran in report-only mode and
+neither the browser tests nor a pass over every page type on durar.space found a violation),
+`Strict-Transport-Security`
+(two years, subdomains included), `Cross-Origin-Opener-Policy: same-origin`, `X-Frame-Options: DENY`,
+`X-Content-Type-Options: nosniff`, `Referrer-Policy` and `Permissions-Policy`.
+
+The policy allows only: the site itself; images from `img.durar.space` (plus `data:` and `blob:`,
+which the card textures and Share's image use); the database and sign-in at `*.supabase.co`
+(production and staging are both Supabase projects); and Cloudflare Turnstile's script and frame
+at `challenges.cloudflare.com`. Inline styles are allowed; inline scripts are not (the 404 page's
+search is its own file). Nothing may frame the site.
+
+### Adding an allowed host to the CSP
+
+Only when a new feature really loads something from another site:
+
+1. In `vercel.json`, find the `Content-Security-Policy` value and add the host (with `https://`)
+   to the narrowest directive that fits: `img-src` for images, `connect-src` for `fetch`,
+   `script-src` for scripts, `frame-src` for iframes, `media-src` for audio and video,
+   `font-src` for fonts.
+2. Add the page or action that uses it to `tests/csp.spec.ts`, so the test proves it.
+3. Run `npx playwright test tests/csp.spec.ts` locally; it fails on any violation and prints the
+   blocked address. The pull request's CI runs it too.
+4. List the new service on the Privacy page if it handles visitors' data.
+
+If the live site ever looks broken right after a change, the browser console says
+*“Refused to load … because it violates the following Content Security Policy directive”* with the
+address to add.
+
+## 9. Backups
 
 Every night at 01:17 UTC GitHub Actions (`.github/workflows/backup.yml`) dumps production the way
 Supabase documents it (`supabase db dump`: roles, schema, and data **including sign-in accounts**),
@@ -332,7 +398,7 @@ printed or kept as a workflow artifact.
   first three nights of each month) for a year, by the bucket's lifecycle rules. Versioning is on and
   a replaced or deleted version stays 7 days. The upload user can only add files, so a leaked upload
   key can't read or delete backups.
-- **A fresh backup also runs** before every production migration (section 11).
+- **A fresh backup also runs** before every production migration (section 12).
 - **Failure:** the run opens (or comments on) a GitHub issue "Nightly backup failed", which emails
   Lativ, and records the failure for the weekly digest (`public.ops_report('backup', false)`). A
   success records `ops_report('backup', true, {"bytes": …})`. The nightly run also copies the time of
@@ -358,7 +424,7 @@ Rotating: make a new access key for the IAM user (IAM → Users → Security cre
 GitHub secret, delete the old key. After resetting a database password, update `PROD_DB_URL` in
 **both** `backup` and `production` (or `STAGING_DB_URL`).
 
-## 9. Restoring a backup
+## 10. Restoring a backup
 
 Practised with `.github/workflows/restore-drill.yml` (Actions → **Restore drill (staging)** → Run
 workflow): it backs up staging (fake data), restores all of it into a throwaway Supabase and one table
@@ -392,12 +458,12 @@ this repository, and Lativ's key file (a text file with the `AGE-SECRET-KEY-…`
       settings in section 1's Supabase table (SMTP, email templates, URL configuration, Confirm email,
       Google sign-in).
    4. Run `supabase/baseline-check.sql` in the SQL editor: every line should say `ok`. Then Actions
-      → **Migrations** → Run workflow → `production` records the history again (section 11).
+      → **Migrations** → Run workflow → `production` records the history again (section 12).
    5. If it's a new project: point Vercel's Production `VITE_SUPABASE_URL`,
       `VITE_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` at it, update `PROD_DB_URL` in
       GitHub, then redeploy the deployment marked **Production · Current**.
 
-## 10. Staging
+## 11. Staging
 
 A second free Supabase project, `durar-staging` (Frankfurt), used by Vercel **preview** deployments
 (Vercel's Preview environment has its URL and keys; Production keeps its own). It holds fake data
@@ -406,7 +472,7 @@ saved pearls and progress, from `supabase/seed.sql`, which the Migrations workfl
 run. No cron jobs run there, and Supabase's built-in email only reaches the project's own team, so
 nothing can email anyone but Lativ. Real data never goes to staging, not even from a backup.
 
-## 11. Migrations
+## 12. Migrations
 
 Every database change is a new file in `supabase/migrations/` (`YYYYMMDDHHMMSS_name.sql`, never
 edited once merged), and `.github/workflows/migrations.yml` applies it:

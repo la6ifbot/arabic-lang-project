@@ -9,6 +9,7 @@ const MESSAGES: Record<AccountErrorCode, string> = {
   email_unavailable: 'Durar can’t send emails just yet, so this step isn’t available right now.',
   invalid_email: 'That email address doesn’t look right.',
   rate_limited: 'Too many attempts just now. Wait a minute, then try again.',
+  captcha_failed: 'We couldn’t finish the quick check that keeps bots out. Check your connection, reload the page and try again.',
   network: 'We couldn’t reach the server. Check your connection and try again.',
   limit_reached: 'You’ve reached the limit of saved pearls.',
   not_configured: 'Accounts aren’t available on this site yet.',
