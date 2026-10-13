@@ -502,6 +502,8 @@ printed or kept as a workflow artifact.
 Rotating: make a new access key for the IAM user (IAM → Users → Security credentials), replace the
 GitHub secret, delete the old key. After resetting a database password, update `PROD_DB_URL` in
 **both** `backup` and `production` (or `STAGING_DB_URL`).
+Database passwords are letters and digits only: a symbol such as `%`, `@` or `/` would have to be
+percent-encoded in the URI, and the scripts stop with a plain message if one isn't.
 
 ## 11. Restoring a backup
 
