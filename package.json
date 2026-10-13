@@ -55,7 +55,7 @@
     "typescript": "~5.9.2",
     "vite": "^7.1.0",
     "vite-plugin-singlefile": "^2.3.3",
-    "vitest": "^3.2.7"
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": "22.x"
