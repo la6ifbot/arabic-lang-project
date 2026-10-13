@@ -169,7 +169,7 @@ describe('weekly digest numbers', () => {
     assert.equal(s.emails.complaints, 0);
     assert.deepEqual(s.accounts, { total: 2, new: 1 });
     assert.deepEqual(s.reviews, { words: 2, people: 2 });
-    assert.equal(s.deep, null);
+    assert.deepEqual(s.deep, { participants: 0, joined: 0 });
     assert.deepEqual(s.errors, { total: 3, by_source: { 'daily:send': 2, subscribe: 1 } });
     assert.equal(s.ops.backup.last_ok, false);
     // Aggregate counts only: no addresses or ids anywhere in the result.

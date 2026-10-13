@@ -3,12 +3,13 @@ import { isTopic, TOPIC_BY_ID } from './topics';
 import { WORD_BY_SLUG } from './words';
 
 /**
- * Routes: “/”, “/word/<slug>” and “/sea/<topic>” (the sea), “/library”, “/privacy” and “/credits”. Word routes are also
+ * Routes: “/”, “/word/<slug>” and “/sea/<topic>” (the sea), “/library”, “/deep”, “/privacy” and “/credits”. Word routes are also
  * prerendered as static HTML at build time (scripts/prerender.mjs) for crawlers and link previews.
  */
 export type Route =
   | { name: 'scene' }
   | { name: 'library' }
+  | { name: 'deep' }
   | { name: 'privacy' }
   | { name: 'credits' }
   | { name: 'confirm' } // /subscribe/confirm?token=… (link in the confirmation email)
@@ -18,8 +19,9 @@ const WORD_PATH = /\/word\/([a-z0-9-]+)\/?$/;
 const SEA_PATH = /^\/sea\/([a-z-]+)\/?$/;
 
 export function routeFromPath(pathname: string): Route {
-  const p = pathname.replace(/\/+$/, '') || '/';
+  const p = pathname.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
   if (p === '/library') return { name: 'library' };
+  if (p === '/deep') return { name: 'deep' };
   if (p === '/privacy') return { name: 'privacy' };
   if (p === '/credits') return { name: 'credits' };
   if (p === '/subscribe/confirm') return { name: 'confirm' };
@@ -46,7 +48,7 @@ export function slugFromLocation(): string | null {
 const canSyncUrl = (() => {
   if (import.meta.env.VITE_EMBEDDED) return false;
   const p = window.location.pathname;
-  return p === '/' || p === '/index.html' || /^\/(word|sea|library|privacy|credits|subscribe|unsubscribe)(\/|$)/.test(p);
+  return p === '/' || p === '/index.html' || /^\/(word|sea|library|deep|privacy|credits|subscribe|unsubscribe)(\/|$)/.test(p);
 })();
 
 export const useRoute = create<{ route: Route }>(() => ({ route: routeFromPath(window.location.pathname) }));

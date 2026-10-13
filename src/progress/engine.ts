@@ -1,4 +1,4 @@
-import { asProgress, isDue, mergeProgress, returnsIn, review, type Progress } from '../../shared/mastery';
+import { asProgress, isDue, mergeProgress, returnsIn, review, type Direction, type Progress } from '../../shared/mastery';
 import { accountsMode } from '../account/backend';
 import { bootAccounts, useAccount } from '../account/store';
 import { PROGRESS_KEY, PROGRESS_OUTBOX_KEY, SEA_DEPTH_KEY } from '../account/storageKeys';
@@ -9,10 +9,11 @@ import { swipeHook, useDurar, type SwipeEvent } from '../state/store';
 import { isFresh, knownShare, metEveryPearl, planOrder, seaDeepening, settleOrder } from './queue';
 
 /**
- * The progress engine (lazy chunk). Signed in, progress lives in the database: saved
- * optimistically, in short batches, with keepalive and a quiet retry when offline. Signed out, it
+ * The progress engine (lazy chunk). Signed in, progress lives in the database: each swipe is shown
+ * at once and sent to the server's review rules (record_reviews) in short batches, with keepalive
+ * and a quiet retry when offline; the server's answer then replaces the local copy. Signed out, it
  * lives in this browser only. On sign-in the browser copy merges into the account (the latest
- * review of each word wins) and is then cleared.
+ * review of each word wins; it counts on The Deep only from its next review) and is then cleared.
  */
 
 const LIVE = WORDS.map((w) => w.slug);
@@ -63,9 +64,20 @@ function writeGuest(seed: string, map: PMap) {
   writeJson(PROGRESS_KEY, { v: 1, seed, items });
 }
 
-function readOutbox(userId: string): Progress[] {
-  const v = readJson(PROGRESS_OUTBOX_KEY) as { user?: unknown; items?: unknown } | null;
-  return v?.user === userId ? rows(v.items) : [];
+interface Swipe {
+  slug: string;
+  dir: Direction;
+}
+
+const swipes = (v: unknown): Swipe[] =>
+  Array.isArray(v)
+    ? v.filter((x): x is Swipe => typeof x?.slug === 'string' && (x.dir === 'known' || x.dir === 'learning')).map(({ slug, dir }) => ({ slug, dir }))
+    : [];
+
+/** Unsent work left by an earlier visit for this account: merge rows (`items`) and swipes (`reviews`). */
+function readOutbox(userId: string): { items: Progress[]; reviews: Swipe[] } {
+  const v = readJson(PROGRESS_OUTBOX_KEY) as { user?: unknown; items?: unknown; reviews?: unknown } | null;
+  return v?.user === userId ? { items: rows(v.items), reviews: swipes(v.reviews) } : { items: [], reviews: [] };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -84,18 +96,21 @@ const set = useProgress.setState;
 const map = () => useProgress.getState().map;
 
 // ---------------------------------------------------------------------------------------------
-// Saving (signed in): optimistic, batched, retried quietly.
+// Saving (signed in): optimistic, batched, retried quietly. Merged browser rows go first (once),
+// then swipes, in order, through the server's review rules.
 
 const outbox = new Map<string, Progress>();
+const pending: Swipe[] = [];
 let timer = 0;
 let retry = 0;
 
 function persistOutbox() {
-  if (owner) writeJson(PROGRESS_OUTBOX_KEY, outbox.size ? { user: owner, items: [...outbox.values()] } : null);
+  if (owner)
+    writeJson(PROGRESS_OUTBOX_KEY, outbox.size || pending.length ? { user: owner, items: [...outbox.values()], reviews: pending } : null);
 }
 
-function queueSave(p: Progress) {
-  outbox.set(p.slug, p);
+function queueReview(s: Swipe) {
+  pending.push(s);
   persistOutbox();
   schedule(BATCH_MS);
 }
@@ -107,18 +122,32 @@ function schedule(ms: number) {
 
 async function flush() {
   window.clearTimeout(timer);
-  if (!owner || !outbox.size) return;
+  if (!owner || (!outbox.size && !pending.length)) return;
   const user = owner;
   const batch = [...outbox.values()];
+  const sent = pending.splice(0, 100);
   outbox.clear();
+  let merged = false;
   try {
     const backend = await bootAccounts();
     if (!backend || useAccount.getState().user?.id !== user) throw new Error('not signed in');
-    await backend.saveProgress(batch);
+    if (batch.length) await backend.saveProgress(batch);
+    merged = true;
+    if (sent.length) {
+      const result = await backend.recordReviews(sent);
+      // The server has the last word, unless a newer swipe of that word is still on its way.
+      if (owner === user) {
+        const next = { ...map() };
+        for (const p of result) if (!pending.some((x) => x.slug === p.slug)) next[p.slug] = p;
+        set({ map: next });
+      }
+    }
     retry = 0;
+    if (pending.length && owner === user) schedule(0);
   } catch {
-    // Put back anything not replaced by a newer swipe meanwhile, and try again later.
-    for (const p of batch) if (!outbox.has(p.slug)) outbox.set(p.slug, p);
+    // Put back what wasn't saved and try again later. A merge row replaced by a newer one meanwhile stays replaced.
+    if (!merged) for (const p of batch) if (!outbox.has(p.slug)) outbox.set(p.slug, p);
+    pending.unshift(...sent);
     retry = Math.min(Math.max(retry * 2, 2000), 60_000);
     if (owner === user) schedule(retry);
   } finally {
@@ -133,6 +162,7 @@ async function load() {
   // Unsaved rows belong to whoever was signed in; they wait in storage under that account.
   window.clearTimeout(timer);
   outbox.clear();
+  pending.length = 0;
   if (accountsMode !== 'off' && useAccount.getState().status === 'loading') await bootAccounts();
   const { status, user } = useAccount.getState();
   let next: PMap = {};
@@ -148,15 +178,21 @@ async function load() {
     // Merge: anything this browser holds (as a guest, or unsaved from an earlier visit) that is
     // newer than the account's copy wins, and is saved to the account.
     const guest = readGuest().items;
-    for (const p of [...readOutbox(user.id), ...guest]) {
+    const left = readOutbox(user.id);
+    for (const p of [...left.items, ...guest]) {
       if (mergeProgress(next[p.slug], p) === p) {
         next[p.slug] = p;
         outbox.set(p.slug, p);
       }
     }
+    // Swipes not yet sent: shown as they will be, and sent again.
+    for (const sw of left.reviews) {
+      next[sw.slug] = review(sw.slug, next[sw.slug], sw.dir, Date.now());
+      pending.push(sw);
+    }
     persistOutbox();
     if (guest.length) writeJson(PROGRESS_KEY, null);
-    if (outbox.size) void flush();
+    if (outbox.size || pending.length) void flush();
   } else {
     owner = null;
     const g = readGuest();
@@ -206,12 +242,20 @@ function record(e: SwipeEvent, announce = true) {
     counted.add(e.slug);
     p = review(e.slug, prev, e.dir, e.at);
     set({ map: { ...map(), [e.slug]: p } });
-    if (owner) queueSave(p);
+    if (owner) queueReview({ slug: e.slug, dir: e.dir });
     else writeGuest(seed, map());
   }
   if (announce && p) {
     const when = returnsIn(p, e.at);
-    const text = e.dir === 'known' ? `Marked known · returns ${when}` : `Still learning · back ${when}`;
+    // A known word that isn't due stays where it is (and doesn't count on The Deep until it is).
+    const text =
+      e.dir === 'learning'
+        ? `Still learning · back ${when}`
+        : moves || e.returning
+          ? `Marked known · returns ${when}`
+          : p.box > 1
+            ? `Already in the deep · returns ${when}`
+            : `Not due yet · back ${when}`;
     set((s) => ({ note: { text, id: s.note.id + 1 } }));
   }
 }
@@ -270,6 +314,7 @@ export async function reset() {
     if (!backend) throw new Error('network: accounts backend unavailable');
     window.clearTimeout(timer);
     outbox.clear();
+    pending.length = 0;
     await backend.resetProgress();
     writeJson(PROGRESS_OUTBOX_KEY, null);
   }

@@ -105,11 +105,34 @@ export default function PrivacyPage() {
         <p>
           We don’t sell or share data with anyone else. Fonts are served from our own site, not from Google.
         </p>
-        {/* The Deep (leaderboard): its section goes here (Phase 0.7, section F). */}
+
+        <h2 id="the-deep">The Deep, if you join it</h2>
+        <p>
+          The Deep is a leaderboard. Nobody is on it unless they choose to join, and you can leave at any time.
+        </p>
+        <ul data-testid="privacy-deep">
+          <li>
+            We store <strong>the name you choose</strong> (or the one we pick for you), when you joined and when you last
+            changed it.
+          </li>
+          <li>
+            <strong>Everyone can see that name with your rank and your depth</strong>: how many of your words are in the
+            deep and how deep they’ve sunk. Never your email, your words or anything else.
+          </li>
+          <li>
+            Your depth comes from your progress, counted by our server. It keeps a running total of your depth and of the
+            depth you gained this week, and, to stop abuse, a count of your swipes in the last minute and day.
+          </li>
+          <li>
+            Leave on The Deep’s page and your name disappears from both boards at once. Deleting your account removes it too.
+          </li>
+          <li>There are no notifications, emails or badges about your rank. The page isn’t shown in search engines.</li>
+        </ul>
 
         <h2 id="retention">How long we keep things</h2>
         <ul>
           <li>Your account, saved words and progress: until you delete them or your account.</li>
+          <li>Your name on The Deep: until you leave it or delete your account.</li>
           <li>Email sign-ups that are never confirmed: 7 days.</li>
           <li>Which day’s email was sent to whom: 60 days.</li>
           <li>The scrambled (hashed) IP address used to stop abuse of the subscribe form: 1 day.</li>
@@ -170,7 +193,8 @@ export default function PrivacyPage() {
         <h2>Deleting your data</h2>
         <p>
           Open the account menu (the pearl in the top-left corner) and choose <strong>Delete my account</strong>. Your
-          account, every saved word, your progress and any email subscription for your address are removed at once,
+          account, every saved word, your progress, your name on The Deep and any email subscription for your address are
+          removed at once,
           permanently. Signing
           out removes the session from this browser. To stop the daily email without an account, use the unsubscribe link in
           any of them.
@@ -186,7 +210,8 @@ export default function PrivacyPage() {
         <h2 id="your-data">A copy of your data</h2>
         <p>
           Signed in, choose <strong>Download my data</strong> in the account menu or below. You get a JSON file with your
-          account’s email address and creation date, your saved pearls, your progress, and your email subscription. Only you
+          account’s email address and creation date, your saved pearls, your progress, your email subscription, and your name
+          and depth on The Deep if you joined. Only you
           can download your own.
         </p>
         {accountsMode !== 'off' && signedIn && <DownloadMyData />}

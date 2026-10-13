@@ -164,6 +164,12 @@ const pages = [
     noindex: true,
   },
   {
+    path: '/deep',
+    title: 'The Deep · Durar',
+    description: 'The Deep: divers on Durar who chose to be seen, ranked by how deep their pearls have sunk.',
+    noindex: true,
+  },
+  {
     path: '/subscribe/confirm',
     title: 'Confirm your subscription · Durar',
     description: 'Confirm your Pearl of the Day email subscription.',
