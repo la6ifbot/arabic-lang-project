@@ -3,7 +3,7 @@
  * the same rules for real (supabase/migrations/20261013000000_the_deep.sql); the site only uses
  * these to answer instantly and to explain a name that won't be accepted.
  */
-import { BOX_DAYS, DAY_MS, MAX_BOX, review, type Box, type Direction, type Progress } from './mastery';
+import { BOX_DAYS, DAY_MS, MAX_BOX, review, type Box, type Direction, type Progress } from './mastery.js';
 
 // ---------------------------------------------------------------------------------------------
 // Reviews and verified depth
