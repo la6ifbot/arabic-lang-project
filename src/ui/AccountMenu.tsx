@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { loadEmailToggle, openAuth, setEmailToggle, signOut, useAccount, useEmailToggle } from '../account/store';
+import { downloadMyData, loadEmailToggle, openAuth, setEmailToggle, signOut, useAccount, useEmailToggle } from '../account/store';
 import { emailSignupEnabled } from '../lib/flags';
 import { navigate } from '../lib/router';
 import { openResetProgress } from '../state/dialogs';
@@ -130,6 +130,15 @@ export function AccountMenu() {
           )}
           <button type="button" role="menuitem" className="acct-item" onClick={choose(() => navigate('/privacy'))}>
             Privacy
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="acct-item"
+            onClick={choose(() => void downloadMyData())}
+            data-testid="download-my-data"
+          >
+            Download my data
           </button>
           <button type="button" role="menuitem" className="acct-item" onClick={choose(() => void signOut().catch(() => {}))}>
             Sign out
