@@ -72,6 +72,13 @@ if [ -z "$table" ]; then
     done
     echo "Left out $(awk '{ n += $1 } END { print n }' "$work/left-out.txt") statements naming system roles this database lacks: $(paste -sd ' ' "$work/missing.txt")"
   fi
+  # An empty table needs no COPY, and Supabase's own newer tables (storage.buckets_vectors) don't let
+  # postgres insert at all, even nothing.
+  awk 'held != "" { if ($0 == "\\.") { held = ""; next } print held; held = ""; inside = 1 }
+       !inside && /^COPY .* FROM stdin;$/ { held = $0; next }
+       inside && $0 == "\\." { inside = 0 }
+       { print }' "$work/data.sql" > "$work/data.kept"
+  mv "$work/data.kept" "$work/data.sql"
   extra=()
   [ -n "$keep_cron" ] || extra=(-c "$pause_cron")
   run_psql --single-transaction -f "$work/roles.sql" -f "$work/schema.sql" \
@@ -96,6 +103,8 @@ tables=0
 bad=0
 while IFS=$'\t' read -r name rows; do
   got=$(psql "$TARGET_DB_URL" -X -qtA -c "select count(*) from $name" 2>/dev/null || echo missing)
+  # An empty table of Supabase's own that postgres can't read here has nothing to compare.
+  [ "$rows" = 0 ] && [ "$got" = missing ] && continue
   tables=$((tables + 1))
   if [ "$got" != "$rows" ]; then
     echo "Row count differs: $name" >&2
