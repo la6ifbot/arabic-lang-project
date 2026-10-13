@@ -36,10 +36,12 @@ start=$(date +%s)
 age -d -i "$key" "$backup" | tar -C "$work" -xzf -
 
 run_psql() {
-  # Terse errors: one line, no DETAIL/CONTEXT. Quoted values in it are blanked out.
+  # Terse errors: one line, no DETAIL/CONTEXT. Quoted values in it are blanked out, except in
+  # "role … does not exist", where the quoted value is a role name, not anyone's data.
   if ! PGOPTIONS='-c client_min_messages=warning' psql "$TARGET_DB_URL" -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=terse \
       "$@" > "$work/psql.log" 2>&1; then
-    sed -E 's/"[^"]*"/"…"/g; s/\([^)]*\)=\([^)]*\)/(…)=(…)/g' "$work/psql.log" | grep -E 'ERROR|FATAL' | head -n 3 >&2
+    sed -E '/ERROR: +role "[^"]*" does not exist$/!{s/"[^"]*"/"…"/g; s/\([^)]*\)=\([^)]*\)/(…)=(…)/g}' "$work/psql.log" |
+      grep -E 'ERROR|FATAL' | head -n 3 >&2
     echo "The restore stopped; nothing was changed (it runs as one transaction)." >&2
     exit 1
   fi
@@ -49,9 +51,25 @@ run_psql() {
 pause_cron="do \$\$ begin if to_regclass('cron.job') is not null then perform cron.alter_job(jobid, active := false) from cron.job; end if; end \$\$;"
 
 if [ -z "$table" ]; then
+  # Hosted Supabase has system roles that the local Supabase on a runner may lack, and the dump
+  # grants them things without creating them. Any role the backup names but neither creates nor
+  # finds here gets a placeholder that can't log in, so those grants apply. A new hosted project
+  # has them all, so there this adds nothing.
+  # Only pg_dump's own statements are read (they start the line; function bodies are indented), and
+  # pg_… and public are built in and can't be created.
+  grep -hE '^(CREATE|ALTER|GRANT|REVOKE|COMMENT) ' "$work/roles.sql" "$work/schema.sql" |
+    grep -oE '\b(ROLE|GRANT|TO|FROM|BY|AUTHORIZATION) "[^"]+"' | sed -E 's/^[A-Z]+ "(.*)"$/\1/' |
+    grep -vE '^(pg_|public$)' | sort -u > "$work/named.txt" || true
+  { grep -oE '^CREATE ROLE "[^"]+"' "$work/roles.sql" | sed -E 's/^CREATE ROLE "(.*)"$/\1/' || true
+    psql "$TARGET_DB_URL" -X -qtA -c 'select rolname from pg_roles'; } | sort -u > "$work/known.txt"
+  comm -23 "$work/named.txt" "$work/known.txt" > "$work/missing.txt"
+  sed -E 's/^(.*)$/CREATE ROLE "\1" NOLOGIN;/' "$work/missing.txt" > "$work/placeholders.sql"
+  if [ -s "$work/missing.txt" ]; then
+    echo "Placeholder roles (no login) for system roles this database lacks: $(paste -sd ' ' "$work/missing.txt")"
+  fi
   extra=()
   [ -n "$keep_cron" ] || extra=(-c "$pause_cron")
-  run_psql --single-transaction -f "$work/roles.sql" -f "$work/schema.sql" \
+  run_psql --single-transaction -f "$work/placeholders.sql" -f "$work/roles.sql" -f "$work/schema.sql" \
     -c 'SET session_replication_role = replica' -f "$work/data.sql" "${extra[@]}"
 else
   quoted=$(printf '%s' "$table" | sed -E 's/^([^.]+)\.(.+)$/"\1"."\2"/')

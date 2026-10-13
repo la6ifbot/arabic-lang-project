@@ -13,6 +13,11 @@ permissions:
   contents: read
   issues: write # a failure opens an issue, which emails Lativ
 
+# With "shell: bash" a step also fails when a command before a pipe does (restore.sh | tee).
+defaults:
+  run:
+    shell: bash
+
 jobs:
   restore-test:
     if: github.repository == 'la6ifbot/arabic-lang-project'
