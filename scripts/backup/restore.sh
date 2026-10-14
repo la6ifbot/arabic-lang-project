@@ -36,10 +36,12 @@ start=$(date +%s)
 age -d -i "$key" "$backup" | tar -C "$work" -xzf -
 
 run_psql() {
-  # Terse errors: one line, no DETAIL/CONTEXT. Quoted values in it are blanked out.
+  # Terse errors: one line, no DETAIL/CONTEXT. Quoted values in it are blanked out, except in
+  # "role … does not exist", where the quoted value is a role name, not anyone's data.
   if ! PGOPTIONS='-c client_min_messages=warning' psql "$TARGET_DB_URL" -X -q -v ON_ERROR_STOP=1 -v VERBOSITY=terse \
       "$@" > "$work/psql.log" 2>&1; then
-    sed -E 's/"[^"]*"/"…"/g; s/\([^)]*\)=\([^)]*\)/(…)=(…)/g' "$work/psql.log" | grep -E 'ERROR|FATAL' | head -n 3 >&2
+    sed -E '/ERROR: +role "[^"]*" does not exist$/!{s/"[^"]*"/"…"/g; s/\([^)]*\)=\([^)]*\)/(…)=(…)/g}' "$work/psql.log" |
+      grep -E 'ERROR|FATAL' | head -n 3 >&2
     echo "The restore stopped; nothing was changed (it runs as one transaction)." >&2
     exit 1
   fi
@@ -49,6 +51,34 @@ run_psql() {
 pause_cron="do \$\$ begin if to_regclass('cron.job') is not null then perform cron.alter_job(jobid, active := false) from cron.job; end if; end \$\$;"
 
 if [ -z "$table" ]; then
+  # Hosted Supabase has system roles that the local Supabase on a runner lacks, and keeps reserved
+  # there, so they can't be made. The backup's grants to such a role (and owner or setting changes
+  # naming it) are left out, so everything else goes in. A new hosted project has them all, so there
+  # nothing is left out. Only pg_dump's own statements are read (they start the line; function
+  # bodies are indented), and pg_… and public are built in.
+  grep -hE '^(CREATE|ALTER|GRANT|REVOKE|COMMENT) ' "$work/roles.sql" "$work/schema.sql" |
+    grep -oE '\b(ROLE|GRANT|TO|FROM|BY|AUTHORIZATION) "[^"]+"' | sed -E 's/^[A-Z]+ "(.*)"$/\1/' |
+    grep -vE '^(pg_|public$)' | sort -u > "$work/named.txt" || true
+  { grep -oE '^CREATE ROLE "[^"]+"' "$work/roles.sql" | sed -E 's/^CREATE ROLE "(.*)"$/\1/' || true
+    psql "$TARGET_DB_URL" -X -qtA -c 'select rolname from pg_roles'; } | sort -u > "$work/known.txt"
+  comm -23 "$work/named.txt" "$work/known.txt" > "$work/missing.txt"
+  if [ -s "$work/missing.txt" ]; then
+    for f in roles schema; do
+      awk 'NR == FNR { miss["\"" $0 "\""]; next }
+           /^(GRANT|REVOKE|ALTER) / { for (r in miss) if (index($0, r)) { n++; next } }
+           { print }
+           END { print n + 0 > "/dev/stderr" }' "$work/missing.txt" "$work/$f.sql" > "$work/$f.kept" 2>> "$work/left-out.txt"
+      mv "$work/$f.kept" "$work/$f.sql"
+    done
+    echo "Left out $(awk '{ n += $1 } END { print n }' "$work/left-out.txt") statements naming system roles this database lacks: $(paste -sd ' ' "$work/missing.txt")"
+  fi
+  # An empty table needs no COPY, and Supabase's own newer tables (storage.buckets_vectors) don't let
+  # postgres insert at all, even nothing.
+  awk 'held != "" { if ($0 == "\\.") { held = ""; next } print held; held = ""; inside = 1 }
+       !inside && /^COPY .* FROM stdin;$/ { held = $0; next }
+       inside && $0 == "\\." { inside = 0 }
+       { print }' "$work/data.sql" > "$work/data.kept"
+  mv "$work/data.kept" "$work/data.sql"
   extra=()
   [ -n "$keep_cron" ] || extra=(-c "$pause_cron")
   run_psql --single-transaction -f "$work/roles.sql" -f "$work/schema.sql" \
@@ -73,6 +103,8 @@ tables=0
 bad=0
 while IFS=$'\t' read -r name rows; do
   got=$(psql "$TARGET_DB_URL" -X -qtA -c "select count(*) from $name" 2>/dev/null || echo missing)
+  # An empty table of Supabase's own that postgres can't read here has nothing to compare.
+  [ "$rows" = 0 ] && [ "$got" = missing ] && continue
   tables=$((tables + 1))
   if [ "$got" != "$rows" ]; then
     echo "Row count differs: $name" >&2
