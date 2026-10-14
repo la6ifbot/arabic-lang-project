@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { loadEmailToggle, openAuth, setEmailToggle, signOut, useAccount, useEmailToggle } from '../account/store';
+import { downloadMyData, loadEmailToggle, openAuth, setEmailToggle, signOut, useAccount, useEmailToggle } from '../account/store';
 import { emailSignupEnabled } from '../lib/flags';
 import { navigate } from '../lib/router';
+import { loadDeepMembership, useDeepMember } from '../state/deep';
 import { openResetProgress } from '../state/dialogs';
 import { WORD_BY_SLUG } from '../lib/words';
 
@@ -12,6 +13,7 @@ export function AccountMenu() {
   const count = useAccount((s) => Object.keys(s.saved).filter((k) => WORD_BY_SLUG.has(k)).length);
   const [open, setOpen] = useState(false);
   const emailState = useEmailToggle((st) => st.state);
+  const joined = useDeepMember((st) => st.joined);
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const menuId = useId();
@@ -26,6 +28,7 @@ export function AccountMenu() {
     if (!open) return;
     items()[0]?.focus();
     if (emailSignupEnabled && useEmailToggle.getState().state === 'unknown') void loadEmailToggle();
+    void loadDeepMembership();
     const onDown = (e: PointerEvent) => {
       if (!menu.current?.contains(e.target as Node) && !button.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -109,6 +112,15 @@ export function AccountMenu() {
               {count}
             </span>
           </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="acct-item"
+            onClick={choose(() => navigate(joined === false ? '/deep#join' : '/deep'))}
+            data-testid="deep-menu"
+          >
+            {joined === false ? 'Join The Deep' : 'The Deep'}
+          </button>
           {emailSignupEnabled && (
             <button
               type="button"
@@ -130,6 +142,15 @@ export function AccountMenu() {
           )}
           <button type="button" role="menuitem" className="acct-item" onClick={choose(() => navigate('/privacy'))}>
             Privacy
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="acct-item"
+            onClick={choose(() => void downloadMyData())}
+            data-testid="download-my-data"
+          >
+            Download my data
           </button>
           <button type="button" role="menuitem" className="acct-item" onClick={choose(() => void signOut().catch(() => {}))}>
             Sign out

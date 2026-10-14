@@ -5,10 +5,11 @@ import { openAuth, removePearl, restorePearl, useAccount } from '../account/stor
 import { linkHandler } from '../lib/router';
 import { TOPIC_BY_ID, TOPICS } from '../lib/topics';
 import { normalizeArabic, WORD_BY_SLUG } from '../lib/words';
+import { loadDeepMembership, useDeepMember } from '../state/deep';
 import { openResetProgress } from '../state/dialogs';
 import { progressLabel, startProgress, useProgress } from '../state/progress';
 import { useDurar } from '../state/store';
-import type { Word } from '../types';
+import type { WordCore } from '../types';
 import { PageShell } from './PageShell';
 
 type Sort = 'newest' | 'alpha';
@@ -33,7 +34,7 @@ function readSort(): Sort {
 }
 
 interface Item {
-  word: Word;
+  word: WordCore;
   savedAt?: string;
   progress?: Progress;
   /** Latest of saved / last reviewed, for “Newest”. */
@@ -71,9 +72,14 @@ export default function LibraryPage() {
   const [sort, setSort] = useState<Sort>(readSort);
   const [filter, setFilter] = useState<Filter>('all');
   const [topicFilter, setTopicFilter] = useState<string | null>(null);
-  const [undo, setUndo] = useState<{ word: Word; savedAt: string; id: number } | null>(null);
+  const [undo, setUndo] = useState<{ word: WordCore; savedAt: string; id: number } | null>(null);
   const undoButton = useRef<HTMLButtonElement>(null);
   const signedIn = status === 'signed-in';
+  const joined = useDeepMember((s) => s.joined);
+
+  useEffect(() => {
+    if (signedIn) void loadDeepMembership();
+  }, [signedIn]);
 
   useEffect(() => {
     void startProgress();
@@ -147,7 +153,7 @@ export default function LibraryPage() {
     }
   };
 
-  const remove = async (word: Word) => {
+  const remove = async (word: WordCore) => {
     const savedAt = await removePearl(word.slug);
     if (savedAt) setUndo({ word, savedAt, id: Date.now() });
   };
@@ -309,6 +315,13 @@ export default function LibraryPage() {
               </li>
             ))}
           </ul>
+        )}
+        {signedIn && joined !== null && (
+          <p className="lib-reset">
+            <a href={joined ? '/deep' : '/deep#join'} onClick={linkHandler(joined ? '/deep' : '/deep#join')} className="link-btn" data-testid="library-deep">
+              {joined ? 'See The Deep' : 'Join The Deep'}
+            </a>
+          </p>
         )}
         {Object.keys(progress).length > 0 && (
           <p className="lib-reset">

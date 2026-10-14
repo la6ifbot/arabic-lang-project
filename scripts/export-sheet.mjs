@@ -2,7 +2,8 @@
 // once to fill a new Sheet, and again whenever words reach the repo without going through the Sheet.
 //
 //   node scripts/export-sheet.mjs [out-dir]     default: sheet-export/
-//   node scripts/export-sheet.mjs out --only slug1,slug2   just these words (to append to the Sheet)
+//   node scripts/export-sheet.mjs out --only slug1,slug2   just these words, without the header row, as
+//        durar-new-rows.csv (File > Import > Upload > Append to current sheet)
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -17,6 +18,11 @@ if (values.only) {
   words = words.filter((w) => only.has(w.slug));
 }
 mkdirSync(dir, { recursive: true });
-writeFileSync(join(dir, 'durar-words.csv'), toCsv(wordsToRows(words)));
-writeFileSync(join(dir, 'durar-topics.csv'), toCsv(topicsToRows(read('topics.json'))));
-console.log(`Wrote ${words.length} words and the topics to ${dir}/durar-words.csv and ${dir}/durar-topics.csv`);
+if (values.only) {
+  writeFileSync(join(dir, 'durar-new-rows.csv'), toCsv(wordsToRows(words).slice(1)));
+  console.log(`Wrote ${words.length} rows to ${dir}/durar-new-rows.csv`);
+} else {
+  writeFileSync(join(dir, 'durar-words.csv'), toCsv(wordsToRows(words)));
+  writeFileSync(join(dir, 'durar-topics.csv'), toCsv(topicsToRows(read('topics.json'))));
+  console.log(`Wrote ${words.length} words and the topics to ${dir}/durar-words.csv and ${dir}/durar-topics.csv`);
+}

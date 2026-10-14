@@ -43,6 +43,8 @@ function makeDeps(env: Record<string, string> = {}) {
     mailer,
     words: words as EmailWord[],
     verifyUser: async (t) => users.get(t) ?? null,
+    // Like Cloudflare's test secret: the dummy token passes, anything else fails.
+    verifyTurnstile: async (t) => t === 'XXXX.DUMMY.TOKEN.XXXX',
     now: () => clock,
     sleep: async () => {},
     log: () => {},
@@ -98,6 +100,19 @@ describe.skipIf(!ADMIN_URL)('email handlers (PostgreSQL)', () => {
     expect((await client.query(`select 1 from public.subscribers where email = 'bot@example.com'`)).rowCount).toBe(0);
   });
 
+  test('with a Turnstile secret, a missing or bad token gets 403 and stores nothing', async () => {
+    const { deps, mailer } = makeDeps({ TURNSTILE_SECRET_KEY: 'test-secret' });
+    for (const turnstile of [undefined, 'forged', 'x'.repeat(3000)]) {
+      const res = await handleSubscribe(post('/api/subscribe', { email: 'nobot@example.com', turnstile }), deps);
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ error: 'captcha_failed' });
+    }
+    expect(mailer.sent).toHaveLength(0);
+    expect((await client.query(`select 1 from public.subscribers where email = 'nobot@example.com'`)).rowCount).toBe(0);
+    const ok = await handleSubscribe(post('/api/subscribe', { email: 'nobot@example.com', turnstile: 'XXXX.DUMMY.TOKEN.XXXX' }), deps);
+    expect(await ok.json()).toEqual({ ok: true, status: 'check_inbox' });
+  });
+
   test('double opt-in: confirmation email → confirm link → confirmed', async () => {
     const { deps, mailer } = makeDeps();
     const res = await handleSubscribe(post('/api/subscribe', { email: ' Owner@Example.com ' }), deps);
@@ -135,10 +150,10 @@ describe.skipIf(!ADMIN_URL)('email handlers (PostgreSQL)', () => {
     expect(statuses).toEqual([200, 200, 200, 200, 200, 429]);
   });
 
-  test('a signed-in Google user subscribes their own address without double opt-in', async () => {
+  test('a signed-in Google user subscribes their own address without double opt-in (or Turnstile)', async () => {
     users.set('google-token', { id: '11111111-1111-4111-8111-111111111111', email: 'Friend@Example.com', emailVerifiedByProvider: true });
     await client.query(`insert into auth.users (id, email) values ('11111111-1111-4111-8111-111111111111', 'friend@example.com')`);
-    const { deps, mailer } = makeDeps();
+    const { deps, mailer } = makeDeps({ TURNSTILE_SECRET_KEY: 'test-secret' });
     const res = await handleSubscribe(post('/api/subscribe', { email: 'friend@example.com' }, { authorization: 'Bearer google-token' }), deps);
     expect(await res.json()).toEqual({ ok: true, status: 'confirmed' });
     expect(mailer.sent).toHaveLength(0);

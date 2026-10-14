@@ -7,7 +7,7 @@ import {
   type User,
 } from '@supabase/supabase-js';
 import { asProgress, type Progress } from '../../shared/mastery';
-import { AccountError, type AccountErrorCode, type AccountUser, type Backend, type EmailLinkResult, type SubscriptionStatus } from './types';
+import { AccountError, type AccountErrorCode, type AccountUser, type Backend, type BoardRow, type DeepMe, type EmailLinkResult, type MyData, type SubscriptionStatus } from './types';
 import { SESSION_STORAGE_KEY } from './storageKeys';
 import { isEmailLink, readAuthUrl, urlNotice } from './urlState';
 
@@ -33,6 +33,8 @@ const AUTH_CODES: Partial<Record<string, AccountErrorCode>> = {
   // Until custom SMTP is set up, Supabase's built-in mailer refuses addresses outside the team.
   email_address_not_authorized: 'email_unavailable',
   email_address_invalid: 'invalid_email',
+  // Supabase's CAPTCHA protection refused the Turnstile token (missing, spent or failed).
+  captcha_failed: 'captcha_failed',
 };
 
 function authError(error: unknown): AccountError {
@@ -49,10 +51,37 @@ function authError(error: unknown): AccountError {
   return new AccountError('unknown', error instanceof Error ? error.message : String(error));
 }
 
+const NAME_CODES: Record<string, AccountErrorCode> = {
+  length: 'name_length',
+  characters: 'name_characters',
+  mixed: 'name_mixed',
+  reserved: 'name_reserved',
+  not_allowed: 'name_not_allowed',
+  taken: 'name_taken',
+};
+
 function dataError(error: { code?: string; message: string }): AccountError {
   if (error.code === 'P0001' && /pearl limit/.test(error.message)) return new AccountError('limit_reached', error.message);
+  if (error.code === 'P0001' && /too many reviews/.test(error.message)) return new AccountError('rate_limited', error.message);
+  if (error.code === 'P0001' && /deep_rename_too_soon/.test(error.message)) return new AccountError('rename_too_soon', error.message);
+  const name = /^deep_name:(\w+)/.exec(error.message)?.[1];
+  if (name && NAME_CODES[name]) return new AccountError(NAME_CODES[name], error.message);
   if (!error.code && /fetch|network/i.test(error.message)) return new AccountError('network', error.message);
   return new AccountError('unknown', `${error.code ?? ''} ${error.message}`.trim());
+}
+
+function toDeepMe(d: unknown): DeepMe | null {
+  if (!d || typeof d !== 'object') return null;
+  const o = d as Record<string, never>;
+  return {
+    name: o.name,
+    generated: o.generated,
+    joinedAt: o.joined_at,
+    nextRenameAt: o.next_rename_at ?? null,
+    live: o.live,
+    all: o.all ?? null,
+    week: o.week ?? null,
+  };
 }
 
 export function createSupabaseBackend(url: string, anonKey: string): Backend {
@@ -117,16 +146,18 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
       return () => data.subscription.unsubscribe();
     },
 
-    async signUp(email, password, returnTo) {
-      const { data } = await guard(client.auth.signUp({ email, password, options: { emailRedirectTo: returnTo } }));
+    async signUp(email, password, returnTo, captchaToken) {
+      const { data } = await guard(
+        client.auth.signUp({ email, password, options: { emailRedirectTo: returnTo, captchaToken: captchaToken ?? undefined } }),
+      );
       // With email confirmation on, Supabase answers an existing address with an empty identity
       // list instead of an error (so addresses can't be probed silently).
       if (data.user && data.user.identities && data.user.identities.length === 0) throw new AccountError('email_taken');
       return { needsVerification: !data.session };
     },
 
-    async signIn(email, password) {
-      const { data } = await guard(client.auth.signInWithPassword({ email, password }));
+    async signIn(email, password, captchaToken) {
+      const { data } = await guard(client.auth.signInWithPassword({ email, password, options: { captchaToken: captchaToken ?? undefined } }));
       if (!data.user) throw new AccountError('unknown', 'no user returned');
       return toUser(data.user);
     },
@@ -139,8 +170,8 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
       await guard(client.auth.signOut());
     },
 
-    async requestPasswordReset(email, returnTo) {
-      await guard(client.auth.resetPasswordForEmail(email, { redirectTo: returnTo }));
+    async requestPasswordReset(email, returnTo, captchaToken) {
+      await guard(client.auth.resetPasswordForEmail(email, { redirectTo: returnTo, captchaToken: captchaToken ?? undefined }));
     },
 
     async updatePassword(password) {
@@ -152,8 +183,10 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
       await guard(client.auth.updateUser({ data: { sea_topic: topic } }));
     },
 
-    async resendVerification(email, returnTo) {
-      await guard(client.auth.resend({ type: 'signup', email, options: { emailRedirectTo: returnTo } }));
+    async resendVerification(email, returnTo, captchaToken) {
+      await guard(
+        client.auth.resend({ type: 'signup', email, options: { emailRedirectTo: returnTo, captchaToken: captchaToken ?? undefined } }),
+      );
     },
 
     async listSaved() {
@@ -214,6 +247,63 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
       }
     },
 
+    async recordReviews(reviews) {
+      const out: Progress[] = [];
+      for (let i = 0; i < reviews.length; i += 100) {
+        const { data, error } = await client.rpc('record_reviews', { p_reviews: reviews.slice(i, i + 100) });
+        if (error) throw dataError(error);
+        for (const r of (data ?? []) as Record<string, unknown>[]) {
+          const p = asProgress({
+            slug: r.word_slug,
+            box: r.box,
+            dueAt: r.due_at,
+            lastReviewedAt: r.last_reviewed_at,
+            timesSeen: r.times_seen,
+            lapses: r.lapses,
+          });
+          if (p) out.push(p);
+        }
+      }
+      return out;
+    },
+
+    async deepBoards() {
+      const [rows, info] = await Promise.all([
+        client.from('deep_board').select('board, rank, name, score, pearls').lte('rank', 10).order('rank'),
+        client.from('deep_board_info').select('board, divers, refreshed_at'),
+      ]);
+      if (rows.error) throw dataError(rows.error);
+      if (info.error) throw dataError(info.error);
+      const pick = (b: string) => ({
+        rows: (rows.data ?? []).filter((r) => r.board === b).map(({ rank, name, score, pearls }) => ({ rank, name, score, pearls }) as BoardRow),
+        divers: (info.data ?? []).find((r) => r.board === b)?.divers ?? 0,
+      });
+      return { week: pick('week'), all: pick('all'), refreshedAt: info.data?.[0]?.refreshed_at ?? null };
+    },
+
+    async deepMe() {
+      const { data, error } = await client.rpc('deep_me');
+      if (error) throw dataError(error);
+      return toDeepMe(data);
+    },
+
+    async deepJoin(name, script) {
+      const { data, error } = await client.rpc('deep_join', { p_name: name, p_script: script });
+      if (error) throw dataError(error);
+      return toDeepMe(data)!;
+    },
+
+    async deepRename(name, script) {
+      const { data, error } = await client.rpc('deep_rename', { p_name: name, p_script: script });
+      if (error) throw dataError(error);
+      return toDeepMe(data)!;
+    },
+
+    async deepLeave() {
+      const { error } = await client.rpc('deep_leave');
+      if (error) throw dataError(error);
+    },
+
     async resetProgress() {
       const { error } = await client.rpc('reset_my_progress');
       if (error) throw dataError(error);
@@ -233,6 +323,12 @@ export function createSupabaseBackend(url: string, anonKey: string): Backend {
     async unsubscribeMe() {
       const { error } = await client.rpc('unsubscribe_me');
       if (error) throw dataError(error);
+    },
+
+    async exportMyData() {
+      const { data, error } = await client.rpc('export_my_data');
+      if (error) throw dataError(error);
+      return data as MyData;
     },
 
     async deleteAccount() {

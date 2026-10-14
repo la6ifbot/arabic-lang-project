@@ -1,6 +1,20 @@
 import { MOCK_DB_KEY, MOCK_EMAIL_KEY } from './storageKeys';
-import { mergeProgress, type Progress } from '../../shared/mastery';
-import { AccountError, type AccountErrorCode, type AccountUser, type AuthChange, type Backend, type EmailLinkResult, type SavedPearl, type SubscriptionStatus } from './types';
+import { applyMerge, applyReview, deepScore, generatedName, nameKey, nameShapeProblem, weekStart, type ServerRow } from '../../shared/deep';
+import { DAY_MS, type Progress } from '../../shared/mastery';
+import {
+  AccountError,
+  type AccountErrorCode,
+  type AccountUser,
+  type AuthChange,
+  type Backend,
+  type BoardRow,
+  type DeepMe,
+  type DeepScript,
+  type EmailLinkResult,
+  type MyData,
+  type SavedPearl,
+  type SubscriptionStatus,
+} from './types';
 import { isEmailLink, readAuthUrl, urlNotice } from './urlState';
 
 /**
@@ -16,6 +30,7 @@ interface MockUser {
   verified: boolean;
   provider: string;
   topic?: string | null;
+  createdAt?: string;
 }
 
 interface MockDb {
@@ -24,7 +39,14 @@ interface MockDb {
   users: MockUser[];
   sessionUserId: string | null;
   saved: Record<string, SavedPearl[]>;
-  progress?: Record<string, Progress[]>;
+  /** Rows as the server keeps them (verifiedBox / verifiedAt may be missing on old seeds: unverified). */
+  progress?: Record<string, (Progress & Partial<ServerRow>)[]>;
+  /** The Deep: members by user id, other divers for the boards, and each user's depth changes (for This week). */
+  deep?: {
+    members: Record<string, { name: string; generated: boolean; joinedAt: string; renamedAt: string | null }>;
+    divers?: { name: string; depth: number; pearls: number; week: number; at: string }[];
+    log?: Record<string, { at: string; d: number }[]>;
+  };
   outbox: { to: string; kind: 'verify' | 'reset' }[];
   /** The one-time links in those emails, like Supabase's token hashes. */
   links?: { hash: string; to: string; kind: 'verify' | 'reset'; used?: boolean }[];
@@ -61,6 +83,60 @@ function sendEmail(db: MockDb, to: string, kind: 'verify' | 'reset') {
 }
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+const asServerRow = (p: Progress & Partial<ServerRow>): ServerRow => ({ verifiedBox: 0, verifiedAt: null, ...p });
+const asProgressRow = ({ slug, box, dueAt, lastReviewedAt, timesSeen, lapses }: Progress): Progress => ({ slug, box, dueAt, lastReviewedAt, timesSeen, lapses });
+
+/** Like the deep_scores trigger: remembers each change of verified depth. */
+function logDepth(db: MockDb, id: string, d: number, now: number) {
+  if (!d) return;
+  db.deep ??= { members: {} };
+  db.deep.log ??= {};
+  (db.deep.log[id] ??= []).push({ at: new Date(now).toISOString(), d });
+}
+
+interface Entry {
+  id: string | null;
+  name: string;
+  depth: number;
+  pearls: number;
+  week: number;
+  at: string;
+  weekAt: string;
+}
+
+/** Everyone on The Deep with their scores, computed live (the database rebuilds this every 15 minutes). */
+function deepEntries(db: MockDb, now: number): Entry[] {
+  const wk = weekStart(now);
+  const out: Entry[] = (db.deep?.divers ?? []).map((d) => ({ id: null, ...d, weekAt: d.at }));
+  for (const [id, m] of Object.entries(db.deep?.members ?? {})) {
+    const { depth, pearls } = deepScore((db.progress?.[id] ?? []).map(asServerRow));
+    const log = db.deep?.log?.[id] ?? [];
+    const thisWeek = log.filter((e) => weekStart(Date.parse(e.at)) === wk);
+    out.push({
+      id,
+      name: m.name,
+      depth,
+      pearls,
+      week: thisWeek.reduce((n, e) => n + e.d, 0),
+      at: log.at(-1)?.at ?? m.joinedAt,
+      weekAt: thisWeek.at(-1)?.at ?? m.joinedAt,
+    });
+  }
+  return out;
+}
+
+function rankBoard(entries: Entry[], board: 'week' | 'all'): (BoardRow & { id: string | null })[] {
+  const score = (e: Entry) => (board === 'week' ? e.week : e.depth);
+  const at = (e: Entry) => (board === 'week' ? e.weekAt : e.at);
+  return entries
+    .filter((e) => score(e) > 0)
+    .sort((a, b) => score(b) - score(a) || at(a).localeCompare(at(b)) || nameKey(a.name).localeCompare(nameKey(b.name)))
+    .map((e, i) => ({ id: e.id, rank: i + 1, name: e.name, score: score(e), pearls: board === 'all' ? e.pearls : null }));
+}
+
+const RESERVED = new Set(['durar', 'درر', 'the deep', 'deep', 'admin', 'administrator', 'moderator', 'support', 'staff', 'diver', 'غواص']);
+const BLOCKED = ['fuck', 'shit', 'cunt', 'bitch', 'whore'];
+
 export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Backend {
   const listeners = new Set<(c: AuthChange, u: AccountUser | null) => void>();
   const failures = new Map<string, AccountErrorCode>();
@@ -81,7 +157,67 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
     return u;
   }
 
+  function deepMe(db: MockDb): DeepMe | null {
+    const id = current(db).id;
+    const m = db.deep?.members[id];
+    if (!m) return null;
+    const now = Date.now();
+    const entries = deepEntries(db, now);
+    const mine = entries.find((e) => e.id === id)!;
+    const all = rankBoard(entries, 'all').find((r) => r.id === id);
+    const week = rankBoard(entries, 'week').find((r) => r.id === id);
+    const next = m.renamedAt ? Date.parse(m.renamedAt) + DAY_MS : 0;
+    return {
+      name: m.name,
+      generated: m.generated,
+      joinedAt: m.joinedAt,
+      nextRenameAt: next > now ? new Date(next).toISOString() : null,
+      live: { depth: mine.depth, pearls: mine.pearls, week: Math.max(mine.week, 0) },
+      all: all ? { rank: all.rank, score: all.score, pearls: all.pearls } : null,
+      week: week ? { rank: week.rank, score: week.score } : null,
+    };
+  }
+
+  function deepExport(db: MockDb, id: string) {
+    const m = db.deep?.members[id];
+    if (!m) return null;
+    const mine = deepEntries(db, Date.now()).find((e) => e.id === id)!;
+    return {
+      name: m.name,
+      generated_name: m.generated,
+      joined_at: m.joinedAt,
+      renamed_at: m.renamedAt,
+      depth: mine.depth,
+      pearls_in_the_deep: mine.pearls,
+      depth_gained_this_week: mine.week,
+    };
+  }
+
+  /** deep_name_problem() in short: the shared shape rules, a few reserved and blocked names, and uniqueness. */
+  function checkName(db: MockDb, name: string | null, script: DeepScript, id: string): string {
+    const taken = (n: string) =>
+      Object.entries(db.deep?.members ?? {}).some(([uid, m]) => uid !== id && nameKey(m.name) === nameKey(n)) ||
+      (db.deep?.divers ?? []).some((d) => nameKey(d.name) === nameKey(n));
+    if (name === null) {
+      for (;;) {
+        const n = generatedName(1 + Math.floor(Math.random() * 999), script);
+        if (!taken(n)) return n;
+      }
+    }
+    const clean = name.trim().normalize('NFC').replace(/\s+/g, ' ');
+    const problem = nameShapeProblem(clean);
+    if (problem) throw new AccountError(`name_${problem}` as AccountErrorCode);
+    if (RESERVED.has(nameKey(clean))) throw new AccountError('name_reserved');
+    if (BLOCKED.some((w) => nameKey(clean).replace(/[^a-z]/g, '').includes(w))) throw new AccountError('name_not_allowed');
+    if (taken(clean)) throw new AccountError('name_taken');
+    return clean;
+  }
+
+  // The Turnstile tokens each request carried, newest last, so tests can check they were sent.
+  const captchas: { op: Op; token: string | null }[] = [];
+
   const hooks = {
+    captchas: () => captchas.slice(),
     /** Acts as the user clicking the confirmation link in their inbox. */
     verify(email: string) {
       const db = load();
@@ -101,6 +237,13 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
     },
     outbox: () => load().outbox,
     db: () => load(),
+    /** Other divers on The Deep, for the boards. */
+    divers(list: { name: string; depth: number; pearls: number; week: number; at: string }[]) {
+      const db = load();
+      db.deep ??= { members: {} };
+      db.deep.divers = list;
+      store(db);
+    },
   };
   (window as unknown as { __durarMock: typeof hooks }).__durarMock = hooks;
 
@@ -136,7 +279,8 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       return () => listeners.delete(cb);
     },
 
-    async signUp(email, password) {
+    async signUp(email, password, _returnTo, captchaToken) {
+      captchas.push({ op: 'signUp', token: captchaToken ?? null });
       await step('signUp');
       if (password.length < 8) throw new AccountError('weak_password');
       const db = load();
@@ -144,7 +288,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       if (confirmEmail && db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
       const e = email.trim().toLowerCase();
       if (db.users.some((u) => u.email === e)) throw new AccountError('email_taken');
-      const user = { id: crypto.randomUUID(), email: e, password, verified: !confirmEmail, provider: 'email' };
+      const user = { id: crypto.randomUUID(), email: e, password, verified: !confirmEmail, provider: 'email', createdAt: new Date().toISOString() };
       db.users.push(user);
       if (!confirmEmail) {
         // “Confirm email” off (or a demo): the account is ready at once, like Supabase.
@@ -158,7 +302,8 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       return { needsVerification: true };
     },
 
-    async signIn(email, password) {
+    async signIn(email, password, captchaToken) {
+      captchas.push({ op: 'signIn', token: captchaToken ?? null });
       await step('signIn');
       const db = load();
       const u = db.users.find((x) => x.email === email.trim().toLowerCase() && x.provider === 'email');
@@ -175,7 +320,7 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       const db = load();
       let u = db.users.find((x) => x.provider === 'google');
       if (!u) {
-        u = { id: crypto.randomUUID(), email: 'pearl.diver@gmail.com', password: '', verified: true, provider: 'google' };
+        u = { id: crypto.randomUUID(), email: 'pearl.diver@gmail.com', password: '', verified: true, provider: 'google', createdAt: new Date().toISOString() };
         db.users.push(u);
         subscribeAccount(u.email);
       }
@@ -192,7 +337,8 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       emit('signed-out', null);
     },
 
-    async requestPasswordReset(email) {
+    async requestPasswordReset(email, _returnTo, captchaToken) {
+      captchas.push({ op: 'requestPasswordReset', token: captchaToken ?? null });
       await step('requestPasswordReset');
       const db = load();
       if (db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
@@ -218,7 +364,8 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       store(db);
     },
 
-    async resendVerification(email) {
+    async resendVerification(email, _returnTo, captchaToken) {
+      captchas.push({ op: 'resendVerification', token: captchaToken ?? null });
       await step('resendVerification');
       const db = load();
       if (db.settings?.emailDelivery === false) throw new AccountError('email_unavailable');
@@ -251,28 +398,97 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
     async listProgress() {
       await step('listProgress');
       const db = load();
-      return [...(db.progress?.[current(db).id] ?? [])];
+      return (db.progress?.[current(db).id] ?? []).map(asProgressRow);
     },
 
     async saveProgress(rows) {
       await step('saveProgress');
       const db = load();
       const id = current(db).id;
-      const byslug = new Map((db.progress?.[id] ?? []).map((p) => [p.slug, p]));
-      // The same rule as save_progress(): the latest review wins, lapses and times seen never go down.
+      const byslug = new Map((db.progress?.[id] ?? []).map((p) => [p.slug, asServerRow(p)]));
+      // The same rule as save_progress(): the latest review wins, and nothing new counts on The Deep.
       for (const r of rows) {
         const prev = byslug.get(r.slug);
-        const win = mergeProgress(prev, r)!;
-        byslug.set(r.slug, prev ? { ...win, lapses: Math.max(prev.lapses, r.lapses), timesSeen: Math.max(prev.timesSeen, r.timesSeen) } : r);
+        const next = applyMerge(prev, r);
+        logDepth(db, id, next.verifiedBox - (prev?.verifiedBox ?? 0), Date.now());
+        byslug.set(r.slug, next);
       }
       db.progress = { ...db.progress, [id]: [...byslug.values()] };
+      store(db);
+    },
+
+    async recordReviews(reviews) {
+      await step('recordReviews');
+      const db = load();
+      const id = current(db).id;
+      const now = Date.now();
+      const byslug = new Map((db.progress?.[id] ?? []).map((p) => [p.slug, asServerRow(p)]));
+      const out: Progress[] = [];
+      for (const r of reviews) {
+        const prev = byslug.get(r.slug);
+        const { row } = applyReview(prev, r.slug, r.dir, now);
+        logDepth(db, id, row.verifiedBox - (prev?.verifiedBox ?? 0), now);
+        byslug.set(r.slug, row);
+        out.push(asProgressRow(row));
+      }
+      db.progress = { ...db.progress, [id]: [...byslug.values()] };
+      store(db);
+      return out;
+    },
+
+    async deepBoards() {
+      await step('deepBoards');
+      const entries = deepEntries(load(), Date.now());
+      const board = (b: 'week' | 'all') => {
+        const rows = rankBoard(entries, b);
+        return { rows: rows.slice(0, 10).map(({ id: _id, ...r }) => r), divers: rows.length };
+      };
+      return { week: board('week'), all: board('all'), refreshedAt: new Date().toISOString() };
+    },
+
+    async deepMe() {
+      await step('deepMe');
+      return deepMe(load());
+    },
+
+    async deepJoin(name, script) {
+      await step('deepJoin');
+      const db = load();
+      const id = current(db).id;
+      if (!db.deep?.members[id]) {
+        const v = checkName(db, name, script, id);
+        db.deep ??= { members: {} };
+        db.deep.members[id] = { name: v, generated: name === null, joinedAt: new Date().toISOString(), renamedAt: null };
+        store(db);
+      }
+      return deepMe(db)!;
+    },
+
+    async deepRename(name, script) {
+      await step('deepRename');
+      const db = load();
+      const id = current(db).id;
+      const m = db.deep?.members[id];
+      if (!m) throw new AccountError('unknown', 'not in the deep');
+      if (m.renamedAt && Date.parse(m.renamedAt) > Date.now() - DAY_MS) throw new AccountError('rename_too_soon');
+      db.deep!.members[id] = { ...m, name: checkName(db, name, script, id), generated: name === null, renamedAt: new Date().toISOString() };
+      store(db);
+      return deepMe(db)!;
+    },
+
+    async deepLeave() {
+      await step('deepLeave');
+      const db = load();
+      if (db.deep) delete db.deep.members[current(db).id];
       store(db);
     },
 
     async resetProgress() {
       await step('resetProgress');
       const db = load();
-      db.progress = { ...db.progress, [current(db).id]: [] };
+      const id = current(db).id;
+      logDepth(db, id, -deepScore((db.progress?.[id] ?? []).map(asServerRow)).depth, Date.now());
+      db.progress = { ...db.progress, [id]: [] };
       store(db);
     },
 
@@ -294,6 +510,27 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       writeMockEmail({ ...readMockEmail(), [email]: 'unsubscribed' });
     },
 
+    async exportMyData(): Promise<MyData> {
+      await step('exportMyData');
+      const db = load();
+      const u = current(db);
+      const status = readMockEmail()[u.email];
+      return {
+        account: { email: u.email, created_at: u.createdAt ?? null, sign_in_method: u.provider, sea_topic: u.topic },
+        saved_pearls: (db.saved[u.id] ?? []).map((p) => ({ word: p.slug, saved_at: p.savedAt })),
+        progress: (db.progress?.[u.id] ?? []).map((p) => ({
+          word: p.slug,
+          box: p.box,
+          due_at: p.dueAt,
+          last_reviewed_at: p.lastReviewedAt,
+          times_seen: p.timesSeen,
+          lapses: p.lapses,
+        })),
+        email_subscription: status ? { email: u.email, status, subscribed_at: null, confirmed_at: null, unsubscribed_at: null } : null,
+        the_deep: deepExport(db, u.id),
+      };
+    },
+
     async deleteAccount() {
       await step('deleteAccount');
       const db = load();
@@ -304,6 +541,10 @@ export function createMockBackend({ demo = false }: { demo?: boolean } = {}): Ba
       db.users = db.users.filter((u) => u.id !== id);
       delete db.saved[id];
       if (db.progress) delete db.progress[id]; // like the cascade from auth.users
+      if (db.deep) {
+        delete db.deep.members[id];
+        delete db.deep.log?.[id];
+      }
       db.sessionUserId = null;
       store(db);
       emit('signed-out', null);

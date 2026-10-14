@@ -11,6 +11,9 @@ something goes wrong. Secret **values** never go in this file, in chats, or in t
 - **Email:** Amazon SES, region **eu-central-1 (Frankfurt)**, domain `durar.space`.
 - **DNS:** Namecheap. `hello@durar.space` forwards to the owner through Namecheap Email Forwarding.
 - **Scheduler:** Supabase `pg_cron` + `pg_net`. There is no Vercel cron.
+- **Functions:** Vercel region **`fra1` (Frankfurt)**, set by `"regions"` in `vercel.json` (Phase 0.7;
+  before that `iad1`, Washington). The database and SES are in Frankfurt too.
+- **Bot check:** Cloudflare Turnstile on the subscribe, sign-up, sign-in and password-reset forms (§8).
 
 **Where things stand (28 September 2026):** email is live. SES production access in Frankfurt was
 approved on 28 September (50,000 emails a day, 14 a second). Since 17:10 UTC that day
@@ -32,7 +35,7 @@ variable can't be turned into a Secret: delete it and add it again.
 | --- | --- | --- |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server access to the database (bypasses RLS). | Secret |
 | `EMAIL_TOKEN_SECRET` | Signs unsubscribe links and hashes IPs for rate limiting. 32+ characters. | Secret |
-| `CRON_SECRET` | The password pg_cron sends to `/api/cron/daily` and `/api/cron/health`. Must match the Supabase vault secret `durar_cron_secret`. | Secret |
+| `CRON_SECRET` | The password pg_cron sends to `/api/cron/daily`, `/api/cron/health` and `/api/cron/weekly`. Must match the Supabase vault secret `durar_cron_secret`. | Secret |
 | `SES_ACCESS_KEY_ID` | IAM user `durar-email-sender`, send-only policy `DurarSendEmailOnly`. | Secret |
 | `SES_SECRET_ACCESS_KEY` | Same IAM user. | Secret |
 | `EMAIL_FROM` | The sender: `Durar <pearl@durar.space>`. Must be on an identity verified in SES. | Config |
@@ -44,12 +47,14 @@ variable can't be turned into a Secret: delete it and add it again.
 | `VITE_SUPABASE_ANON_KEY` | Supabase public (anon) key, for the browser. Public by design. | Config |
 | `VITE_CONTACT_EMAIL` | The contact address shown on the Privacy page and in emails. | Config |
 | `VITE_DATA_REGION` | The data region named on the Privacy page. | Config |
+| `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (public by design). **Build-time**: needs a redeploy. Unset: the forms run without the check. See §8. | Config |
+| `TURNSTILE_SECRET_KEY` | Turnstile secret, used by `/api/subscribe` to check tokens. Set: subscribing needs a valid token (unless signed in with that address). | Secret |
 
 Optional, with working defaults (leave unset unless you mean to change them):
 
 | Name | Default | What it does |
 | --- | --- | --- |
-| `ALERT_EMAIL` | first `EMAIL_SANDBOX_TO` address | Who the morning health check emails. |
+| `ALERT_EMAIL` | first `EMAIL_SANDBOX_TO` address | Who the morning health check and the weekly digest email. |
 | `SES_REGION` | `eu-central-1` | SES region. |
 | `SES_RATE_PER_SECOND` | `1` | Top speed of the daily email, in emails a second. **Set it to `5`** (Phase 0.6); see “Sending capacity” below. |
 | `EMAIL_SEND_HOUR` | `7` | Amsterdam hour the daily email goes out. |
@@ -69,6 +74,7 @@ Vercel sets `VERCEL_ENV`, `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL` itsel
 | **Authentication → Emails → SMTP Settings** | SES SMTP user name (`AKIA…`) and password (separate from the API keys above), host `email-smtp.eu-central-1.amazonaws.com`, port 587, sender `pearl@durar.space`, name `Durar`. Set up 28 September 2026. Never switch Custom SMTP off: that resets both templates to Supabase's defaults and drops the email limit to 2 an hour. |
 | **Authentication → Rate Limits** | **Rate limit for sending emails**: the default 30 an hour, plenty at launch and a brake if someone abuses the sign-up form. |
 | **Authentication → Emails → Templates** | **Confirm sign up** (subject `Confirm your Durar account`) and **Reset password** (subject `Reset your Durar password`), pasted into **Body → Source** from `supabase/auth-templates/`. Their links are built from `{{ .SiteURL }}` and `{{ .TokenHash }}`, so **Site URL** under URL Configuration must stay exactly `https://durar.space`. Never build them from `{{ .RedirectTo }}`: a sign-in link sent to any other address would let that site sign in as the person. |
+| **Authentication → Attack Protection** | **Enable CAPTCHA protection** on, provider **Turnstile by Cloudflare**, with the same secret as `TURNSTILE_SECRET_KEY`. Supabase then wants a token on sign-up, email-and-password sign-in, password reset and resending the confirmation link; Google sign-in needs none. See §8. |
 | **Authentication → Sign In / Providers → User Signups** | **Confirm email** on (since 28 September 2026). |
 | **Authentication → URL Configuration** | Site URL `https://durar.space`; Redirect URLs `https://durar.space/**` and `https://www.durar.space/**`. The Site URL is where the sign-up and reset emails link to; the Redirect URLs are for Google sign-in. |
 
@@ -156,7 +162,11 @@ Both jobs live in Supabase `pg_cron` (Database → Cron, or `select * from cron.
 | `durar-daily-email` | `*/10 5-6 * * *` | `/api/cron/daily` | Every 10 minutes 05:00–06:59 UTC. Only the calls that fall in **07:xx Amsterdam** send (summer and winter); the rest return `outside_send_window`. Each sending call works through up to 45 seconds of recipients; a later call picks up anyone left. Nobody gets two emails on one day. |
 | `durar-email-health` | `15 6,7 * * *` | `/api/cron/health` | One of the two calls is **08:15 Amsterdam**; only that one checks. If today's run is missing, stopped with an error, left people waiting, or had failed sends, it emails the owner. |
 
-Set up by `supabase/setup/daily-email-cron.sql` and `supabase/setup/health-check-cron.sql`.
+| `durar-weekly-digest` | `0 6,7 * * 1` | `/api/cron/weekly` | Mondays. Only the **08:00 Amsterdam** call sends the owner's weekly digest (§9); a second call for the same week is skipped. |
+| `durar-cron-history-cleanup` | `30 3 * * *` | (SQL) | Deletes pg_cron's own run history after 30 days. |
+
+Set up by `supabase/setup/daily-email-cron.sql`, `supabase/setup/health-check-cron.sql` and
+`supabase/setup/weekly-digest-cron.sql`.
 
 ## 3. How to check a run
 
@@ -313,3 +323,306 @@ delivered to the inbox, and Gmail showed its one-click **Unsubscribe** link.
 DKIM passes for `durar.space` (the three CNAMEs), DMARC passes through DKIM, and SPF passes for
 SES's own envelope domain. DMARC is `p=none` with reports to `hello@durar.space`; tighten it to
 `p=quarantine` once the reports have been clean for a few weeks.
+
+## 8. Security: Turnstile, headers and the Content-Security-Policy
+
+### Turnstile
+
+Cloudflare Turnstile (free) checks that a person, not a script, is behind the forms that send
+email or check a password. It runs in the background while a form is open and only shows a box
+when Cloudflare is unsure. Each request spends one token, and the next one is fetched at once.
+
+| Where | What |
+| --- | --- |
+| Cloudflare → Turnstile → widget **Durar** | Hostnames `durar.space` and `www.durar.space`, mode **Managed**. Site key and secret. |
+| Vercel Production | `VITE_TURNSTILE_SITE_KEY` (site key) and `TURNSTILE_SECRET_KEY` (secret, type Secret). |
+| Vercel Preview | Cloudflare's **test keys**: site key `1x00000000000000000000BB`, secret `1x0000000000000000000000000000000AA` (always pass). |
+| Supabase (production) → Authentication → Attack Protection | CAPTCHA on, Turnstile, the real secret. |
+| Supabase (staging) | CAPTCHA on, Turnstile, the test secret above, so previews can sign up. |
+| CI | The browser tests set the test site key themselves (`tests/turnstile.spec.ts`). |
+
+- **Order when switching it on:** the code is already in place, so (1) add both keys to Vercel and
+  redeploy Production, (2) check that sign-in still works on durar.space, (3) only then turn on
+  Supabase's CAPTCHA setting. Turning Supabase's setting on before the redeploy would refuse every
+  email-and-password sign-in.
+- **Switching it off in an emergency:** turn off Supabase's CAPTCHA setting first, then delete
+  `TURNSTILE_SECRET_KEY` and `VITE_TURNSTILE_SITE_KEY` in Vercel and redeploy.
+- **People who can't pass it** see *“We couldn’t finish the quick check that keeps bots out…”*.
+  Usually an ad blocker or a privacy extension blocks `challenges.cloudflare.com`.
+- Signing in with Google and the account menu's email switch need no token: Google sign-in is a
+  redirect, and the switch only works for a signed-in account's own address.
+
+### Security headers
+
+Set for every path in `vercel.json` (the local preview server sends the same ones, so the browser
+tests run under them): `Content-Security-Policy` (enforced since Phase 0.7, after it ran in report-only mode and
+neither the browser tests nor a pass over every page type on durar.space found a violation),
+`Strict-Transport-Security`
+(two years, subdomains included), `Cross-Origin-Opener-Policy: same-origin`, `X-Frame-Options: DENY`,
+`X-Content-Type-Options: nosniff`, `Referrer-Policy` and `Permissions-Policy`.
+
+The policy allows only: the site itself; images from `img.durar.space` (plus `data:` and `blob:`,
+which the card textures and Share's image use); the database and sign-in at `*.supabase.co`
+(production and staging are both Supabase projects); and Cloudflare Turnstile's script and frame
+at `challenges.cloudflare.com`. Inline styles are allowed; inline scripts are not (the 404 page's
+search is its own file). Nothing may frame the site.
+
+### Adding an allowed host to the CSP
+
+Only when a new feature really loads something from another site:
+
+1. In `vercel.json`, find the `Content-Security-Policy` value and add the host (with `https://`)
+   to the narrowest directive that fits: `img-src` for images, `connect-src` for `fetch`,
+   `script-src` for scripts, `frame-src` for iframes, `media-src` for audio and video,
+   `font-src` for fonts.
+2. Add the page or action that uses it to `tests/csp.spec.ts`, so the test proves it.
+3. Run `npx playwright test tests/csp.spec.ts` locally; it fails on any violation and prints the
+   blocked address. The pull request's CI runs it too.
+4. List the new service on the Privacy page if it handles visitors' data.
+
+If the live site ever looks broken right after a change, the browser console says
+*“Refused to load … because it violates the following Content Security Policy directive”* with the
+address to add.
+
+## 9. Monitoring and retention
+
+### `/api/health` and the uptime monitor
+
+`https://durar.space/api/health` is public. It answers `200 {"ok":true}` when the database answers
+(one `health_ping()` call, 5-second limit) and the email settings are present (`CRON_SECRET`, a real
+`EMAIL_FROM`, the SES keys unless `EMAIL_MODE=dry-run`). Otherwise `503 {"ok":false}`, with no
+details. It sends nothing. What failed goes to the error log (below) and Vercel's function log.
+
+An external monitor (UptimeRobot, free plan) checks four addresses every 5 minutes and emails
+`hello@durar.space` when one fails. It is outside our own stack on purpose, so it still alerts when
+Vercel, Supabase or SES is down:
+
+| Monitor | URL | Up when |
+| --- | --- | --- |
+| Durar · home | `https://durar.space/` | 200 |
+| Durar · word page | `https://durar.space/word/bahr` | 200 |
+| Durar · health | `https://durar.space/api/health` | 200 (503 means the database or the email settings) |
+| Durar · images | `https://img.durar.space/cards/og/bahr.png` | 200 |
+
+When the health monitor alerts: open the URL. If it says `{"ok":false}`, check Supabase's status
+page and the project (paused? over a limit?), then Vercel → Logs filtered to `/api/health`, then
+`select * from public.error_log order by at desc limit 20;` in the SQL Editor.
+
+### The error log
+
+API functions write failures to `public.error_log`: which part failed (`source`, e.g. `daily:send`,
+`subscribe:confirmation-email`, `health`, or a route name for an unexpected 500), the error's name
+and a short message. Messages are scrubbed before they're written (`server/errors.ts`): email
+addresses, ids, IP addresses, tokens and keys are replaced, and they're cut to 300 characters. Only
+the service role can read it. The weekly digest shows the count by source.
+
+    select at, source, code, message from public.error_log order by at desc limit 50;
+
+### The weekly digest
+
+Mondays at 08:00 Amsterdam, `/api/cron/weekly` emails the owner (`ALERT_EMAIL`, else the first
+`EMAIL_SANDBOX_TO`) last week's numbers, Monday to Sunday in Amsterdam: subscribers (total, new,
+unsubscribed, waiting to confirm), daily emails sent and failed, bounces and complaints, mornings
+with a problem, accounts (total, new), words reviewed and by how many people, The Deep's divers (once
+it's live), the last nightly backup and restore test, and errors. Aggregate counts only. A line that
+needs a look is marked, and the subject then says “needs a look”: a failed or missing backup (none
+for 30 hours), a restore test older than 35 days, failed sends, complaints, or errors.
+
+- Preview the numbers without sending: `…/api/cron/weekly?dry=1` with the cron secret (§3).
+- Send it again this week: `…/api/cron/weekly?force=1`.
+- The backup and restore-test lines come from `public.ops_checks`, which the GitHub backup
+  workflows write with `select public.ops_report('backup', true)` (and `'restore_test'`). Until
+  they run, the digest says “not reported yet”. `select * from public.ops_checks;` shows them.
+
+### What is deleted, and when
+
+| What | Kept | How |
+| --- | --- | --- |
+| Unconfirmed email sign-ups | 7 days | `subscriptions_housekeeping()`, run by every daily email call |
+| Hashed IP addresses (subscribe rate limit) | 1 day | same |
+| Daily send log (`daily_sends`) | 60 days | same |
+| Daily run summaries (`daily_runs`) | 60 days | same |
+| Error log (`error_log`) | 30 days | same |
+| pg_cron run history (`cron.job_run_details`) | 30 days | `durar-cron-history-cleanup` |
+| pg_net responses | 6 hours | pg_net's own default |
+| Encrypted backups (S3) | 30 dailies, 12 monthlies | S3 lifecycle rules (Phase 0.7, section C) |
+| Accounts, saved pearls, progress | until deleted | Delete my account, or Reset my progress |
+
+The send log is kept 60 days, which is stricter than the 90 days the Phase 0.7 checklist allows.
+Because the housekeeping runs with the daily email, it stops if the daily email stops; the
+health check and the weekly digest would both show that.
+
+### Download my data
+
+The account menu and the Privacy page offer **Download my data**: `export_my_data()` returns the
+caller's account (email, creation date, sign-in method, chosen topic), saved pearls, progress, email
+subscription and The Deep entry, as a JSON file. It runs as the signed-in user and reads only their
+own rows (`auth.uid()`); signed out, it's refused.
+
+## 10. Backups
+
+Every night at 01:17 UTC GitHub Actions (`.github/workflows/backup.yml`) dumps production the way
+Supabase documents it (`supabase db dump`: roles, schema, and data **including sign-in accounts**),
+encrypts the dump with [age](https://age-encryption.org) before it leaves the runner, and uploads it
+to the private S3 bucket `durar-backups-<account id>` in **Frankfurt**. S3 checks the upload against
+our SHA-256 and refuses it if anything differs. The repository is public, so nothing from the dump is
+printed or kept as a workflow artifact.
+
+- **Keys.** Each backup is locked to the two public keys in `supabase/backup/recipients.txt`, and
+  either private key opens it: **Lativ's own key**, kept by Lativ in two safe places and nowhere
+  else, and the **restore-test key**, the `RESTORE_AGE_KEY` secret of the `restore-test`
+  environment. If Lativ's key is lost, the backups can still be opened with the restore-test key,
+  but make a new key pair at once and swap the public key in `recipients.txt`.
+- **Kept:** `daily/<UTC time>.tar.gz.age` for 31 days and `monthly/<YYYY-MM>.tar.gz.age` (from the
+  first three nights of each month) for a year, by the bucket's lifecycle rules. Versioning is on and
+  a replaced or deleted version stays 7 days. The upload user can only add files, so a leaked upload
+  key can't read or delete backups.
+- **A fresh backup also runs** before every production migration (section 13).
+- **Failure:** the run opens (or comments on) a GitHub issue "Nightly backup failed", which emails
+  Lativ, and records the failure for the weekly digest (`public.ops_report('backup', false)`). A
+  success records `ops_report('backup', true, {"bytes": …})`. The nightly run also copies the time of
+  the latest successful restore test into `ops_report('restore_test', …)`.
+- **Monthly restore test** (`.github/workflows/restore-test.yml`, the 2nd of each month): downloads
+  the newest daily (it fails if that is more than two days old), decrypts it with the restore-test
+  key, loads it into a throwaway Supabase on the runner, compares every table's row count with the
+  counts saved inside the backup, and throws everything away. It never touches staging or
+  production. A failure opens the issue "Monthly restore test failed".
+- **Backup check on pull requests** (`.github/workflows/backup-check.yml`): any change to the
+  backups, migrations or these workflows is tried end to end with fake data and a throwaway key.
+- **Cost:** a few MB in S3 Frankfurt, well under $0.05 a month.
+
+| Where | What |
+| --- | --- |
+| GitHub → Settings → Secrets → Actions (repository) | `BACKUP_BUCKET`, `BACKUP_AWS_ACCESS_KEY_ID`, `BACKUP_AWS_SECRET_ACCESS_KEY` (IAM user `durar-backup-uploader`, inline policy `DurarBackupUploadOnly`: `s3:PutObject` on `daily/*` and `monthly/*` only). |
+| GitHub environment `backup` (main only) | `PROD_DB_URL`: production's **session pooler** URI (port 5432). |
+| GitHub environment `production` (main only, Lativ must approve) | `PROD_DB_URL`. |
+| GitHub environment `restore-test` (main only) | `RESTORE_AGE_KEY`, `RESTORE_AWS_ACCESS_KEY_ID`, `RESTORE_AWS_SECRET_ACCESS_KEY` (IAM user `durar-backup-restore-test`, policy `DurarBackupReadDailies`: list and read `daily/*` only). |
+| GitHub environment `staging` (any branch) | `STAGING_DB_URL`: staging's session pooler URI. |
+
+Rotating: make a new access key for the IAM user (IAM → Users → Security credentials), replace the
+GitHub secret, delete the old key. After resetting a database password, update `PROD_DB_URL` in
+**both** `backup` and `production` (or `STAGING_DB_URL`).
+Database passwords are letters and digits only: a symbol such as `%`, `@` or `/` would have to be
+percent-encoded in the URI, and the scripts stop with a plain message if one isn't.
+
+## 11. Restoring a backup
+
+Practised with `.github/workflows/restore-drill.yml` (Actions → **Restore drill (staging)** → Run
+workflow): it backs up staging (fake data), restores all of it into a throwaway Supabase and one table
+back into staging, and its summary shows how long each step took. At today's size a full restore and
+check takes under a minute; making a new Supabase project and putting its settings back takes about
+half an hour more.
+
+**What you need:** a computer with `psql` and [`age`](https://github.com/FiloSottile/age/releases),
+this repository, and Lativ's key file (a text file with the `AGE-SECRET-KEY-…` line).
+
+1. **Download a backup:** AWS console (Frankfurt) → S3 → `durar-backups-…` → `daily/` (or
+   `monthly/`) → the one from before the problem → **Download**.
+2. **Look inside (optional):**
+   `age -d -i key.txt daily-….tar.gz.age | tar -xzf -` gives `roles.sql`, `schema.sql`, `data.sql`
+   (the rows, sign-in accounts included) and `counts.tsv` (rows per table). Delete them afterwards.
+3. **Restore one table** (rows deleted or damaged by mistake):
+   `scripts/backup/restore.sh daily-….tar.gz.age key.txt "<session pooler URI>" --table public.saved_pearls`
+   replaces that table's rows with the backup's, in one transaction, and checks the count. Rows
+   added to that table since the backup are lost, so for a few rows, restore everything into a
+   throwaway copy on your computer first (`scripts/backup/throwaway-supabase.sh`, needs Docker) and
+   copy just those rows across. Never into staging: real data never goes there.
+4. **Restore everything** (the database is lost or badly damaged):
+   1. Create a new Supabase project in Frankfurt (or use the damaged one only if it's empty).
+   2. `scripts/backup/restore.sh daily-….tar.gz.age key.txt "<new project's session pooler URI>" --keep-cron`
+      Without `--keep-cron`, the scheduled jobs come back paused (right for a copy, wrong for the
+      real thing). The script runs Supabase's documented restore as one transaction and compares
+      every table's rows with the backup.
+   3. What a dump doesn't carry, put back by hand: the triggers on `auth.users` (run the two
+      `create trigger` statements of `supabase/migrations/20261003000000_account_daily_email.sql`),
+      the **Vault** secrets `durar_daily_url` and `durar_cron_secret` (section 1), and the project
+      settings in section 1's Supabase table (SMTP, email templates, URL configuration, Confirm email,
+      Google sign-in).
+   4. Run `supabase/baseline-check.sql` in the SQL editor: every line should say `ok`. Then Actions
+      → **Migrations** → Run workflow → `production` records the history again (section 13).
+   5. If it's a new project: point Vercel's Production `VITE_SUPABASE_URL`,
+      `VITE_SUPABASE_ANON_KEY` and `SUPABASE_SERVICE_ROLE_KEY` at it, update `PROD_DB_URL` in
+      GitHub, then redeploy the deployment marked **Production · Current**.
+
+## 12. Staging
+
+A second free Supabase project, `durar-staging` (Frankfurt), used by Vercel **preview** deployments
+(Vercel's Preview environment has its URL and keys; Production keeps its own). It holds fake data
+only: accounts `diver1…12@example.com` (no passwords), a few `reader…@example.com` subscribers,
+saved pearls and progress, from `supabase/seed.sql`, which the Migrations workflow loads after each
+run. No cron jobs run there, and Supabase's built-in email only reaches the project's own team, so
+nothing can email anyone but Lativ. Real data never goes to staging, not even from a backup.
+
+Free projects pause after about a week without use. If a pull request's staging job can't connect,
+open `durar-staging` in the Supabase dashboard → **Restore project**, wait for it to come up, and
+re-run the job. Nothing on staging needs keeping: if it is ever lost, make a new project the same
+way and put its address into the `staging` environment (`STAGING_DB_URL`) and Vercel's Preview
+settings.
+
+## 13. Migrations
+
+Every database change is a new file in `supabase/migrations/` (`YYYYMMDDHHMMSS_name.sql`, never
+edited once merged), and `.github/workflows/migrations.yml` applies it:
+
+- **Pull request:** applied to staging, then the fake data is loaded again.
+- **Merged to `main`:** the production job waits for Lativ (GitHub emails "review pending
+  deployment": Actions → the run → **Review deployments** → `production` → **Approve and deploy**).
+  Then it takes a fresh encrypted backup and applies the new files.
+- **By hand:** Actions → **Migrations** → Run workflow → `staging` or `production`.
+
+Supabase records what it applied in `supabase_migrations.schema_migrations` and never runs a file
+twice. Each file runs in its own transaction, so a failing file changes nothing.
+
+**Baseline.** The migrations up to Phase 0.7 were run by hand in the SQL editor. The first
+production run finds no history, runs `supabase/baseline-check.sql` (read-only), records every
+migration it shows as `ok` as already applied, and applies the rest. If a line says `MISSING` or
+`PARTIAL`, it stops without changing anything: compare production with that migration file and fix
+it by hand (or ask Claude), then run the workflow again.
+
+A file already applied to staging from a pull request that changes again before merging won't run
+again on staging. Make the change a new file instead.
+
+## 14. The Deep
+
+The opt-in leaderboard on `/deep` (migration `20261013000000_the_deep.sql`).
+
+- **Scores.** Every swipe by a signed-in user goes through `record_review()` (in batches,
+  `record_reviews()`), which applies the box rules on the server's clock: a known word moves one box
+  deeper only when it's due. Signed-in users can't write `word_progress` directly any more.
+  `verified_box` is the depth the server has seen earned; only that counts. Progress merged from a
+  signed-out browser (`save_progress()`) starts at 0 and climbs from its next review. A trigger keeps
+  `deep_scores` (depth, pearls, this week's net gain) up to date.
+- **Rate limit.** 120 reviews a minute and 3,000 a day per person (`review_rate`); the site retries
+  quietly after a minute.
+- **Boards.** `deep_board` and `deep_board_info` are the only public tables: rank, name and score.
+  pg_cron job `durar-deep-boards` rebuilds them every 15 minutes (`*/15 * * * *`), and joining,
+  renaming, leaving, deleting an account and the moderation functions rebuild them at once. "This
+  week" starts at Monday 00:00 Amsterdam. Ties go to whoever reached the score first.
+  - Check the job: `select jobname, schedule, active from cron.job where jobname = 'durar-deep-boards';`
+  - Rebuild by hand: `select public.deep_refresh_boards();`
+- **Names.** 3–20 characters, Latin or Arabic letters (not both), digits, single spaces, `-`, `_`
+  and `.`. Unique ignoring case, Arabic marks and digit style. Reserved names are in
+  `deep_reserved_names`; words not allowed (English and Arabic) in `deep_blocked_words` (`part`:
+  anywhere in the name; `word`: as a whole word). "Diver 142" and «غوّاص ١٤٢» are only given out.
+  Renaming: once a day after the first change.
+
+### Moderation: hiding a name (one line in the SQL editor)
+
+Open the [SQL editor](https://supabase.com/dashboard/project/kjujvlresqniylxhrojo/sql/new), new query:
+
+```sql
+select public.deep_hide('The Name');
+```
+
+That diver gets a generated name ("Diver 512"), the old name can't be chosen again, and the boards
+are rebuilt at once. The answer says what it did. Spelling and capitals don't need to be exact.
+
+- Take someone off The Deep altogether (they can join again under another name):
+  `select public.deep_remove('The Name');`
+- Free a hidden name again: `delete from public.deep_reserved_names where name_key = public.deep_name_key('The Name');`
+- Block a word in every new name: `insert into public.deep_blocked_words values (public.deep_name_key('word'), 'part');`
+  (use `'word'` instead of `'part'` for short words that are fine inside longer ones).
+
+Names already on the board aren't re-checked when the list changes; hide them with `deep_hide`.
+
+There are no rank notifications, emails or badges, on purpose.

@@ -10,6 +10,8 @@ interface ImportMetaEnv {
   /** Human-readable data location for the Privacy page, e.g. "Frankfurt, Germany (EU)". */
   readonly VITE_DATA_REGION?: string;
   readonly VITE_CONTACT_EMAIL?: string;
+  /** Cloudflare Turnstile site key (public). Unset: the forms run without the check. */
+  readonly VITE_TURNSTILE_SITE_KEY?: string;
 }
 
 interface Window {

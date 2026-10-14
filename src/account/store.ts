@@ -258,16 +258,16 @@ export function closeAuth() {
 // Auth actions (used by the dialog). Each throws AccountError; the dialog shows friendlyMessage().
 
 export const auth = {
-  async signIn(email: string, password: string) {
+  async signIn(email: string, password: string, captchaToken?: string | null) {
     const b = await requireBackend();
-    const user = await b.signIn(email, password);
+    const user = await b.signIn(email, password, captchaToken);
     set({ auth: null });
     await signedIn(user, b);
     announce('Signed in.');
   },
-  async signUp(email: string, password: string, returnTo: string) {
+  async signUp(email: string, password: string, returnTo: string, captchaToken?: string | null) {
     const b = await requireBackend();
-    const { needsVerification } = await b.signUp(email, password, returnTo);
+    const { needsVerification } = await b.signUp(email, password, returnTo, captchaToken);
     if (needsVerification) setAuthMode('verify-sent', { email });
     else {
       // “Confirm email” is off (the interim setup): Supabase signs the new account straight in,
@@ -281,9 +281,9 @@ export const auth = {
     await b.signInWithGoogle(returnTo);
     if (b.kind === 'mock') set({ auth: null });
   },
-  async requestReset(email: string, returnTo: string) {
+  async requestReset(email: string, returnTo: string, captchaToken?: string | null) {
     const b = await requireBackend();
-    await b.requestPasswordReset(email, returnTo);
+    await b.requestPasswordReset(email, returnTo, captchaToken);
     setAuthMode('reset-sent', { email });
   },
   async updatePassword(password: string) {
@@ -292,9 +292,9 @@ export const auth = {
     set({ auth: null });
     announce('Your password has been changed.');
   },
-  async resend(email: string, returnTo: string) {
+  async resend(email: string, returnTo: string, captchaToken?: string | null) {
     const b = await requireBackend();
-    await b.resendVerification(email, returnTo);
+    await b.resendVerification(email, returnTo, captchaToken);
   },
 };
 
@@ -311,6 +311,40 @@ export async function deleteAccount() {
   clearPending();
   set({ status: 'signed-out', user: null, saved: {}, savedLoaded: false, confirmDelete: false });
   announce('Your account, saved pearls and progress have been deleted.');
+}
+
+// ---------------------------------------------------------------------------------------------
+// Download my data: a JSON file of everything Durar keeps about the signed-in user.
+
+export const useDataExport = create<{ state: 'idle' | 'working' | 'done' | 'error'; message: string }>(() => ({
+  state: 'idle',
+  message: '',
+}));
+
+export async function downloadMyData() {
+  if (useDataExport.getState().state === 'working') return;
+  useDataExport.setState({ state: 'working', message: 'Preparing your data…' });
+  try {
+    const data = await (await requireBackend()).exportMyData();
+    const exportedAt = new Date().toISOString();
+    const file = { about: 'Everything Durar (durar.space) keeps about your account.', exported_at: exportedAt, ...data };
+    const blob = new Blob([JSON.stringify(file, null, 2) + '\n'], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `durar-my-data-${exportedAt.slice(0, 10)}.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    const message = 'Your data has been downloaded as a JSON file.';
+    useDataExport.setState({ state: 'done', message });
+    announce(message);
+  } catch (e) {
+    const message = `We couldn’t prepare your data. ${friendlyMessage(e)}`;
+    useDataExport.setState({ state: 'error', message });
+    announce(message);
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
