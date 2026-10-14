@@ -1,21 +1,19 @@
 # Phase 0.7 — Backend foundations + The Deep: report
 
-Live: https://durar.space, deployed from `main` at `e7acae5` (PR #39, merged 13 Oct 19:33 UTC). The site
-now runs its functions in **Frankfurt**, behind **Cloudflare Turnstile** and an **enforced
+Live: https://durar.space, deployed from `main` at `f7df326` (PR #60, merged 14 Oct 17:38 UTC, after The
+Deep, #61). The site now runs its functions in **Frankfurt**, behind **Cloudflare Turnstile** and an **enforced
 Content-Security-Policy**. Production is backed up every night, encrypted. Database changes go through
 GitHub, staging first, and production only after Lativ approves. An external monitor and a weekly
-digest watch it all. The anatomy of a word is live on every card.
+digest watch it all. The anatomy of a word is live on every card, and **The Deep** is live at
+`/deep`.
 
 The phase ran from 5 to 13 October in six threads: security and region (A–B), data safety (C),
 monitoring and GDPR (D–E), The Deep (F), the anatomy of a word (G) and 500 words (H). Claude's side is
-finished. Three things wait on Lativ, by Lativ's choice to keep every step for the end (13 Oct):
+finished. Lativ kept every step for the end (13 Oct) and merged The Deep (#61, with its production
+database run approved) and the restore fix (#60) on 14 Oct. What still waits on Lativ:
 
-- **The Deep** is ready in PR #61 (checks green, and its migration already ran on staging). It goes
-  live when Lativ merges it and approves the production database run.
 - **The 200 new words** are ready in eight batch PRs (#46–#53, checks green), for Lativ's review. Until
   then the sea holds 300 words.
-- **The restore fix** (#60) makes the monthly restore test really restore a production backup. The
-  first test on 13 Oct showed green without having restored (see *What went wrong*).
 
 Lativ's one ordered list, click by click, is `phase-0.7/durar-phase-0.7-your-steps.md` in the project
 files; a summary is at the end of this report.
@@ -92,14 +90,14 @@ from here · **[ ]** not done
   The upload user can only add files. Nothing from the dump appears in logs or artifacts. A failure
   opens a GitHub issue, which emails Lativ, and shows in the weekly digest. The first production backup
   ran on 13 Oct (41 tables).
-- [~] **Monthly restore test.** It loads the newest daily into a throwaway database on the runner,
+- [x] **Monthly restore test.** It loads the newest daily into a throwaway database on the runner,
   compares every table's row count, and throws it away. It never touches staging. The first run (13
-  Oct) **showed green without having restored**. #60 fixes it (green, waiting on Lativ's merge), and
-  Thread 1 runs the real test once it's merged.
+  Oct) **showed green without having restored**. #60 fixed it (merged 14 Oct). The real test then
+  restored the 14 Oct nightly backup, and all 41 tables matched (run 38608440648).
 - [x] **Restore runbook** ([`OPERATIONS.md`](OPERATIONS.md) §11): decrypt, restore all or one table,
   and how long it takes (under a minute at today's size, plus about half an hour for a new project).
   Practised on staging with the restore drill: all 41 tables match, and one table was restored back
-  into staging (run 38468679915, on #60's branch).
+  into staging (run 38468679915, on #60's code).
 - [x] **Staging**: a second free Supabase project in Frankfurt with fake data only (seeded users and
   progress, six Deep divers). Vercel's Preview environment points at it, email there stays sandboxed,
   and it runs no production cron. Its CAPTCHA uses Cloudflare's test secret.
@@ -133,31 +131,34 @@ from here · **[ ]** not done
 - [x] **Privacy page: every service that handles data**: Vercel (Frankfurt), Supabase, AWS (SES, S3,
   CloudFront), Cloudflare Turnstile, Namecheap, Google (only for Google sign-in), GitHub (the encrypted
   backups) and UptimeRobot, each with what, where and why. #61 adds The Deep's section.
-- [~] **Delete my account also removes the Deep entry**, tested in #61 (waiting on Lativ's merge).
+- [x] **Delete my account also removes the Deep entry**, tested in #61.
 
-## F. The Deep (PR #61, waiting on Lativ)
+## F. The Deep (PR #61, merged 14 Oct 17:38 UTC)
 
-- [~] **`record_review(slug, direction)`**: every signed-in swipe goes through one database function on
+The production database run (fresh backup, then the migration) passed on 14 Oct after Lativ's
+approval (run 38608340967), and `/deep` answers on durar.space.
+
+- [x] **`record_review(slug, direction)`**: every signed-in swipe goes through one database function on
   the server's clock. A word moves one box deeper only when it's due, and a left swipe resets it to box 1.
   It is rate limited (120 a minute, 3,000 a day), and signed-in users can no longer write progress
   directly. The browser keeps its instant feel: it sends swipes in batches and takes the server's answer.
-- [~] **Verified progress**: progress merged from a signed-out browser starts unverified and climbs
+- [x] **Verified progress**: progress merged from a signed-out browser starts unverified and climbs
   again from its next real review (from box 2, on the server's clock). Existing accounts start at 0 on
   the board. So a number typed into browser storage can never jump the board.
-- [~] Swiping right on a word that isn't due says "Already in the deep · returns in 6 days" (also to
+- [x] Swiping right on a word that isn't due says "Already in the deep · returns in 6 days" (also to
   screen readers), and the box stays.
-- [~] **Joining** from the account menu, My Pearls or `/deep`. Choose a name or take a generated one
+- [x] **Joining** from the account menu, My Pearls or `/deep`. Choose a name or take a generated one
   ("Diver 142" / «غوّاص ١٤٢»), with a note on what's public. Rename once a day, and leave at any time.
-- [~] **Names**: 3–20 characters, Latin or Arabic letters, digits, single spaces and `-_.`, with no
+- [x] **Names**: 3–20 characters, Latin or Arabic letters, digits, single spaces and `-_.`, with no
   emoji or direction controls. Unique ignoring case, Arabic marks and digit style. Reserved names and
   an English and Arabic word list are blocked. Shown with `<bdi dir="auto">`.
-- [~] **Boards**: *This week* (from Monday 00:00 Amsterdam) and *All time*, rebuilt every 15 minutes
+- [x] **Boards**: *This week* (from Monday 00:00 Amsterdam) and *All time*, rebuilt every 15 minutes
   and at once on join, rename, leave, delete or a moderation call. Ties go to whoever got there first.
   The public tables hold only rank, name and score, and your own rank comes from a function. `/deep`
   shows the top 10, your row and "#23 of 140 divers". It's `noindex`, works in the text-only view, and
   has empty states in Durar's voice. No notifications, emails or badges about rank.
-- [~] **Moderation runbook**, [`OPERATIONS.md`](OPERATIONS.md) §14: `select public.deep_hide('Name');`.
-- [~] Thread 2's hooks are filled in: the digest's diver count, The Deep in Download my data, and
+- [x] **Moderation runbook**, [`OPERATIONS.md`](OPERATIONS.md) §14: `select public.deep_hide('Name');`.
+- [x] Thread 2's hooks are filled in: the digest's diver count, The Deep in Download my data, and
   account deletion.
 
 ## G. The anatomy of a word (PR #41, merged 11 Oct 16:06 UTC)
@@ -213,7 +214,7 @@ from here · **[ ]** not done
 - **Accessibility:** the Turnstile error, the anatomy layer and `/deep` are axe clean in their tests.
   Lighthouse wasn't re-measured this phase.
 - **SEO:** unchanged; `/deep` is `noindex`.
-- **Performance:** first paint grew by 0.44 KB (anatomy) and will grow by 0.5 KB with #61; Turnstile
+- **Performance:** first paint grew by 0.44 KB (anatomy) and 0.5 KB (The Deep); Turnstile
   and the board load lazily. #54 keeps 500 words under the budget. Latency before and after: section B.
 - **Privacy:** no analytics or cookies. The board shows only chosen names. Every service is listed.
 - **Security:** no secrets in the repository or in logs (the history scan, push protection, and backups
@@ -223,19 +224,17 @@ from here · **[ ]** not done
 
 The click-by-click version is `phase-0.7/durar-phase-0.7-your-steps.md` in the project files:
 
-1. Merge #60, the restore fix, before Monday 19 Oct, 08:00.
-2. Merge #61 (The Deep), then approve the production database run.
-3. Review and merge the eight word batches, #46–#53, in order.
-4. From 0.6: `SES_RATE_PER_SECOND` = 5, then redeploy.
-5. Append each merged batch's rows to the Sheet.
-6. From 0.6: the custom MAIL FROM.
-7. The native-speaker review: the 500 words, the letter table and the al- syllable splits.
-8. Optional: the music track for #16, `ALERT_EMAIL`, the Outlook and iCloud test, Vercel's badge on
+1. Review and merge the eight word batches, #46–#53, in order.
+2. From 0.6: `SES_RATE_PER_SECOND` = 5, then redeploy.
+3. Append each merged batch's rows to the Sheet.
+4. From 0.6: the custom MAIL FROM.
+5. The native-speaker review: the 500 words, the letter table and the al- syllable splits.
+6. Optional: the music track for #16, `ALERT_EMAIL`, the Outlook and iCloud test, Vercel's badge on
    the Preview Turnstile secret.
 
 Done this phase: GitHub's security features, Turnstile, the backup bucket and keys, staging, the GitHub
 environments, the monitoring SQL and digest, UptimeRobot, the word list, and merging #36–#45, #54,
-#55, #58, #59, #37, #38 and #39.
+#55, #58, #59, #37, #38, #39, #60 and #61, with The Deep's database run approved.
 
 ## What went wrong
 
@@ -255,7 +254,7 @@ environments, the monitoring SQL and digest, UptimeRobot, the word list, and mer
 
 ## Next
 
-- Lativ's list above, then 500 words and The Deep are live.
+- Lativ's list above, then 500 words are live.
 - From the backlog: email sending that scales to SES's 50,000 a day; pronunciation audio on the
   anatomy hook; the star and flower pictures (#34) and topic refinements; a mobile performance pass,
   streaks, root-family visuals, a "most shared" count and a stricter DMARC; for The Deep, a quick
