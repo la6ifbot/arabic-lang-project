@@ -34,3 +34,18 @@ select u.id, w.slug, w.box, now() + (w.box || ' days')::interval, now() - interv
  cross join (values ('durrah', 3), ('bahr', 2), ('najm', 1), ('qamar', 5), ('sarab', 4)) as w(slug, box)
  where u.email like 'diver%@example.com' and u.email_confirmed_at is not null
 on conflict do nothing;
+
+-- The Deep: the fake divers' progress counts as earned on the server, and six of them have joined.
+update public.word_progress w
+   set verified_box = w.box, verified_at = w.last_reviewed_at
+  from auth.users u
+ where u.id = w.user_id and u.email like 'diver%@example.com' and w.verified_box = 0;
+
+insert into public.deep_members (user_id, name, name_key, generated)
+select u.id, x.name, public.deep_name_key(x.name), x.name ~ '^(Diver|غوّاص) '
+  from (values (1, 'Diver 101'), (2, 'لؤلؤة البحر'), (3, 'Moonlit Harbour'), (5, 'غوّاص ٧'), (6, 'Sabr'), (7, 'Nūr_7')) as x(n, name)
+  join auth.users u on u.email = 'diver' || x.n || '@example.com'
+ where u.email_confirmed_at is not null
+on conflict do nothing;
+
+select public.deep_refresh_boards();

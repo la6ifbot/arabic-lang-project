@@ -581,3 +581,48 @@ it by hand (or ask Claude), then run the workflow again.
 
 A file already applied to staging from a pull request that changes again before merging won't run
 again on staging. Make the change a new file instead.
+
+## 14. The Deep
+
+The opt-in leaderboard on `/deep` (migration `20261013000000_the_deep.sql`).
+
+- **Scores.** Every swipe by a signed-in user goes through `record_review()` (in batches,
+  `record_reviews()`), which applies the box rules on the server's clock: a known word moves one box
+  deeper only when it's due. Signed-in users can't write `word_progress` directly any more.
+  `verified_box` is the depth the server has seen earned; only that counts. Progress merged from a
+  signed-out browser (`save_progress()`) starts at 0 and climbs from its next review. A trigger keeps
+  `deep_scores` (depth, pearls, this week's net gain) up to date.
+- **Rate limit.** 120 reviews a minute and 3,000 a day per person (`review_rate`); the site retries
+  quietly after a minute.
+- **Boards.** `deep_board` and `deep_board_info` are the only public tables: rank, name and score.
+  pg_cron job `durar-deep-boards` rebuilds them every 15 minutes (`*/15 * * * *`), and joining,
+  renaming, leaving, deleting an account and the moderation functions rebuild them at once. "This
+  week" starts at Monday 00:00 Amsterdam. Ties go to whoever reached the score first.
+  - Check the job: `select jobname, schedule, active from cron.job where jobname = 'durar-deep-boards';`
+  - Rebuild by hand: `select public.deep_refresh_boards();`
+- **Names.** 3–20 characters, Latin or Arabic letters (not both), digits, single spaces, `-`, `_`
+  and `.`. Unique ignoring case, Arabic marks and digit style. Reserved names are in
+  `deep_reserved_names`; words not allowed (English and Arabic) in `deep_blocked_words` (`part`:
+  anywhere in the name; `word`: as a whole word). "Diver 142" and «غوّاص ١٤٢» are only given out.
+  Renaming: once a day after the first change.
+
+### Moderation: hiding a name (one line in the SQL editor)
+
+Open the [SQL editor](https://supabase.com/dashboard/project/kjujvlresqniylxhrojo/sql/new), new query:
+
+```sql
+select public.deep_hide('The Name');
+```
+
+That diver gets a generated name ("Diver 512"), the old name can't be chosen again, and the boards
+are rebuilt at once. The answer says what it did. Spelling and capitals don't need to be exact.
+
+- Take someone off The Deep altogether (they can join again under another name):
+  `select public.deep_remove('The Name');`
+- Free a hidden name again: `delete from public.deep_reserved_names where name_key = public.deep_name_key('The Name');`
+- Block a word in every new name: `insert into public.deep_blocked_words values (public.deep_name_key('word'), 'part');`
+  (use `'word'` instead of `'part'` for short words that are fine inside longer ones).
+
+Names already on the board aren't re-checked when the list changes; hide them with `deep_hide`.
+
+There are no rank notifications, emails or badges, on purpose.
