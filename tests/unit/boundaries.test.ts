@@ -40,11 +40,11 @@ describe('module boundaries', () => {
     expect(src).not.toMatch(/\.json['"]/);
   });
 
-  test('the first-paint JS reaches the illustrations, the Credits copy and shared/cards only through import()', () => {
+  test('the first-paint JS reaches the illustrations, the Credits copy, shared/cards and the word details only through import()', () => {
     const mods = firstPaintModules();
     expect(mods.size).toBeGreaterThan(20); // the walk really follows imports
     expect(mods.has('src/lib/words.ts')).toBe(true);
-    const banned = ['shared/images.ts', 'src/lib/illustrations.ts', 'src/data/illustrations.json', 'src/data/credits.json', 'shared/credits.ts', 'shared/cards.ts', 'src/pages/CreditsPage.tsx'];
+    const banned = ['shared/images.ts', 'src/lib/illustrations.ts', 'src/data/illustrations.json', 'src/data/credits.json', 'shared/credits.ts', 'shared/cards.ts', 'src/pages/CreditsPage.tsx', 'src/lib/wordDetails.ts'];
     expect(banned.filter((f) => mods.has(f))).toEqual([]);
   });
 });
