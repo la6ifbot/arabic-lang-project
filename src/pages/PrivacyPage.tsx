@@ -1,5 +1,6 @@
 import { accountsMode } from '../account/backend';
 import { downloadMyData, useAccount, useDataExport } from '../account/store';
+import { deepEnabled } from '../lib/flags';
 import { linkHandler } from '../lib/router';
 import { PageShell } from './PageShell';
 
@@ -106,33 +107,46 @@ export default function PrivacyPage() {
           We don’t sell or share data with anyone else. Fonts are served from our own site, not from Google.
         </p>
 
-        <h2 id="the-deep">The Deep, if you join it</h2>
-        <p>
-          The Deep is a leaderboard. Nobody is on it unless they choose to join, and you can leave at any time.
-        </p>
-        <ul data-testid="privacy-deep">
-          <li>
-            We store <strong>the name you choose</strong> (or the one we pick for you), when you joined and when you last
-            changed it.
-          </li>
-          <li>
-            <strong>Everyone can see that name with your rank and your depth</strong>: how many of your words are in the
-            deep and how deep they’ve sunk. Never your email, your words or anything else.
-          </li>
-          <li>
-            Your depth comes from your progress, counted by our server. It keeps a running total of your depth and of the
-            depth you gained this week, and, to stop abuse, a count of your swipes in the last minute and day.
-          </li>
-          <li>
-            Leave on The Deep’s page and your name disappears from both boards at once. Deleting your account removes it too.
-          </li>
-          <li>There are no notifications, emails or badges about your rank. The page isn’t shown in search engines.</li>
-        </ul>
+        {deepEnabled ? (
+          <>
+            <h2 id="the-deep">The Deep, if you join it</h2>
+            <p>
+              The Deep is a leaderboard. Nobody is on it unless they choose to join, and you can leave at any time.
+            </p>
+            <ul data-testid="privacy-deep">
+              <li>
+                We store <strong>the name you choose</strong> (or the one we pick for you), when you joined and when you last
+                changed it.
+              </li>
+              <li>
+                <strong>Everyone can see that name with your rank and your depth</strong>: how many of your words are in the
+                deep and how deep they’ve sunk. Never your email, your words or anything else.
+              </li>
+              <li>
+                Your depth comes from your progress, counted by our server. It keeps a running total of your depth and of the
+                depth you gained this week, and, to stop abuse, a count of your swipes in the last minute and day.
+              </li>
+              <li>
+                Leave on The Deep’s page and your name disappears from both boards at once. Deleting your account removes it too.
+              </li>
+              <li>There are no notifications, emails or badges about your rank. The page isn’t shown in search engines.</li>
+            </ul>
+          </>
+        ) : (
+          <>
+            <h2 id="the-deep">The Deep (paused)</h2>
+            <p data-testid="privacy-deep">
+              The Deep, our leaderboard, is paused. Nothing from it is shown to anyone, and you can’t join it right now. If
+              you chose a name for it before, we keep that name as it is: it’s in your <strong>Download my data</strong>{' '}
+              file, and deleting your account removes it.
+            </p>
+          </>
+        )}
 
         <h2 id="retention">How long we keep things</h2>
         <ul>
           <li>Your account, saved words and progress: until you delete them or your account.</li>
-          <li>Your name on The Deep: until you leave it or delete your account.</li>
+          <li>Your name on The Deep: until you {deepEnabled ? 'leave it or ' : ''}delete your account.</li>
           <li>Email sign-ups that are never confirmed: 7 days.</li>
           <li>Which day’s email was sent to whom: 60 days.</li>
           <li>The scrambled (hashed) IP address used to stop abuse of the subscribe form: 1 day.</li>

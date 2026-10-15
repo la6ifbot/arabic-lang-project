@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { daysUntilDue, type Progress } from '../../shared/mastery';
 import { accountsMode } from '../account/backend';
 import { openAuth, removePearl, restorePearl, useAccount } from '../account/store';
+import { deepEnabled } from '../lib/flags';
 import { linkHandler } from '../lib/router';
 import { TOPIC_BY_ID, TOPICS } from '../lib/topics';
 import { normalizeArabic, WORD_BY_SLUG } from '../lib/words';
@@ -78,7 +79,7 @@ export default function LibraryPage() {
   const joined = useDeepMember((s) => s.joined);
 
   useEffect(() => {
-    if (signedIn) void loadDeepMembership();
+    if (signedIn && deepEnabled) void loadDeepMembership();
   }, [signedIn]);
 
   useEffect(() => {
@@ -316,7 +317,7 @@ export default function LibraryPage() {
             ))}
           </ul>
         )}
-        {signedIn && joined !== null && (
+        {deepEnabled && signedIn && joined !== null && (
           <p className="lib-reset">
             <a href={joined ? '/deep' : '/deep#join'} onClick={linkHandler(joined ? '/deep' : '/deep#join')} className="link-btn" data-testid="library-deep">
               {joined ? 'See The Deep' : 'Join The Deep'}

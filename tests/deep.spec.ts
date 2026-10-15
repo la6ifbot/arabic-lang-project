@@ -38,6 +38,13 @@ const noViolations = async (page: Page) => {
 const rows = (page: Page) => page.locator('[role=tabpanel] .deep-row');
 
 test.describe('The Deep', () => {
+  // The Deep is parked behind VITE_DEEP_ENABLED (off by default); these run with it on so it keeps working.
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __DURAR_DEEP__: boolean }).__DURAR_DEEP__ = true;
+    });
+  });
+
   test('signed out: both boards are readable, with an invitation to join; noindex', async ({ page }) => {
     await seed(page, { divers: DIVERS });
     await page.goto('/deep');
@@ -157,5 +164,44 @@ test.describe('The Deep', () => {
     await expect(page.getByTestId('progress-status')).toHaveText('Already in the deep · returns in 6 days');
     const copy = await page.evaluate(() => JSON.parse(localStorage.getItem('durar-progress')!));
     expect(copy.items.find((p: SeedProgress) => p.slug === W[4]).box).toBe(3);
+  });
+});
+
+test.describe('The Deep, parked (flag off)', () => {
+  test('no way in anywhere, and /deep opens the sea at /', async ({ page }) => {
+    await page.addInitScript(() => {
+      (window as unknown as { __DURAR_DEEP__: boolean }).__DURAR_DEEP__ = false;
+      localStorage.removeItem('durar-help-seen'); // the first-visit help opens too
+    });
+    await seed(page, { signedIn: true, member: 'Layla', divers: DIVERS, progress: [verified(W[3], 3)] });
+    const noWayIn = async () => {
+      await expect(page.locator('a[href^="/deep"]')).toHaveCount(0);
+      await expect(page.locator('body')).not.toContainText('The Deep');
+    };
+
+    await page.goto('/deep');
+    await waitForSea(page);
+    await expect(page).not.toHaveURL(/\/deep/);
+    await expect(page.getByTestId('help-box')).toBeVisible(); // first-visit help
+    await noWayIn();
+    await page.getByTestId('about-open').click();
+    await expect(page.getByRole('dialog', { name: 'What is Durar?' })).toBeVisible();
+    await noWayIn();
+    await page.keyboard.press('Escape');
+
+    await page.getByTestId('account-button').click();
+    await expect(page.getByRole('menu', { name: 'Account' })).toBeVisible();
+    await expect(page.getByTestId('deep-menu')).toHaveCount(0);
+    await noWayIn();
+    await page.getByRole('menuitem', { name: /My Pearls/ }).click();
+
+    await expect(page.getByTestId('library-count')).toBeVisible();
+    await expect(page.getByRole('group', { name: 'Show' }).getByRole('button', { name: 'In the deep', exact: true })).toBeVisible(); // mastery stays
+    await expect(page.getByTestId('library-deep')).toHaveCount(0);
+    await noWayIn();
+
+    await page.goto('/privacy');
+    await expect(page.getByTestId('privacy-deep')).toContainText('paused');
+    await expect(page.locator('a[href^="/deep"]')).toHaveCount(0);
   });
 });

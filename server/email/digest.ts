@@ -1,3 +1,4 @@
+import { deepFlag } from '../../shared/flags.js';
 import type { OpsCheck, WeeklyStats } from '../store.js';
 import { C, esc, FONT_AR, FONT_EN, FONT_UI, formatDate, shell, type Rendered } from './templates.js';
 
@@ -34,7 +35,8 @@ interface Section {
   rows: [label: string, value: string, warn?: boolean][];
 }
 
-export function digestSections(s: WeeklyStats, now: Date): Section[] {
+/** `deep`: whether The Deep is on (VITE_DEEP_ENABLED); while it's parked its line is left out. */
+export function digestSections(s: WeeklyStats, now: Date, deep = deepFlag(process.env)): Section[] {
   const backup = jobLine(s.ops.backup, BACKUP_STALE_MS, now);
   const restore = jobLine(s.ops.restore_test, RESTORE_STALE_MS, now);
   const errorSources = Object.entries(s.errors.by_source)
@@ -56,7 +58,7 @@ export function digestSections(s: WeeklyStats, now: Date): Section[] {
       rows: [
         ['Accounts', `${s.accounts.total.toLocaleString('en-GB')} (${s.accounts.new} new)`],
         ['Reviews', `${plural(s.reviews.words, 'word')} reviewed by ${plural(s.reviews.people, 'person', 'people')}`],
-        ['The Deep', s.deep ? plural(s.deep.participants, 'diver') : 'not live yet'],
+        ...(deep ? [['The Deep', s.deep ? plural(s.deep.participants, 'diver') : 'not live yet'] as Section['rows'][number]] : []),
       ],
     },
     {
@@ -70,11 +72,11 @@ export function digestSections(s: WeeklyStats, now: Date): Section[] {
   ];
 }
 
-export function renderDigest(opts: { stats: WeeklyStats; siteUrl: string; now: Date }): Rendered {
+export function renderDigest(opts: { stats: WeeklyStats; siteUrl: string; now: Date; deep?: boolean }): Rendered {
   const { stats } = opts;
   const lastDay = new Date(Date.parse(`${stats.to}T12:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
   const range = `${formatDate(stats.from)} to ${formatDate(lastDay)}`;
-  const sections = digestSections(stats, opts.now);
+  const sections = digestSections(stats, opts.now, opts.deep);
   const warnings = sections.flatMap((s) => s.rows.filter((r) => r[2]).map((r) => r[0]));
   const subject = `Durar this week: ${plural(stats.subscribers.total, 'subscriber')}, ${plural(stats.accounts.total, 'account')}${warnings.length ? ' · needs a look' : ''}`;
   const lead = warnings.length ? `Needs a look: ${warnings.join(', ')}.` : 'All quiet.';

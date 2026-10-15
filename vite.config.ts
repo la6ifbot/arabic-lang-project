@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
-import { emailSignupFlag } from './shared/flags';
+import { deepFlag, emailSignupFlag } from './shared/flags';
 import { canonicalOrigin } from './shared/site';
 import type { WordDetailKey } from './src/types';
 
@@ -82,6 +82,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), cleanUrls(), slimTopics(), splitWords()],
   define: {
     __EMAIL_SIGNUP__: JSON.stringify(emailSignupFlag(process.env)),
+    __DEEP__: JSON.stringify(deepFlag(process.env)),
     __SITE_ORIGIN__: JSON.stringify(canonicalOrigin(process.env)),
   },
   build: {
