@@ -1,9 +1,12 @@
 declare const __EMAIL_SIGNUP__: boolean;
+declare const __DEEP__: boolean;
 
 declare global {
   interface Window {
     /** Test hook: overrides the build-time email sign-up flag. */
     __DURAR_EMAIL_SIGNUP__?: boolean;
+    /** Test hook: overrides the build-time Deep flag. */
+    __DURAR_DEEP__?: boolean;
   }
 }
 
@@ -12,3 +15,7 @@ export const emailSignupEnabled: boolean =
   typeof window !== 'undefined' && typeof window.__DURAR_EMAIL_SIGNUP__ === 'boolean'
     ? window.__DURAR_EMAIL_SIGNUP__
     : __EMAIL_SIGNUP__;
+
+/** Whether The Deep (the leaderboard) is shown at all (see shared/flags.ts). */
+export const deepEnabled: boolean =
+  typeof window !== 'undefined' && typeof window.__DURAR_DEEP__ === 'boolean' ? window.__DURAR_DEEP__ : __DEEP__;

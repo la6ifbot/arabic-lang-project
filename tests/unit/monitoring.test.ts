@@ -216,7 +216,7 @@ describe('the digest email', () => {
   });
 
   test('has every line from the checklist, in HTML and plain text, and says “All quiet” when it is', () => {
-    const r = renderDigest({ stats: stats({ ops: { backup: ok(5), restore_test: ok(24 * 10) } }), siteUrl: SITE, now });
+    const r = renderDigest({ stats: stats({ ops: { backup: ok(5), restore_test: ok(24 * 10) } }), siteUrl: SITE, now, deep: true });
     for (const label of ['Subscribers', 'Emails sent', 'Bounces · complaints', 'Accounts', 'Reviews', 'The Deep', 'Nightly backup', 'Restore test', 'Errors']) {
       expect(r.text).toContain(label);
       expect(r.html).toContain(label);
@@ -243,8 +243,11 @@ describe('the digest email', () => {
   test('a backup older than 30 hours is flagged; The Deep shows its divers once live', () => {
     expect(jobLine(ok(BACKUP_STALE_MS / 3_600_000 + 1), BACKUP_STALE_MS, now).warn).toBe(true);
     expect(jobLine(ok(20), BACKUP_STALE_MS, now).warn).toBe(false);
-    const rows = digestSections(stats({ deep: { participants: 1 } }), now).flatMap((s) => s.rows);
+    const rows = digestSections(stats({ deep: { participants: 1 } }), now, true).flatMap((s) => s.rows);
     expect(rows.find((r) => r[0] === 'The Deep')![1]).toBe('1 diver');
+    // Parked (VITE_DEEP_ENABLED unset): no Deep line at all.
+    const parked = digestSections(stats({ deep: { participants: 1 } }), now, false).flatMap((s) => s.rows);
+    expect(parked.find((r) => r[0] === 'The Deep')).toBeUndefined();
   });
 
   test('contains aggregate numbers only: no addresses', () => {

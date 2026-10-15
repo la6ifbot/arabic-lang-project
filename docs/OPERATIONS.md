@@ -586,6 +586,13 @@ again on staging. Make the change a new file instead.
 
 The opt-in leaderboard on `/deep` (migration `20261013000000_the_deep.sql`).
 
+**Parked since 15 Oct 2026.** The site shows The Deep only when `VITE_DEEP_ENABLED` is `1`, `true` or
+`on`; unset means off. Off, no menu item, Library link or digest line, and `/deep` opens the sea at `/`.
+Migration `20261015000000_pause_deep_boards.sql` paused the `durar-deep-boards` cron job; the tables and
+names stay, and mastery (`record_review()`, `verified_box`, "Already in the deep") is unaffected. To
+bring it back: a migration running `cron.alter_job(<job id>, active := true)` for that job, then set
+`VITE_DEEP_ENABLED=1` in Vercel (Production) and redeploy.
+
 - **Scores.** Every swipe by a signed-in user goes through `record_review()` (in batches,
   `record_reviews()`), which applies the box rules on the server's clock: a known word moves one box
   deeper only when it's due. Signed-in users can't write `word_progress` directly any more.
