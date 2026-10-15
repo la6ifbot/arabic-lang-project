@@ -314,6 +314,40 @@ export async function deleteAccount() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Download my data: a JSON file of everything Durar keeps about the signed-in user.
+
+export const useDataExport = create<{ state: 'idle' | 'working' | 'done' | 'error'; message: string }>(() => ({
+  state: 'idle',
+  message: '',
+}));
+
+export async function downloadMyData() {
+  if (useDataExport.getState().state === 'working') return;
+  useDataExport.setState({ state: 'working', message: 'Preparing your data…' });
+  try {
+    const data = await (await requireBackend()).exportMyData();
+    const exportedAt = new Date().toISOString();
+    const file = { about: 'Everything Durar (durar.space) keeps about your account.', exported_at: exportedAt, ...data };
+    const blob = new Blob([JSON.stringify(file, null, 2) + '\n'], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `durar-my-data-${exportedAt.slice(0, 10)}.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    const message = 'Your data has been downloaded as a JSON file.';
+    useDataExport.setState({ state: 'done', message });
+    announce(message);
+  } catch (e) {
+    const message = `We couldn’t prepare your data. ${friendlyMessage(e)}`;
+    useDataExport.setState({ state: 'error', message });
+    announce(message);
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
 // Saving. Optimistic: the UI changes at once and rolls back if the request fails. A per-word
 // version number makes sure a slow, stale response never overrides a newer tap.
 

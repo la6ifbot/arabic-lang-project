@@ -12,6 +12,8 @@ interface ImportMetaEnv {
   readonly VITE_CONTACT_EMAIL?: string;
   /** Cloudflare Turnstile site key (public). Unset: the forms run without the check. */
   readonly VITE_TURNSTILE_SITE_KEY?: string;
+  /** The Deep (leaderboard): on with 1, true or on; unset means off. */
+  readonly VITE_DEEP_ENABLED?: string;
 }
 
 interface Window {

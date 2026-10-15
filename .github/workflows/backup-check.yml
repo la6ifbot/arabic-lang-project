@@ -1,0 +1,104 @@
+name: Backup check
+
+# A pull request that changes the backups, the migrations or their workflows is tried out end to end
+# on the runner, with fake data only and no secrets: a local Supabase gets every migration and
+# supabase/seed.sql, is backed up with the nightly backup's own script, and the backup is restored
+# into a second, empty Supabase (in full, then one table) and compared row by row count. The
+# baseline that production's first migration run does is tried on a copy that had them applied by hand.
+on:
+  pull_request:
+    paths:
+      - 'scripts/backup/**'
+      - 'scripts/db/**'
+      - 'supabase/**'
+      - '.github/actions/backup/**'
+      - '.github/workflows/backup.yml'
+      - '.github/workflows/backup-check.yml'
+      - '.github/workflows/migrations.yml'
+      - '.github/workflows/restore-test.yml'
+      - '.github/workflows/restore-drill.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-check-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LOCAL_DB: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.119.0
+      - name: Install age (encryption)
+        run: command -v age > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq age > /dev/null; }
+
+      - name: Local Supabase with every migration and the fake data
+        run: supabase start -x studio,imgproxy,mailpit,realtime,storage-api,edge-runtime,logflare,vector,postgres-meta > /dev/null
+      - name: Like production, a scheduled job
+        run: |
+          psql "$LOCAL_DB" -X -q -v ON_ERROR_STOP=1 \
+            -c "create extension if not exists pg_cron" \
+            -c "select cron.schedule('backup-check-noop', '0 5 * * *', 'select 1')" > /dev/null
+
+      - name: Migrations applied by hand are recorded, not run again (production's first run)
+        run: |
+          psql "$LOCAL_DB" -X -q -c "create database prodsim"
+          sim=${LOCAL_DB%/postgres}/prodsim
+          psql "$sim" -X -q -v ON_ERROR_STOP=1 -f tests/db/supabase-shim.sql > /dev/null
+          # The five run by hand in the SQL editor before Phase 0.7.
+          for f in $(ls supabase/migrations/*.sql | head -n 5); do
+            psql "$sim" -X -q -v ON_ERROR_STOP=1 -f "$f" > /dev/null
+          done
+          DB_URL=$sim scripts/db/migrate.sh --baseline
+          test "$(psql "$sim" -X -qtA -c 'select count(*) from supabase_migrations.schema_migrations')" = \
+               "$(ls supabase/migrations/*.sql | wc -l)"
+          DB_URL=$sim scripts/db/migrate.sh --baseline | grep 'up to date'
+          psql "$LOCAL_DB" -X -q -c "drop database prodsim"
+      - name: A copy missing a hand-applied migration is refused
+        run: |
+          psql "$LOCAL_DB" -X -q -c "create database prodsim2"
+          sim=${LOCAL_DB%/postgres}/prodsim2
+          psql "$sim" -X -q -v ON_ERROR_STOP=1 -f tests/db/supabase-shim.sql > /dev/null
+          if DB_URL=$sim scripts/db/migrate.sh --baseline; then echo "It should have refused." >&2; exit 1; fi
+          test "$(psql "$sim" -X -qtA -c "select to_regclass('supabase_migrations.schema_migrations') is null")" = t
+          psql "$LOCAL_DB" -X -q -c "drop database prodsim2"
+
+      - name: Back up the local copy with the nightly backup's script
+        run: |
+          umask 077
+          age-keygen -o "$RUNNER_TEMP/key.txt" 2> /dev/null
+          age-keygen -y "$RUNNER_TEMP/key.txt" > "$RUNNER_TEMP/recipient.txt"
+          DB_URL=$LOCAL_DB BACKUP_RECIPIENTS=$RUNNER_TEMP/recipient.txt \
+            scripts/backup/make-backup.sh "$RUNNER_TEMP/backup.tar.gz.age"
+          # The committed keys are real age public keys (or none yet).
+          if grep -q '^age1' supabase/backup/recipients.txt; then
+            echo test | age -R supabase/backup/recipients.txt > /dev/null
+          fi
+          supabase stop --no-backup > /dev/null
+
+      - name: Restore everything into an empty Supabase
+        run: |
+          scripts/backup/throwaway-supabase.sh "$RUNNER_TEMP/target"
+          scripts/backup/restore.sh "$RUNNER_TEMP/backup.tar.gz.age" "$RUNNER_TEMP/key.txt" "$LOCAL_DB"
+          test "$(psql "$LOCAL_DB" -X -qtA -c "select count(*) from auth.users where email like 'diver%@example.com'")" -gt 0
+          test "$(psql "$LOCAL_DB" -X -qtA -c "select count(*) from cron.job where active")" = 0
+      - name: Restore one table
+        run: |
+          psql "$LOCAL_DB" -X -q -c "delete from public.word_progress where box = 5" -c "update public.word_progress set box = 1"
+          scripts/backup/restore.sh "$RUNNER_TEMP/backup.tar.gz.age" "$RUNNER_TEMP/key.txt" "$LOCAL_DB" --table public.word_progress
+          test "$(psql "$LOCAL_DB" -X -qtA -c "select count(*) from public.word_progress where box = 5")" -gt 0
+      - name: A wrong key restores nothing
+        run: |
+          age-keygen -o "$RUNNER_TEMP/wrong.txt" 2> /dev/null
+          if scripts/backup/restore.sh "$RUNNER_TEMP/backup.tar.gz.age" "$RUNNER_TEMP/wrong.txt" "$LOCAL_DB" 2> /dev/null; then
+            echo "It should have failed." >&2; exit 1
+          fi
