@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { deepEnabled } from './flags';
 import { isTopic, TOPIC_BY_ID } from './topics';
 import { WORD_BY_SLUG } from './words';
 
@@ -21,7 +22,7 @@ const SEA_PATH = /^\/sea\/([a-z-]+)\/?$/;
 export function routeFromPath(pathname: string): Route {
   const p = pathname.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
   if (p === '/library') return { name: 'library' };
-  if (p === '/deep') return { name: 'deep' };
+  if (p === '/deep') return deepEnabled ? { name: 'deep' } : { name: 'scene' };
   if (p === '/privacy') return { name: 'privacy' };
   if (p === '/credits') return { name: 'credits' };
   if (p === '/subscribe/confirm') return { name: 'confirm' };
@@ -51,6 +52,16 @@ const canSyncUrl = (() => {
   return p === '/' || p === '/index.html' || /^\/(word|sea|library|deep|privacy|credits|subscribe|unsubscribe)(\/|$)/.test(p);
 })();
 
+/** While The Deep is parked, /deep opens the sea at “/” instead. */
+const parked = (path: string) => !deepEnabled && /^\/deep\/?(?:[?#]|$)/.test(path);
+if (canSyncUrl && parked(window.location.pathname)) {
+  try {
+    window.history.replaceState(null, '', '/');
+  } catch {
+    /* sandboxed frames */
+  }
+}
+
 export const useRoute = create<{ route: Route }>(() => ({ route: routeFromPath(window.location.pathname) }));
 
 type RouteListener = (route: Route, path: string) => void;
@@ -69,6 +80,7 @@ export const navigatedInApp = () => inApp;
 /** In-app navigation (History API when available, in-memory otherwise). */
 export function navigate(path: string) {
   inApp = true;
+  if (parked(path)) path = '/';
   const route = routeFromPath(path);
   if (canSyncUrl) {
     try {
