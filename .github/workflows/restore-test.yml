@@ -26,8 +26,8 @@ jobs:
     # The "restore-test" environment only serves main, so no other branch can read its secrets.
     environment: restore-test
     steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.119.0
       - name: Install age (encryption)
