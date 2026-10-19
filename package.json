@@ -25,22 +25,22 @@
     "email:test": "tsx scripts/email.ts test"
   },
   "dependencies": {
-    "@aws-sdk/client-sesv2": "^3.1148.0",
+    "@aws-sdk/client-sesv2": "^3.1152.0",
     "@fontsource/aref-ruqaa": "^5.3.0",
     "@fontsource/cormorant-garamond": "^5.2.0",
     "@fontsource/ibm-plex-sans-arabic": "^5.2.0",
     "@fontsource/noto-naskh-arabic": "^5.3.0",
-    "@react-three/fiber": "^9.8.1",
-    "@supabase/supabase-js": "^2.117.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "@react-three/fiber": "^9.8.2",
+    "@supabase/supabase-js": "^2.118.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "three": "^0.186.1",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1148.0",
-    "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "1.64.0",
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "1.64.1",
     "@tailwindcss/vite": "^4.1.0",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.23.1",
@@ -55,7 +55,7 @@
     "typescript": "~5.9.2",
     "vite": "^7.1.0",
     "vite-plugin-singlefile": "^2.3.3",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.5"
   },
   "engines": {
     "node": "22.x"
