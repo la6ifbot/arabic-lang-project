@@ -23,6 +23,7 @@
     "vite.artifact.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
+    "src/wordParts.d.ts",
     "tests",
     "shared",
     "server",

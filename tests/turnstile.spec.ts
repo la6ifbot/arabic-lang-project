@@ -149,7 +149,14 @@ test.describe('Turnstile', () => {
     await expect(d.getByRole('alert')).toContainText('quick check that keeps bots out');
   });
 
-  test('with Cloudflare’s real script and test key, sign-up gets the test token', async ({ page }) => {
+  test('with Cloudflare’s real script and test key, sign-up gets the test token, within the CSP', async ({ page }) => {
+    const violations: string[] = [];
+    await page.exposeFunction('__cspViolation', (v: string) => violations.push(v));
+    await page.addInitScript(() =>
+      document.addEventListener('securitypolicyviolation', (e) =>
+        (window as unknown as { __cspViolation(v: string): void }).__cspViolation(`${e.violatedDirective} ${e.blockedURI}`),
+      ),
+    );
     await useTurnstile(page, PASSES, 'real');
     await seed(page);
     await openSignIn(page);
@@ -160,5 +167,6 @@ test.describe('Turnstile', () => {
     await d.getByRole('button', { name: 'Create account' }).click();
     await expect(d.getByRole('heading')).toHaveText('Check your inbox', { timeout: 30_000 });
     expect(await captchas(page)).toEqual([{ op: 'signUp', token: 'XXXX.DUMMY.TOKEN.XXXX' }]);
+    expect(violations).toEqual([]);
   });
 });
