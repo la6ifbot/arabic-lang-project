@@ -20,16 +20,18 @@ Google Sheet ──Run "Import from the Sheet"──▶ pull request (summary + 
 
 The Sheet is the editing surface; `src/data/words.json` and `src/data/topics.json` in the repo
 are what the site is built from. Words sometimes arrive another way (a batch written by Claude as
-its own pull request). After such a pull request is merged, bring the Sheet up to date before
-editing it again, or the next import will see those words as removals: import the refreshed words
-file that comes with the batch into the `words` tab with **File → Import → Upload → Replace current
-sheet**. `node scripts/export-sheet.mjs` writes the whole current data as CSV at any time.
+its own pull request). The import keeps such words: they are listed in its summary under *In the
+repo, not in the Sheet yet* and stay on the site, so editing and importing the Sheet is safe at any
+time. To bring them into the Sheet, upload the batch's `durar-new-rows-batch-N.csv` (its rows only,
+no header) into the `words` tab with **File → Import → Upload → Append to current sheet**, after
+that batch's pull request is merged. `node scripts/export-sheet.mjs out --only slug1,slug2` writes such
+a file, and `node scripts/export-sheet.mjs` writes the whole current data as CSV at any time.
 
 ### Removing a word
 
 Removing a word breaks its `/word/<slug>` link (shared links and search results) and drops it from
-everyone's Library. Prefer fixing a word to removing it. The import refuses removals unless
-**Allow removals** is ticked, and the pull request lists each one again.
+everyone's Library. Prefer fixing a word to removing it. The import keeps rows you deleted unless
+**Allow removals** is ticked, and the pull request lists each removal again.
 
 Never change a slug: to the site that is a removal plus a new word.
 

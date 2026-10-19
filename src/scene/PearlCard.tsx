@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { useAccount } from '../account/store';
 import { openAnatomy } from '../state/dialogs';
 import { acquireCardTexture, releaseCardTexture } from './texturePool';
-import { WORD_BY_SLUG } from '../lib/words';
+import { fullWord } from '../lib/wordDetails';
 import { depthOf } from '../progress/queue';
 import { useProgress } from '../state/progress';
 import { EXIT_MS, gesture, MAX_ZOOM, setMaxZoom, setPan, useDurar } from '../state/store';
@@ -54,7 +54,7 @@ interface Props {
 }
 
 export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion }: Props) {
-  const word = WORD_BY_SLUG.get(slug)!;
+  const word = fullWord(slug)!;
   const gl = useThree((s) => s.gl);
   const seed = useMemo(() => hashSeed(slug), [slug]);
   const texture = useMemo(() => acquireCardTexture(word, Math.min(8, gl.capabilities.getMaxAnisotropy())), [word, gl]);

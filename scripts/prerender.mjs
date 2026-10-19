@@ -7,6 +7,7 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { HOME_CARD, cardAlt, cardUrl } from '../shared/cards.ts';
+import { deepFlag } from '../shared/flags.ts';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -163,6 +164,15 @@ const pages = [
     description: 'The Arabic words you have saved on Durar.',
     noindex: true,
   },
+  // While The Deep is parked (shared/flags.ts), /deep names nothing; the app sends it to the sea.
+  deepFlag(process.env)
+    ? {
+        path: '/deep',
+        title: 'The Deep · Durar',
+        description: 'The Deep: divers on Durar who chose to be seen, ranked by how deep their pearls have sunk.',
+        noindex: true,
+      }
+    : { path: '/deep', title: 'Durar', description: 'Durar', noindex: true },
   {
     path: '/subscribe/confirm',
     title: 'Confirm your subscription · Durar',
