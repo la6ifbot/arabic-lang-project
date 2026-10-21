@@ -106,7 +106,7 @@ test.describe('text-only view', () => {
     await page.goto('/word/durrah');
     await page.keyboard.press('l');
     await settled(page);
-    await expect(letters(page).nth(1)).toHaveAttribute('aria-label', 'rāʾ, doubled');
+    await expect(letters(page).nth(1)).toHaveAttribute('aria-label', 'رَّ rāʾ, doubled');
     await page.getByTestId('anatomy-syllables-step').click();
     await expect(page.getByTestId('anatomy-syllables')).toBeVisible();
     await expect(page.getByTestId('anatomy-syllables').locator('li')).toHaveText(['دُرْdur', 'رَةrah']);
