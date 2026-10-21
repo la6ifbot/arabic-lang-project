@@ -25,7 +25,7 @@ jobs:
     # The "backup" environment only serves main, so no other branch can read its secrets.
     environment: backup
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/backup
         with:
           db-url: ${{ secrets.PROD_DB_URL }}
