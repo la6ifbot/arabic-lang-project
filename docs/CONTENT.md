@@ -103,6 +103,13 @@ language. No exclamation marks, no emoji.
 figurative one: *"a large, flawless pearl"*, *"something rare and precious; the finest of its
 kind"*. One meaning is fine; three is the most.
 
+**Topic, first meaning and first example agree.** The Pearl of the Day email and the cards show the
+word's first topic, its first meaning and its first example together, so the three must fit. When a
+word is in a topic for one of its senses (عُود in *Flowers & scent* for agarwood, not the lute), that
+sense goes first and the first example shows it. When the topic comes only through a phrase (a star
+name such as *dhanab al-dajājah*, or *qindīl al-baḥr*), keep the plain meaning first, add the phrase
+as a later meaning and make the first example about it.
+
 **Examples.** One sentence each, at most about twelve Arabic words, natural Modern Standard Arabic
 that shows the word in a typical setting. One good example beats three. Diacritics in examples are
 optional; add them where a reader might stumble. The English is a natural translation, not a gloss.
