@@ -20,16 +20,18 @@ Google Sheet ──Run "Import from the Sheet"──▶ pull request (summary + 
 
 The Sheet is the editing surface; `src/data/words.json` and `src/data/topics.json` in the repo
 are what the site is built from. Words sometimes arrive another way (a batch written by Claude as
-its own pull request). After such a pull request is merged, bring the Sheet up to date before
-editing it again, or the next import will see those words as removals: import the refreshed words
-file that comes with the batch into the `words` tab with **File → Import → Upload → Replace current
-sheet**. `node scripts/export-sheet.mjs` writes the whole current data as CSV at any time.
+its own pull request). The import keeps such words: they are listed in its summary under *In the
+repo, not in the Sheet yet* and stay on the site, so editing and importing the Sheet is safe at any
+time. To bring them into the Sheet, upload the batch's `durar-new-rows-batch-N.csv` (its rows only,
+no header) into the `words` tab with **File → Import → Upload → Append to current sheet**, after
+that batch's pull request is merged. `node scripts/export-sheet.mjs out --only slug1,slug2` writes such
+a file, and `node scripts/export-sheet.mjs` writes the whole current data as CSV at any time.
 
 ### Removing a word
 
 Removing a word breaks its `/word/<slug>` link (shared links and search results) and drops it from
-everyone's Library. Prefer fixing a word to removing it. The import refuses removals unless
-**Allow removals** is ticked, and the pull request lists each one again.
+everyone's Library. Prefer fixing a word to removing it. The import keeps rows you deleted unless
+**Allow removals** is ticked, and the pull request lists each removal again.
 
 Never change a slug: to the site that is a removal plus a new word.
 
@@ -100,6 +102,13 @@ language. No exclamation marks, no emoji.
 **Meanings.** Lowercase, no final full stop, a few words each. The common meaning first, then the
 figurative one: *"a large, flawless pearl"*, *"something rare and precious; the finest of its
 kind"*. One meaning is fine; three is the most.
+
+**Topic, first meaning and first example agree.** The Pearl of the Day email and the cards show the
+word's first topic, its first meaning and its first example together, so the three must fit. When a
+word is in a topic for one of its senses (عُود in *Flowers & scent* for agarwood, not the lute), that
+sense goes first and the first example shows it. When the topic comes only through a phrase (a star
+name such as *dhanab al-dajājah*, or *qindīl al-baḥr*), keep the plain meaning first, add the phrase
+as a later meaning and make the first example about it.
 
 **Examples.** One sentence each, at most about twelve Arabic words, natural Modern Standard Arabic
 that shows the word in a typical setting. One good example beats three. Diacritics in examples are

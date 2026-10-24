@@ -1,0 +1,11 @@
+# Durar · Public keys every backup is encrypted to (age, https://age-encryption.org).
+# A backup can be opened with either private key:
+#   1. Lativ's own key: the private half is kept by Lativ in two safe places, never in GitHub.
+#   2. The restore-test key: the private half is the RESTORE_AGE_KEY secret of the "restore-test"
+#      environment, used only by the monthly restore test.
+# These are public keys, safe in a public repository. See docs/OPERATIONS.md (Backups).
+
+# 1. Lativ's own key (added 13 Oct 2026)
+age1whllzsyyj26f8fnvm2u3xl2hdqwueyg23dcnh28nxpjnd34mu42qlytrn2
+# 2. Restore-test key (added 13 Oct 2026)
+age1gne2t9f82ykvgxyj6jezdxlq4s052scsmetv6hl7lgm2emeqlctqe78hev

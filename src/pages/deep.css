@@ -1,0 +1,172 @@
+/* The Deep (/deep): loaded with the page, never on the sea's first paint. */
+.deep-lead {
+  max-width: 34rem;
+  margin: -12px auto 28px;
+  text-align: center;
+  font: 500 1.15rem/1.5 var(--font-en);
+  color: var(--ink-soft);
+  text-wrap: balance;
+}
+.deep-tabs {
+  display: flex;
+  width: fit-content;
+  margin: 0 auto 18px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge);
+  background: rgba(8, 34, 46, 0.35);
+}
+.deep-tabs button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-soft);
+  font: 500 0.9rem/1 var(--font-ui);
+  cursor: pointer;
+  transition: background 0.4s var(--ease-water), color 0.4s var(--ease-water);
+}
+.deep-tabs button[aria-selected='true'] {
+  background: rgba(127, 214, 214, 0.16);
+  color: var(--ink);
+}
+.deep-tabs button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.35);
+}
+.deep-panel {
+  max-width: 34rem;
+  margin: 0 auto;
+}
+.deep-divers {
+  min-height: 1.2em;
+  margin: 0 0 12px;
+  text-align: center;
+  font: italic 500 1.05rem/1.2 var(--font-en);
+  color: var(--ink-soft);
+}
+.deep-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.deep-row {
+  display: grid;
+  grid-template-columns: 2.4rem 1fr auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-edge);
+  background: var(--glass);
+  font: 400 0.95rem/1.35 var(--font-ui);
+}
+.deep-row[data-me] {
+  border-color: rgba(190, 240, 240, 0.45);
+  background: rgba(20, 70, 80, 0.5);
+}
+.deep-rank {
+  font: 500 1.2rem/1 var(--font-en);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.deep-who {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+}
+.deep-name {
+  unicode-bidi: isolate;
+  font-family: var(--font-ui), var(--font-ar);
+}
+.deep-you-tag {
+  color: var(--ink-faint);
+}
+.deep-score {
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 520px) {
+  .deep-row {
+    grid-template-columns: 2.4rem 1fr;
+  }
+  .deep-score {
+    grid-column: 2;
+    text-align: start;
+  }
+}
+.deep-gap {
+  text-align: center;
+  color: var(--ink-faint);
+  letter-spacing: 0.3em;
+}
+.deep-you,
+.deep-empty {
+  margin: 18px auto 0;
+  max-width: 30rem;
+  text-align: center;
+  font: 500 1.05rem/1.5 var(--font-en);
+  color: var(--ink-soft);
+}
+.deep-join {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: 30rem;
+  margin: 36px auto 0;
+  text-align: center;
+  color: var(--ink-soft);
+}
+.deep-join p {
+  margin: 0;
+}
+.deep-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+}
+.deep-note {
+  margin: 40px auto 0;
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+.deep-skeleton {
+  max-width: 34rem;
+  height: 320px;
+  margin: 0 auto;
+  border-radius: 20px;
+  background: linear-gradient(100deg, rgba(15, 48, 57, 0.6) 30%, rgba(40, 90, 100, 0.45) 50%, rgba(15, 48, 57, 0.6) 70%);
+}
+.deep-choices {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--ink-soft);
+}
+.deep-choices legend {
+  margin-bottom: 6px;
+  color: var(--ink);
+  font-weight: 500;
+}
+.deep-choices > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  cursor: pointer;
+}
+.deep-choices input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--glow);
+}

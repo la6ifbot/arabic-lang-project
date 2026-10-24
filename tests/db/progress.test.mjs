@@ -95,21 +95,25 @@ describe('word_progress row level security', () => {
     await save(bob, [row('najm', 3, '2026-09-20T09:00:00Z')]);
     const seen = await user(bob, () => q(`select word_slug from public.word_progress`));
     assert.deepEqual(seen.rows, [{ word_slug: 'najm' }]);
-    const upd = await user(bob, () => q(`update public.word_progress set box = 5 where user_id = $1`, [alice]));
-    assert.equal(upd.rowCount, 0);
+    await assert.rejects(user(bob, () => q(`update public.word_progress set box = 5 where user_id = $1`, [alice])), /permission denied/);
     const del = await user(bob, () => q(`delete from public.word_progress where user_id = $1`, [alice]));
     assert.equal(del.rowCount, 0);
     await assert.rejects(
       user(bob, () =>
         q(`insert into public.word_progress (user_id, word_slug, box, due_at, last_reviewed_at) values ($1, 'sabr', 1, now(), now())`, [alice]),
       ),
-      /row-level security/,
+      /permission denied/,
     );
     assert.equal((await mine(alice)).length, 2);
   });
 
-  test('a user cannot move their rows to someone else', async () => {
-    await assert.rejects(user(bob, () => q(`update public.word_progress set user_id = $1`, [alice])), /row-level security/);
+  test('a user cannot write rows directly, not even their own (reviews go through record_review)', async () => {
+    await assert.rejects(user(bob, () => q(`update public.word_progress set user_id = $1`, [alice])), /permission denied/);
+    await assert.rejects(user(bob, () => q(`update public.word_progress set box = 5`)), /permission denied/);
+    await assert.rejects(
+      user(bob, () => q(`insert into public.word_progress (word_slug, box, due_at, last_reviewed_at) values ('sabr', 5, now(), now())`)),
+      /permission denied/,
+    );
   });
 
   test('anon gets nothing', async () => {

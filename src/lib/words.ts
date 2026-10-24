@@ -1,9 +1,11 @@
-import raw from '../data/words.json';
+// The core of every word (vite.config.ts, splitWords). Examples, etymologies, roots and syllables
+// load on demand from ./wordDetails, so the first-paint bundle doesn't grow with the word count.
+import raw from '../data/words.json?core';
 import { pearlOfTheDay } from '../../shared/pearlOfTheDay';
-import type { Word } from '../types';
+import type { WordCore } from '../types';
 
-export const WORDS: Word[] = raw as Word[];
-export const WORD_BY_SLUG: ReadonlyMap<string, Word> = new Map(WORDS.map((w) => [w.slug, w]));
+export const WORDS: WordCore[] = raw;
+export const WORD_BY_SLUG: ReadonlyMap<string, WordCore> = new Map(WORDS.map((w) => [w.slug, w]));
 
 /** Today's Pearl of the Day (Amsterdam calendar day), fixed for this visit. */
 export const TODAY = pearlOfTheDay(WORDS);
@@ -33,7 +35,7 @@ export function normalizeLatin(s: string): string {
 }
 
 interface Indexed {
-  word: Word;
+  word: WordCore;
   ar: string;
   translit: string;
   meaningWords: string[];
@@ -52,10 +54,10 @@ const INDEX: Indexed[] = WORDS.map((word) => {
 });
 
 /** Ranked, typo-tolerant-enough search across Arabic, transliteration and English meanings. */
-export function searchWords(query: string, limit = 7): Word[] {
+export function searchWords(query: string, limit = 7): WordCore[] {
   const q = query.trim();
   if (!q) return [];
-  const scored: { word: Word; score: number }[] = [];
+  const scored: { word: WordCore; score: number }[] = [];
 
   if (ARABIC.test(q)) {
     const nq = normalizeArabic(q).replace(/^ال/, '');

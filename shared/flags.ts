@@ -9,3 +9,12 @@ export function emailSignupFlag(env: Record<string, string | undefined>): boolea
   if (explicit === 'off') return false;
   return env.VERCEL_ENV !== 'production';
 }
+
+/**
+ * The Deep (the opt-in leaderboard) is parked: off unless VITE_DEEP_ENABLED is on (1, true or on).
+ * Off hides every way in, sends /deep to the sea and leaves it out of the weekly digest. Mastery
+ * (record_review, verified progress, “Already in the deep”) doesn't depend on it.
+ */
+export function deepFlag(env: Record<string, string | undefined>): boolean {
+  return ['1', 'true', 'on'].includes((env.VITE_DEEP_ENABLED ?? '').trim().toLowerCase());
+}

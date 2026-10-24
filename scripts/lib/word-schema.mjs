@@ -2,8 +2,8 @@
 // `npm run validate:data` (CI) and, later, the Google Sheet import script.
 
 const ARABIC = /[؀-ۿ]/;
-/** Short vowels, tanwin, shadda and sukun. */
-const HARAKAT = /[ً-ْ]/;
+/** Short vowels, tanwin, shadda and sukun, or alif madda (آ), which carries its own hamza and long ā. */
+const HARAKAT = /[ً-ْآ]/;
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 /**

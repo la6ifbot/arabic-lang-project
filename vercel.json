@@ -95,6 +95,12 @@
     },
     "api/unsubscribe.ts": {
       "maxDuration": 10
+    },
+    "api/cron/weekly.ts": {
+      "maxDuration": 30
+    },
+    "api/health.ts": {
+      "maxDuration": 10
     }
   }
 }
