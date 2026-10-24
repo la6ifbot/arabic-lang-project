@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useSta
 import { anatomy, countLabel, describe, joinSentence, positional, shapes, type Form, type Letter } from '../../shared/anatomy';
 import { prefersReducedMotion } from '../lib/device';
 import { pronounce } from '../lib/pronounce';
-import { WORD_BY_SLUG } from '../lib/words';
+import { fullWord } from '../lib/wordDetails';
 import { headAnchor } from '../state/anchors';
 import { closeAnatomy, useDialogs } from '../state/dialogs';
 import { useDurar } from '../state/store';
@@ -52,7 +52,7 @@ const gapBefore = (letters: Letter[], i: number) => {
  */
 export default function Anatomy() {
   const slug = useDialogs((s) => s.anatomy) ?? '';
-  const word = WORD_BY_SLUG.get(slug);
+  const word = fullWord(slug);
   const a = useMemo(() => (word ? anatomy(word) : null), [word]);
   const reduced = useMemo(prefersReducedMotion, []);
   // Reduced motion: no slide, the letters simply fade in apart.

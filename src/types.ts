@@ -39,6 +39,12 @@ export interface Word {
   syllables?: { ar: string; tr: string }[];
 }
 
+/** The heavy fields of a word, kept out of the first-paint bundle (src/lib/wordDetails.ts). */
+export type WordDetailKey = 'examples' | 'etymology' | 'root' | 'syllables';
+
+/** What first paint needs (lists, search, the schedule, topics); WORDS and WORD_BY_SLUG hold these. */
+export type WordCore = Omit<Word, WordDetailKey>;
+
 export interface Etymology {
   /** Original writing for Durar (decision 8), never copied from a dictionary. */
   text: string;

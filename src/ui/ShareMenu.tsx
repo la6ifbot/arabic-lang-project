@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { copyLink, download, isToday } from '../share/share';
 import { whatsappUrl } from '../share/text';
-import type { Word } from '../types';
+import type { WordCore } from '../types';
 
 /**
  * The desktop share menu (and the fallback where a phone has no share sheet): WhatsApp, Copy
@@ -17,7 +17,7 @@ export default function ShareMenu({
   busyWhile,
 }: {
   id: string;
-  word: Word;
+  word: WordCore;
   open: boolean;
   anchor: React.RefObject<HTMLButtonElement | null>;
   close: (refocus: boolean) => void;

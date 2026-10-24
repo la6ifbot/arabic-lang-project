@@ -83,7 +83,7 @@ test.describe('mastery: progress is saved', () => {
     await page.goto(`/word/${W[2]}`);
     await waitForSea(page);
     await ready(page);
-    await page.evaluate(() => (window as unknown as { __durarMock: { failNext(op: string): void } }).__durarMock.failNext('saveProgress'));
+    await page.evaluate(() => (window as unknown as { __durarMock: { failNext(op: string): void } }).__durarMock.failNext('recordReviews'));
     await swipe(page, 'ArrowLeft');
     await expect(progressStatus(page)).toHaveText('Still learning · back tomorrow');
     await expect.poll(async () => (await mockProgress(page)).map((p: SeedProgress) => p.slug), { timeout: 15_000 }).toEqual([W[2]]);

@@ -31,8 +31,8 @@ jobs:
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -67,8 +67,8 @@ jobs:
       group: images-${{ github.ref }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -114,8 +114,8 @@ jobs:
     # The browser tests take 13–17 minutes under software WebGL, and setup 1–8 minutes.
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -125,6 +125,8 @@ jobs:
         env:
           # Any absolute URL: lets the build emit sitemap.xml and canonical tags for the tests.
           SITE_URL: https://durar.example
+      - name: First-paint JS stays within budget and free of word details
+        run: npm run check:bundle
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
         env:
@@ -137,7 +139,7 @@ jobs:
           find test-results -name error-context.md 2>/dev/null | while read -r f; do
             echo "::group::$f"; cat "$f"; echo "::endgroup::"
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-report

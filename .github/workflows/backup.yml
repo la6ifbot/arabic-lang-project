@@ -1,0 +1,43 @@
+name: Nightly backup
+
+# Dumps production every night (sign-in accounts included), encrypts the dump before it leaves the
+# runner, and stores it in the private backup bucket in Frankfurt. See docs/OPERATIONS.md (Backups).
+# The repository is public, so nothing from the dump is ever printed or kept as an artifact.
+on:
+  schedule:
+    - cron: '17 1 * * *' # 01:17 UTC: 03:17 in Amsterdam in summer, 02:17 in winter; long before the 07:00 email
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read # when the monthly restore test last passed
+  issues: write # a failure opens an issue, which emails Lativ
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: github.repository == 'la6ifbot/arabic-lang-project'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # The "backup" environment only serves main, so no other branch can read its secrets.
+    environment: backup
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/backup
+        with:
+          db-url: ${{ secrets.PROD_DB_URL }}
+          bucket: ${{ secrets.BACKUP_BUCKET }}
+          aws-access-key-id: ${{ secrets.BACKUP_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.BACKUP_AWS_SECRET_ACCESS_KEY }}
+          github-token: ${{ github.token }}
+      - name: Tell Lativ
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DB_URL: ${{ secrets.PROD_DB_URL }}
+        run: |
+          scripts/backup/report-failure.sh "Nightly backup failed"
+          scripts/backup/report-status.sh backup false || true
