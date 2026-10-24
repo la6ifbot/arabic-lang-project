@@ -20,6 +20,17 @@ export interface SeedProgress {
   lastReviewedAt: string;
   timesSeen: number;
   lapses: number;
+  /** The box the server has seen earned (The Deep); missing means 0. */
+  verifiedBox?: number;
+  verifiedAt?: string | null;
+}
+
+export interface SeedDiver {
+  name: string;
+  depth: number;
+  pearls: number;
+  week: number;
+  at: string;
 }
 
 interface Seed {
@@ -27,11 +38,22 @@ interface Seed {
   saved?: { slug: string; savedAt: string }[];
   /** Layla's progress in the (mock) database. */
   progress?: SeedProgress[];
+  /** Other divers on The Deep, and Layla's own name there if she has joined. */
+  divers?: SeedDiver[];
+  member?: string;
 }
 
 /** Seeds the mock database once per test (later reloads keep whatever the test changed). */
-export async function seed(page: Page, { signedIn = false, saved = [], progress = [] }: Seed = {}) {
-  const db = { users: [LAYLA], sessionUserId: signedIn ? LAYLA.id : null, saved: { [LAYLA.id]: saved }, progress: { [LAYLA.id]: progress }, outbox: [] };
+export async function seed(page: Page, { signedIn = false, saved = [], progress = [], divers = [], member }: Seed = {}) {
+  const members = member ? { [LAYLA.id]: { name: member, generated: false, joinedAt: '2026-10-01T08:00:00.000Z', renamedAt: null } } : {};
+  const db = {
+    users: [LAYLA],
+    sessionUserId: signedIn ? LAYLA.id : null,
+    saved: { [LAYLA.id]: saved },
+    progress: { [LAYLA.id]: progress },
+    deep: { members, divers },
+    outbox: [],
+  };
   await page.addInitScript((value) => {
     if (!localStorage.getItem('durar-mock-db')) localStorage.setItem('durar-mock-db', value);
   }, JSON.stringify(db));

@@ -1,5 +1,6 @@
+import { fullWord } from '../lib/wordDetails';
 import { TODAY } from '../lib/words';
-import type { Word } from '../types';
+import type { WordCore } from '../types';
 import { storyFile } from './image';
 import { imageDescription, shareText, wordUrl } from './text';
 
@@ -12,10 +13,10 @@ const pending = new Map<string, Promise<File>>();
 const ready = new Map<string, File>();
 
 /** Renders (once) and keeps the story image for a word, so a later tap can share it at once. */
-export function prepare(word: Word): Promise<File> {
+export function prepare(word: WordCore): Promise<File> {
   let p = pending.get(word.slug);
   if (!p) {
-    p = storyFile(word);
+    p = storyFile(fullWord(word.slug)!);
     p.then(
       (f) => ready.set(word.slug, f),
       () => pending.delete(word.slug),
@@ -31,7 +32,7 @@ export function prepare(word: Word): Promise<File> {
   return p;
 }
 
-export const isToday = (word: Word) => word.slug === TODAY.slug;
+export const isToday = (word: WordCore) => word.slug === TODAY.slug;
 
 let filesBroken = false;
 function canShareFiles() {
@@ -53,7 +54,7 @@ export type Outcome = 'shared' | 'cancelled' | 'retry' | 'menu';
  * image had to be drawn first and the browser then refuses, the image is ready and a second tap
  * shares it immediately (`retry`).
  */
-export async function shareOnPhone(word: Word): Promise<Outcome> {
+export async function shareOnPhone(word: WordCore): Promise<Outcome> {
   if (typeof navigator.share !== 'function') return 'menu';
   const base: ShareData = { title: imageDescription(word), text: shareText(word, { today: isToday(word) }), url: wordUrl(word.slug) };
   let data = base;
@@ -82,7 +83,7 @@ export async function shareOnPhone(word: Word): Promise<Outcome> {
 }
 
 /** Copies the canonical link. */
-export async function copyLink(word: Word): Promise<boolean> {
+export async function copyLink(word: WordCore): Promise<boolean> {
   const url = wordUrl(word.slug);
   try {
     await navigator.clipboard.writeText(url);
@@ -102,7 +103,7 @@ export async function copyLink(word: Word): Promise<boolean> {
 }
 
 /** Saves durar-<slug>.png, the same signed image the phones share. */
-export async function download(word: Word): Promise<void> {
+export async function download(word: WordCore): Promise<void> {
   const file = await prepare(word);
   const url = URL.createObjectURL(file);
   const a = document.createElement('a');

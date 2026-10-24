@@ -10,16 +10,17 @@ const current = { currentWords: words, currentTopics: topics };
 /** The Sheet as it would be after importing scripts/export-sheet.mjs's files, edited by `edit`. */
 const sheet = (edit: (rows: string[][]) => string[][] = (r) => r) => toCsv(edit(wordsToRows(words)));
 const col = (name: string) => WORD_COLUMNS.indexOf(name);
+// A word the data doesn't have, and the 500-word plan doesn't add.
 const newRow = (over: Record<string, string> = {}) => {
   const r: Record<string, string> = {
-    slug: 'kawkab',
-    ar: 'كَوْكَب',
-    translit: 'kawkab',
-    meaning_1: 'a star; a planet',
+    slug: 'nayzak',
+    ar: 'نَيْزَك',
+    translit: 'nayzak',
+    meaning_1: 'a meteor; a meteorite',
     topics: 'sky',
     added: '2026-10-03',
-    example_1_ar: 'لمع كوكب في الأفق.',
-    example_1_en: 'A star glittered on the horizon.',
+    example_1_ar: 'مرّ نيزك في السماء.',
+    example_1_en: 'A meteor crossed the sky.',
     ...over,
   };
   return WORD_COLUMNS.map((c) => r[c] ?? '');
@@ -58,22 +59,22 @@ describe('import', () => {
     });
     expect(r.errors).toEqual([]);
     expect(r.changed).toBe(true);
-    expect(r.wordDiff.added.map((w) => w.slug)).toEqual(['kawkab']);
+    expect(r.wordDiff.added.map((w) => w.slug)).toEqual(['nayzak']);
     expect(r.wordDiff.changed).toEqual([{ id: 'durrah', fields: ['meanings', 'status'] }]);
     expect(r.words.at(-1)).toEqual({
-      slug: 'kawkab',
-      ar: 'كَوْكَب',
-      translit: 'kawkab',
-      meanings: ['a star; a planet'],
+      slug: 'nayzak',
+      ar: 'نَيْزَك',
+      translit: 'nayzak',
+      meanings: ['a meteor; a meteorite'],
       topics: ['sky'],
       added: '2026-10-03',
-      examples: [{ ar: 'لمع كوكب في الأفق.', en: 'A star glittered on the horizon.' }],
+      examples: [{ ar: 'مرّ نيزك في السماء.', en: 'A meteor crossed the sky.' }],
     });
     expect(r.words[0].status).toBe('reviewed');
     const total = words.length + 1;
     const unreviewed = r.words.filter((w) => w.status !== 'reviewed').length;
     expect(r.summary).toContain(`1 new word, 1 changed word, 0 removed words. ${total} words in total.`);
-    expect(r.summary).toContain('`kawkab`');
+    expect(r.summary).toContain('`nayzak`');
     expect(r.summary).toContain(`| **The whole sea** | **${total}** | **${unreviewed}** |`);
   });
 
@@ -87,18 +88,18 @@ describe('import', () => {
     const r = importSheet({
       wordsCsv: sheet((rows) => [
         ...rows,
-        newRow({ ar: 'كوكب' }),
-        newRow({ slug: 'kawkab-2', topics: 'planets' }),
+        newRow({ ar: 'نيزك' }),
+        newRow({ slug: 'nayzak-2', topics: 'planets' }),
         newRow({ slug: 'jabr', topics: 'borrowed' }),
-        newRow({ slug: 'kawkab-3', status: 'done' }),
+        newRow({ slug: 'nayzak-3', status: 'done' }),
         newRow({ slug: 'durrah' }),
       ]),
       ...current,
     });
-    expect(r.errors.join('\n')).toMatch(/kawkab\): ar \(the headword\) needs its diacritics/);
+    expect(r.errors.join('\n')).toMatch(/nayzak\): ar \(the headword\) needs its diacritics/);
     expect(r.errors.join('\n')).toMatch(/unknown topic "planets"/);
     expect(r.errors.join('\n')).toMatch(/jabr\): words in "borrowed" need etymology.source/);
-    expect(r.errors.join('\n')).toMatch(/kawkab-3\): status must be blank, draft or reviewed/);
+    expect(r.errors.join('\n')).toMatch(/nayzak-3\): status must be blank, draft or reviewed/);
     expect(r.errors.join('\n')).toMatch(/durrah\): duplicate slug/);
     expect(r.summary).toContain('Nothing was imported');
   });
@@ -113,17 +114,37 @@ describe('import', () => {
     expect(r.errors).toEqual(['words tab: missing column "translit"']);
   });
 
-  test('removals are blocked until confirmed', () => {
-    const wordsCsv = sheet((rows) => rows.filter((x) => x[0] !== 'ud'));
-    const blocked = importSheet({ wordsCsv, ...current });
+  test('words missing from the Sheet are kept in place until removals are confirmed', () => {
+    const wordsCsv = sheet((rows) => {
+      rows[1][col('status')] = 'reviewed';
+      return rows.filter((x) => x[0] !== 'ud' && x[0] !== 'shaykh');
+    });
+    const kept = importSheet({ wordsCsv, ...current });
+    expect(kept.errors).toEqual([]);
+    expect(kept.blockedRemovals).toBe(false);
+    expect(kept.notInSheet.map((w) => w.slug)).toEqual(['ud', 'shaykh']);
+    expect(kept.words.map((w) => w.slug)).toEqual(words.map((w) => w.slug));
+    expect(kept.wordDiff.changed).toEqual([{ id: 'durrah', fields: ['status'] }]);
+    expect(kept.summary).toContain('### In the repo, not in the Sheet yet (2, kept)');
+    expect(kept.summary).toContain('0 removed words');
+    const allowed = importSheet({ wordsCsv, ...current, allowRemovals: true });
+    expect(allowed.words).toHaveLength(words.length - 2);
+    expect(allowed.summary).toContain('### Removed');
+  });
+
+  test('topic removals are blocked until confirmed', () => {
+    const spare = { ...topics[0], id: 'spare', order: 99 };
+    const topicsCsv = toCsv(topicsToRows(topics));
+    const blocked = importSheet({ wordsCsv: sheet(), topicsCsv, currentWords: words, currentTopics: [...topics, spare] });
     expect(blocked.errors).toEqual([]);
     expect(blocked.blockedRemovals).toBe(true);
-    expect(blocked.removals).toEqual(['word "ud"']);
     expect(blocked.summary).toContain('Removals were not confirmed');
-    const allowed = importSheet({ wordsCsv, ...current, allowRemovals: true });
-    expect(allowed.blockedRemovals).toBe(false);
-    expect(allowed.words).toHaveLength(words.length - 1);
-    expect(allowed.summary).toContain('### Removed');
+  });
+
+  test('a header row appended again is skipped', () => {
+    const r = importSheet({ wordsCsv: sheet((rows) => [...rows, rows[0], newRow()]), ...current });
+    expect(r.errors).toEqual([]);
+    expect(r.wordDiff.added.map((w) => w.slug)).toEqual([newRow()[col('slug')]]);
   });
 
   test('fields the Sheet has no column for are kept', () => {

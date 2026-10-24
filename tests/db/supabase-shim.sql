@@ -18,7 +18,9 @@ create table if not exists auth.users (
   email_confirmed_at   timestamptz,
   confirmation_sent_at timestamptz,
   recovery_sent_at     timestamptz,
-  raw_app_meta_data    jsonb
+  raw_app_meta_data    jsonb,
+  raw_user_meta_data   jsonb,
+  created_at           timestamptz not null default now()
 );
 
 create or replace function auth.uid() returns uuid
