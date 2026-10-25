@@ -1,11 +1,14 @@
 import { describe, expect, test } from 'vitest';
-import words from '../../src/data/words.json';
+import liveWords from '../../src/data/words.json';
 import topics from '../../src/data/topics.json';
 import illustrations from '../../src/data/illustrations.json';
 import { importSheet } from '../../scripts/import-sheet.mjs';
 import { parseCsv, toCsv, topicsToRows, wordsToRows, WORD_COLUMNS } from '../../scripts/lib/sheet.mjs';
 import { formatWords } from '../../scripts/migrate-tags-to-topics.mjs';
 
+// Start from all-draft words so marking one reviewed is a change, whatever the live review state is.
+type Word = (typeof liveWords)[number] & { status?: string };
+const words = liveWords.map(({ status: _status, ...w }: Word) => w);
 const current = { currentWords: words, currentTopics: topics };
 /** The Sheet as it would be after importing scripts/export-sheet.mjs's files, edited by `edit`. */
 const sheet = (edit: (rows: string[][]) => string[][] = (r) => r) => toCsv(edit(wordsToRows(words)));
