@@ -7,7 +7,8 @@ import { parseCsv, toCsv, topicsToRows, wordsToRows, WORD_COLUMNS } from '../../
 import { formatWords } from '../../scripts/migrate-tags-to-topics.mjs';
 
 // Start from all-draft words so marking one reviewed is a change, whatever the live review state is.
-const words = liveWords.map(({ status, ...w }: { status?: string }) => w);
+type Word = (typeof liveWords)[number] & { status?: string };
+const words = liveWords.map(({ status: _status, ...w }: Word) => w);
 const current = { currentWords: words, currentTopics: topics };
 /** The Sheet as it would be after importing scripts/export-sheet.mjs's files, edited by `edit`. */
 const sheet = (edit: (rows: string[][]) => string[][] = (r) => r) => toCsv(edit(wordsToRows(words)));
