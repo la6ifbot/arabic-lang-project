@@ -39,8 +39,8 @@ jobs:
       group: migrations-staging
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v3
         with:
           version: 2.119.0
       - name: Apply new migrations to staging
@@ -77,7 +77,7 @@ jobs:
       group: migrations-production
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Fresh backup first
         uses: ./.github/actions/backup
         with:
