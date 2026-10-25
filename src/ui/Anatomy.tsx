@@ -212,7 +212,8 @@ export default function Anatomy() {
                 tabIndex={focusIdx === i ? 0 : -1}
                 aria-pressed={selected === i}
                 aria-controls={detailId}
-                aria-label={`${l.info.name.tr}${l.doubled ? ', doubled' : ''}`}
+                // The shape shown leads the name, so a voice user can say what they see (WCAG 2.5.3).
+                aria-label={`${l.base + l.marks} ${l.info.name.tr}${l.doubled ? ', doubled' : ''}`}
                 onClick={() => select(i)}
                 onFocus={() => setFocusIdx(i)}
                 data-testid="anatomy-letter"
