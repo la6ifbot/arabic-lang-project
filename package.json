@@ -25,7 +25,7 @@
     "email:test": "tsx scripts/email.ts test"
   },
   "dependencies": {
-    "@aws-sdk/client-sesv2": "^3.1152.0",
+    "@aws-sdk/client-sesv2": "^3.1156.0",
     "@fontsource/aref-ruqaa": "^5.3.0",
     "@fontsource/cormorant-garamond": "^5.2.0",
     "@fontsource/ibm-plex-sans-arabic": "^5.2.0",
@@ -35,10 +35,10 @@
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "three": "^0.186.1",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.16"
   },
   "devDependencies": {
-    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/client-s3": "^3.1156.0",
     "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "1.64.1",
     "@tailwindcss/vite": "^4.1.0",
@@ -54,7 +54,7 @@
     "tsx": "^4.23.15",
     "typescript": "~5.9.2",
     "vite": "^7.3.7",
-    "vite-plugin-singlefile": "^2.3.3",
+    "vite-plugin-singlefile": "^2.3.4",
     "vitest": "^5.0.5"
   },
   "engines": {
