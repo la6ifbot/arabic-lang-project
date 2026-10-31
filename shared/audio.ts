@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { AudioLookup, Say, WordAudio } from '../src/types';
+import type { AudioLookup, Say, WordAudio } from '../src/types.js';
 
 export type { AudioLookup, Say, WordAudio };
 
