@@ -54,9 +54,11 @@ export function WordDetails({
           <li key={i}>
             <p className="wd-ex-ar" lang="ar" dir="rtl">
               {ex.ar}
-              {Speaker && <Speaker slug={word.slug} example={i} />}
             </p>
-            <p className="wd-ex-en">{ex.en}</p>
+            <p className="wd-ex-en">
+              {Speaker && <Speaker slug={word.slug} example={i} />}
+              {ex.en}
+            </p>
             {ex.source && <p className="wd-ex-src">— {ex.source}</p>}
           </li>
         ))}

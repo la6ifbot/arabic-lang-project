@@ -48,9 +48,19 @@ function SpeakButton({
       >
         <svg viewBox="0 0 32 32" aria-hidden="true">
           <circle className="speak-ring" cx="16" cy="16" r="10.5" />
-          <path className="speak-cone" d="M10.5 14h2.6l3.6-3v10l-3.6-3h-2.6z" />
-          <path className="speak-wave speak-wave-1" d="M19 13.4a3.6 3.6 0 0 1 0 5.2" />
-          <path className="speak-wave speak-wave-2" d="M21.2 11.4a6.6 6.6 0 0 1 0 9.2" />
+          <path className="speak-cone" d={kind === 'word' ? 'M10.5 14h2.6l3.6-3v10l-3.6-3h-2.6z' : 'M9.5 14h2.4l3.4-2.8v9.6l-3.4-2.8h-2.4z'} />
+          {kind === 'word' ? (
+            <>
+              <path className="speak-wave speak-wave-1" d="M19 13.4a3.6 3.6 0 0 1 0 5.2" />
+              <path className="speak-wave speak-wave-2" d="M21.2 11.4a6.6 6.6 0 0 1 0 9.2" />
+            </>
+          ) : (
+            // A sentence: lines of text instead of sound waves.
+            <>
+              <path className="speak-wave speak-wave-1" d="M19 12.6h3.8M19 16h3.8" />
+              <path className="speak-wave speak-wave-2" d="M19 19.4h2.4" />
+            </>
+          )}
         </svg>
       </button>
       {phase === 'failed' && (

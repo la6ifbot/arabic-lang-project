@@ -2291,6 +2291,7 @@ a.acct-item {
 .wd-speak {
   margin-top: -0.4rem;
 }
-.wd-ex-ar .speak {
-  margin-inline-start: 0.3rem;
+/* The sentence speaker leads its translation line, so it sits in the same place on every card. */
+.wd-ex-en .speak {
+  margin: -12px 2px -12px -6px;
 }
