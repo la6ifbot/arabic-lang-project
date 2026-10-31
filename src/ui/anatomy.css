@@ -112,7 +112,11 @@
   text-shadow: inherit;
   cursor: pointer;
   /* Threading back: the shapes return first, then the letters slide together. */
-  transition: --anat-g 0.9s var(--ease-water) 0.45s;
+  transition:
+    --anat-g 0.9s var(--ease-water) 0.45s,
+    translate 0.35s var(--ease-water),
+    color 0.35s var(--ease-water),
+    text-shadow 0.35s var(--ease-water);
 }
 .anat-letter > span {
   grid-area: 1 / 1;
@@ -122,7 +126,11 @@
   opacity: 0;
 }
 .anat-row[data-state='apart'] .anat-letter {
-  transition: --anat-g 1.4s var(--ease-water) var(--d);
+  transition:
+    --anat-g 1.4s var(--ease-water) var(--d),
+    translate 0.35s var(--ease-water),
+    color 0.35s var(--ease-water),
+    text-shadow 0.35s var(--ease-water);
 }
 .anat-row[data-state='apart'] .anat-letter > span {
   transition: opacity 0.9s var(--ease-water) calc(1.3s + var(--d));
@@ -173,6 +181,16 @@
 .anat-letter:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(127, 214, 214, 0.5);
+}
+/* Hover (a mouse): the letter lifts and glows a little, so it reads as something to click. */
+@media (hover: hover) {
+  .anat-letter:hover {
+    color: #fff;
+    text-shadow: 0 0 20px rgba(190, 245, 245, 0.6);
+  }
+  .anat-panel:not([data-reduced]) .anat-letter:hover {
+    translate: 0 -0.06em;
+  }
 }
 .anat-letter[aria-pressed='true'] {
   color: #fff;
@@ -374,4 +392,69 @@
 }
 .anat-inline-ar {
   font: 600 1.05em/1 var(--font-ar);
+}
+
+/* The teaching animation (Phase 0.8, decision 9), the first 3 times only (src/lib/anatomyTeach.ts).
+   Peek: the first (rightmost) letter lifts, and its standalone shape shows faintly beside it for a
+   moment. Glint: then a soft light passes along the letters, right to left, like light on pearls. */
+.anat-peek {
+  position: absolute;
+  top: 1.3em;
+  /* Beside it, on the outer side of the row (its right, where Arabic starts). */
+  left: calc(100% + 0.15em);
+  font-size: 0.5em;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  animation: anat-peek-ghost 1.6s var(--ease-water) 0.2s both;
+}
+.anat-panel[data-teach] .anat-letter {
+  animation: anat-glint 0.9s var(--ease-water) calc(1.3s + var(--i) * 0.12s) backwards;
+}
+.anat-panel[data-teach] .anat-letter:first-child {
+  animation:
+    anat-peek-lift 1.6s var(--ease-water),
+    anat-glint 0.9s var(--ease-water) 1.3s backwards;
+}
+@keyframes anat-peek-lift {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  25%,
+  70% {
+    translate: 0 -0.1em;
+  }
+}
+@keyframes anat-peek-ghost {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  30%,
+  70% {
+    opacity: 0.4;
+  }
+}
+@keyframes anat-glint {
+  0%,
+  100% {
+    color: var(--ink);
+  }
+  45% {
+    color: #fff;
+    text-shadow:
+      0 0 14px rgba(235, 255, 255, 0.95),
+      0 0 30px rgba(170, 235, 240, 0.55);
+  }
+}
+/* Reduced motion: nothing moves; a faint dotted underline still says the letters can be tapped. */
+.anat-panel[data-reduced] .anat-alone {
+  text-decoration: underline dotted rgba(220, 245, 245, 0.5) 2px;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 0.35em;
+}
+.anat-panel[data-reduced] .anat-letter,
+.anat-panel[data-reduced] .anat-peek {
+  animation: none !important;
 }

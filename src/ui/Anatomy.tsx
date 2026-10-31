@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { anatomy, countLabel, describe, joinSentence, positional, shapes, type Form, type Letter } from '../../shared/anatomy';
+import { hasCoarsePointer, letterHint, noteLetterTap, takeTeach } from '../lib/anatomyTeach';
 import { prefersReducedMotion } from '../lib/device';
 import { pronounce } from '../lib/pronounce';
 import { fullWord } from '../lib/wordDetails';
@@ -62,6 +63,9 @@ export default function Anatomy() {
   const [selected, setSelected] = useState<number | null>(null);
   const [focusIdx, setFocusIdx] = useState(0);
   const [style, setStyle] = useState<CSSProperties>({});
+  // The teaching animation (peek and glint) plays once the letters settle, the first few times only.
+  const [teach, setTeach] = useState(false);
+  const [coarse, setCoarse] = useState(hasCoarsePointer);
   const closing = useRef(false);
   const panel = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLDivElement>(null);
@@ -90,7 +94,11 @@ export default function Anatomy() {
   // Unthread a moment after the word appears in place.
   useEffect(() => {
     let raf = requestAnimationFrame(() => (raf = requestAnimationFrame(() => setStage('letters'))));
-    const t = window.setTimeout(() => setSettled(true), reduced ? FADE_MS : UNTHREAD_MS);
+    const t = window.setTimeout(() => {
+      setSettled(true);
+      // Decided (and counted) only now, so a letter tapped while they spread out already counts.
+      if (takeTeach(reduced)) setTeach(true);
+    }, reduced ? FADE_MS : UNTHREAD_MS);
     return () => {
       cancelAnimationFrame(raf);
       window.clearTimeout(t);
@@ -124,6 +132,8 @@ export default function Anatomy() {
   const select = (i: number) => {
     setFocusIdx(i);
     setSelected(i);
+    if (teach) setTeach(false);
+    noteLetterTap();
   };
   const onRowKey = (e: KeyboardEvent) => {
     // Right to left: ← is the next letter, → the one before.
@@ -160,6 +170,9 @@ export default function Anatomy() {
         data-settled={settled || undefined}
         data-reduced={reduced || undefined}
         data-closing={closingNow || undefined}
+        data-teach={(teach && !closingNow) || undefined}
+        // A finger taps and a mouse clicks: the hint follows whichever was used last.
+        onPointerDown={(e) => setCoarse(e.pointerType !== 'mouse')}
         onClick={(e) => {
           // A tap on the open water around the word threads it back together.
           const t = e.target as HTMLElement;
@@ -213,7 +226,7 @@ export default function Anatomy() {
                 aria-pressed={selected === i}
                 aria-controls={detailId}
                 // The shape shown leads the name, so a voice user can say what they see (WCAG 2.5.3).
-                aria-label={`${l.base + l.marks} ${l.info.name.tr}${l.doubled ? ', doubled' : ''}`}
+                aria-label={`${l.base + l.marks} ${l.info.name.tr}${l.doubled ? ', doubled' : ''}. Show its four shapes.`}
                 onClick={() => select(i)}
                 onFocus={() => setFocusIdx(i)}
                 data-testid="anatomy-letter"
@@ -225,6 +238,11 @@ export default function Anatomy() {
                   {l.base + l.marks}
                 </span>
                 {l.doubled && <span className="anat-doubled" aria-hidden="true" />}
+                {i === 0 && teach && (
+                  <span className="anat-peek" aria-hidden="true" data-testid="anatomy-peek">
+                    {l.base + l.marks}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -311,7 +329,9 @@ export default function Anatomy() {
               )}
             </>
           ) : (
-            <p className="anat-hint">Tap a letter to meet it.</p>
+            <p className="anat-hint" data-testid="anatomy-hint">
+              {letterHint(coarse)}
+            </p>
           )}
         </section>
       </div>
