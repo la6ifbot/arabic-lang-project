@@ -633,3 +633,17 @@ are rebuilt at once. The answer says what it did. Spelling and capitals don't ne
 Names already on the board aren't re-checked when the list changes; hide them with `deep_hide`.
 
 There are no rank notifications, emails or badges, on purpose.
+
+## Voice (Phase 0.8)
+
+Word and sentence audio is made once by Amazon Polly (Frankfurt) in CI and served from
+img.durar.space like the card images. Nothing calls Polly while someone uses the site.
+
+- **Audition** (`scripts/voice-audition.mjs`, `.github/workflows/voice-audition.yml`): the same
+  10 words and 3 sentences in each Arabic voice (Zayd, Hala, Zeina) under `audio/audition/v1/`,
+  with a listening page at https://img.durar.space/audio/audition/v1/index.html and links on the
+  pull request. Samples already on the host are not made again. One full run is about $0.02.
+
+| Where | What |
+| --- | --- |
+| GitHub → Settings → Secrets → Actions (repository) | `POLLY_AWS_ACCESS_KEY_ID`, `POLLY_AWS_SECRET_ACCESS_KEY` (IAM user `durar-voice`, inline policy `DurarPollySpeakOnly`: `polly:SynthesizeSpeech` only). Uploads use the existing `IMAGES_AWS_*` key. |
