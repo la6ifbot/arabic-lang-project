@@ -74,7 +74,7 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
       )}
       <article ref={card} key={slug} className="html-card" data-testid="html-card" data-glint={glinting || undefined}>
         <CardActions slug={slug} className="card-actions-in-card" />
-        <WordDetails word={word} onHeadword={() => openAnatomy(slug)} />
+        <WordDetails word={word} onHeadword={() => openAnatomy(slug)} speakers />
         {label && (
           <p className="card-depth" data-testid="card-depth">
             {label}

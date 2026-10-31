@@ -91,6 +91,25 @@ sound hints, and whether each letter joins the next one) and the rules in `share
 - **The letter table** is part of the review too: each letter's Arabic and transliterated name, and
   its sound hint for English speakers.
 
+## Voice (pronunciation audio)
+
+Every headword and example sentence has audio, made once by Amazon Polly in CI and served from
+img.durar.space (docs/OPERATIONS.md, Voice). Nothing to do for a new or edited word: the pull
+request's CI makes its audio, and the check fails if any word or sentence has none.
+
+When a word or sentence is read wrong, add a `say` fix in `src/data/words.json` (the Sheet has no
+column for it; an import keeps it while the sentence is unchanged):
+
+| Fix | Example | Use it when |
+| --- | --- | --- |
+| `"say": { "ar": "…" }` | `"say": { "ar": "مَرْسَى" }` | A different spelling for the voice only, e.g. more vowel marks, or no tanwīn on a headword read in pause. The site still shows `ar`. |
+| `"say": { "ipa": "…" }` | `"say": { "ipa": "marsaː" }` | The exact sounds, when no spelling works. |
+| `"say": { "take": 2 }` | | Same text, new recording (the file just came out badly). Bump it again for another take. |
+
+`say` goes on the word (headword) or on one example (that sentence). Changing it gives the audio a
+new file name, so CI makes it again; nothing has to be deleted. `npm run voice -- --spot-check`
+lists the headwords most likely to be misread (shadda, hamza, al-, tanwīn, madda, phrases).
+
 ## Style guide
 
 **Tone.** Durar is calm and a little poetic, never cute. Write for a curious adult who loves

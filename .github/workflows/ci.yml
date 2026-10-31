@@ -50,7 +50,7 @@ jobs:
         run: npm run check:functions
 
   images:
-    # Renders what img.durar.space doesn't have yet (illustrations, then word cards) and uploads it, so a
+    # Renders what img.durar.space doesn't have yet (illustrations, word cards, then audio) and uploads it, so a
     # pull request's preview and, after merging, the live site find it there. Pull requests from forks get
     # no secrets, so they skip this, and so do Dependabot's (it gets none of the repository's secrets, and
     # a dependency update adds no words or pictures).
@@ -105,9 +105,17 @@ jobs:
         env:
           IMAGES_AWS_ACCESS_KEY_ID: ${{ secrets.IMAGES_AWS_ACCESS_KEY_ID }}
           IMAGES_AWS_SECRET_ACCESS_KEY: ${{ secrets.IMAGES_AWS_SECRET_ACCESS_KEY }}
+      - name: Make and upload missing word and sentence audio (Amazon Polly)
+        if: ${{ !cancelled() }}
+        run: npm run voice -- --upload
+        env:
+          POLLY_AWS_ACCESS_KEY_ID: ${{ secrets.POLLY_AWS_ACCESS_KEY_ID }}
+          POLLY_AWS_SECRET_ACCESS_KEY: ${{ secrets.POLLY_AWS_SECRET_ACCESS_KEY }}
+          IMAGES_AWS_ACCESS_KEY_ID: ${{ secrets.IMAGES_AWS_ACCESS_KEY_ID }}
+          IMAGES_AWS_SECRET_ACCESS_KEY: ${{ secrets.IMAGES_AWS_SECRET_ACCESS_KEY }}
       - name: Everything is on img.durar.space
         if: ${{ !cancelled() }}
-        run: npm run illustrations -- --check && npm run cards -- --check
+        run: npm run illustrations -- --check && npm run cards -- --check && npm run voice -- --check
 
   build-and-test:
     runs-on: ubuntu-latest

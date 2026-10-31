@@ -23,7 +23,8 @@
     "email:render": "tsx scripts/email.ts render",
     "email:dry-run": "tsx scripts/email.ts dry-run",
     "email:test": "tsx scripts/email.ts test",
-    "voice:audition": "tsx scripts/voice-audition.mjs"
+    "voice:audition": "tsx scripts/voice-audition.mjs",
+    "voice": "tsx scripts/voice.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-sesv2": "^3.1152.0",

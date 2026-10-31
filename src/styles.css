@@ -481,10 +481,16 @@ body[data-cursor='pointer'] .scene {
   opacity: 0;
 }
 
-.mode-toggle {
+/* Text-only view and Slow voice, bottom-left. */
+.view-toggles {
   position: absolute;
   left: max(20px, env(safe-area-inset-left));
   bottom: max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 18px;
+  z-index: 5;
+}
+.mode-toggle {
   padding: 4px 2px;
   border: 0;
   background: none;
@@ -494,7 +500,10 @@ body[data-cursor='pointer'] .scene {
   cursor: pointer;
   border-bottom: 1px solid transparent;
   transition: color 0.4s;
-  z-index: 5;
+}
+.slow-toggle[aria-pressed='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--glass-edge);
 }
 .mode-toggle:hover,
 .mode-toggle:focus-visible {
@@ -1371,7 +1380,7 @@ a.acct-item {
   .search-kbd {
     display: none;
   }
-  .mode-toggle {
+  .view-toggles {
     bottom: auto;
     top: max(58px, calc(env(safe-area-inset-top) + 44px));
   }
@@ -2204,4 +2213,84 @@ a.acct-item {
 }
 .html-card .wd-ar[data-tappable] {
   cursor: pointer;
+}
+
+/* ---------- Voice (speaker buttons) ---------- */
+.speak {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: middle;
+}
+.speak-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(224, 242, 242, 0.75);
+  cursor: pointer;
+  transition: color 0.5s var(--ease-water);
+}
+.speak-btn svg {
+  width: 30px;
+  height: 30px;
+  overflow: visible;
+}
+.speak-ring {
+  fill: rgba(4, 24, 32, 0.35);
+  stroke: currentColor;
+  stroke-width: 1.3;
+}
+.speak-cone {
+  fill: currentColor;
+}
+.speak-wave {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+.speak-btn:hover,
+.speak-btn:focus-visible,
+.speak-btn[data-state='playing'] {
+  color: #fff;
+  outline: none;
+}
+.speak-btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.35);
+}
+.speak-btn[data-state='loading'] svg {
+  opacity: 0.55;
+}
+.speak-btn[data-state='playing'] .speak-wave {
+  animation: speak-wave 0.9s ease-in-out infinite alternate;
+}
+.speak-btn[data-state='playing'] .speak-wave-2 {
+  animation-delay: 0.3s;
+}
+@keyframes speak-wave {
+  to {
+    opacity: 0.25;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .speak-btn[data-state='playing'] .speak-wave {
+    animation: none;
+  }
+}
+.speak-error {
+  font: 400 0.72rem/1.2 var(--font-ui);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+/* Beside the text-only card's headword, and at the end of each sentence. */
+.wd-speak {
+  margin-top: -0.4rem;
+}
+.wd-ex-ar .speak {
+  margin-inline-start: 0.3rem;
 }

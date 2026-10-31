@@ -120,6 +120,11 @@ export function rowsToWords(rows, current = []) {
     const old = bySlug.get(w.slug);
     if (!old) return w;
     for (const [k, v] of Object.entries(old)) if (!known.has(k)) w[k] = v;
+    // A sentence's pronunciation fix (`say`) has no column either: it stays while the sentence does.
+    w.examples.forEach((ex, i) => {
+      const was = old.examples?.[i];
+      if (was?.say && was.ar === ex.ar) ex.say = was.say;
+    });
     // Keep the word's existing key order, so an unchanged row writes an unchanged line.
     const ordered = {};
     for (const k of Object.keys(old)) if (k in w) ordered[k] = w[k];

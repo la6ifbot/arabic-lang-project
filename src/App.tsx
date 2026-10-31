@@ -6,6 +6,8 @@ import { configureTextureSize } from './lib/cardTexture';
 import { mayHaveWebGL2, pickQuality, prefersReducedMotion } from './lib/device';
 import { loadCardFonts } from './lib/fonts';
 import { cancelIdle, whenIdle } from './lib/idle';
+import { loadedVoice, useVoiceModule, withVoice } from './lib/voiceLoader';
+import { WORD_BY_SLUG } from './lib/words';
 import { linkHandler, syncUrl, useRoute } from './lib/router';
 import { saveAnchor } from './state/anchors';
 import { loadAnatomy, openAnatomy, useDialogs } from './state/dialogs';
@@ -128,6 +130,18 @@ function Sea() {
   const topic = useDurar((s) => s.topic);
   useEffect(() => syncUrl(focused, topic), [focused, topic]);
 
+  // Voice: a new card stops the last one's audio, and its own loads while the browser is idle.
+  const voice = useVoiceModule();
+  useEffect(() => {
+    loadedVoice()?.stop();
+    let live = true;
+    const id = whenIdle(() => withVoice((m) => live && m.prefetchWord(focused)));
+    return () => {
+      live = false;
+      cancelIdle(id);
+    };
+  }, [focused]);
+
   const use3D = webgl && !lost && !textMode;
 
   // Accounts and progress load after the scene is up, so they never compete with the first paint.
@@ -140,7 +154,8 @@ function Sea() {
     return () => cancelIdle(id);
   }, [use3D, sceneReady]);
 
-  // Keyboard: “/” jumps to search, “S” saves the focused pearl, “L” unthreads it into its letters.
+  // Keyboard: “/” jumps to search, “S” saves the focused pearl, “L” unthreads it into its letters,
+  // “P” plays it (Shift+P: its sentence).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
@@ -154,6 +169,12 @@ function Sea() {
       } else if (e.key === 'l' || e.key === 'L') {
         e.preventDefault();
         openAnatomy(useDurar.getState().order[0]);
+      } else if (e.key === 'p' || e.key === 'P') {
+        // P plays the focused word, Shift+P its (first) example sentence.
+        e.preventDefault();
+        const slug = useDurar.getState().order[0];
+        const sentence = e.shiftKey;
+        withVoice((m) => m.playWord(slug, WORD_BY_SLUG.get(slug)?.ar ?? '', sentence));
       }
     };
     window.addEventListener('keydown', onKey);
@@ -192,7 +213,7 @@ function Sea() {
               saveAnchor.el = el;
             }}
           >
-            <CardActions slug={focused} />
+            <CardActions slug={focused} speakers />
           </div>
         )}
         <Announcer />
@@ -215,11 +236,15 @@ function Sea() {
       <ProgressNote />
       <SwipeControls showHint={!touched} onUse={firstUse} />
 
-      {webgl && !lost && (
-        <button type="button" className="mode-toggle" onClick={() => setTextMode(!textMode)} aria-pressed={textMode} data-testid="mode-toggle">
-          {textMode ? 'Immersive view' : 'Text-only view'}
-        </button>
-      )}
+      <div className="view-toggles">
+        {webgl && !lost && (
+          <button type="button" className="mode-toggle" onClick={() => setTextMode(!textMode)} aria-pressed={textMode} data-testid="mode-toggle">
+            {textMode ? 'Immersive view' : 'Text-only view'}
+          </button>
+        )}
+        {voice && <voice.SlowToggle />}
+      </div>
+      {voice && <voice.VoiceStatus />}
 
       {/* Same markup as the static boot screen in index.html, so the hand-off is seamless. */}
       <div className="boot" aria-hidden="true" data-gone={sceneReady || !use3D || undefined}>
