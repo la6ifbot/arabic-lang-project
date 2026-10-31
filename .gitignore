@@ -13,4 +13,5 @@ dist-email
 sheet-export
 .cards
 .illustrations
+.voice
 supabase/.temp/
