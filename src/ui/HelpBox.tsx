@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { accountsMode } from '../account/backend';
 import { HELP_SEEN_KEY } from '../account/storageKeys';
 import { hasAuthCallback } from '../account/urlState';
+import { offersFullscreen } from '../lib/fullscreen';
 import { slugFromLocation } from '../lib/router';
 import { openAbout } from '../state/dialogs';
 
@@ -108,6 +109,11 @@ export function HelpBox({ ready = false }: { ready?: boolean }) {
           <li>
             <span className="help-key">Search</span> in Arabic or English, top right.<span className="help-kbd"> Press / to jump there.</span>
           </li>
+          {offersFullscreen() && (
+            <li>
+              <span className="help-key">Full screen</span> with the button next to “?”<span className="help-kbd"> or press F</span>.
+            </li>
+          )}
           {accountsMode !== 'off' && (
             <li>
               <span className="help-key">Save</span> a word with the small pearl on its
