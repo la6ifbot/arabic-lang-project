@@ -98,6 +98,8 @@ export function validateWords(words, topics = []) {
       if (!ARABIC.test(ex.ar ?? '') || !text(ex.en)) err('example needs ar + en');
       const bad = sayError(ex.say);
       if (bad) err(`example "${ex.ar}": ${bad}`);
+      // The voice reads each sentence from a fully vowelled copy (docs/CONTENT.md, Voice).
+      else if (!ex.say?.ar && !ex.say?.ipa) warnings.push(`${at}: example "${ex.ar}" has no fully vowelled say.ar for the voice`);
     }
     const badSay = sayError(w.say);
     if (badSay) err(badSay);

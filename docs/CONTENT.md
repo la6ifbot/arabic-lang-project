@@ -110,6 +110,13 @@ column for it; an import keeps it while the sentence is unchanged):
 new file name, so CI makes it again; nothing has to be deleted. `npm run voice -- --spot-check`
 lists the headwords most likely to be misread (shadda, hamza, al-, tanwīn, madda, phrases).
 
+**Sentences are read from a fully vowelled copy.** Without tashkeel the voice guesses the vowels and
+gets many wrong, so every example carries `"say": { "ar": "…" }`: the same sentence with every mark
+(case endings included), and the last word in pause (sukūn on its last letter; `ـًا` stays). Only
+marks are added, never letters, unless a word needs a spelling fix like a headword's. A new or
+changed sentence needs one too; `npm run validate:data` warns when it's missing. Sentences are read
+at 90% of the normal rate (`SENTENCE_RATE` in shared/audio.ts), headwords at the normal rate.
+
 ## Style guide
 
 **Tone.** Durar is calm and a little poetic, never cute. Write for a curious adult who loves

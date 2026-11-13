@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import words from '../../src/data/words.json';
 import { fullWord } from '../../src/lib/wordDetails';
-import { VOICE, speech, speechSsml, wordAudio } from '../../shared/audio';
+import { SENTENCE_RATE, VOICE, speech, speechSsml, wordAudio, wordSpeech } from '../../shared/audio';
 import { cost, speechJobs, spotCheck } from '../../scripts/voice.mjs';
 import { sayError, validateWords } from '../../scripts/lib/word-schema.mjs';
 import { rowsToWords, wordsToRows } from '../../scripts/lib/sheet.mjs';
@@ -34,6 +34,13 @@ describe('audio keys (shared/audio.ts)', () => {
     expect(speechSsml({ ar: 'دُرَّة', say: { ar: 'دُرّه' } }).ssml).toContain('>دُرّه<');
     expect(speechSsml({ ar: 'دُرَّة', say: { ipa: 'durra' } }).ssml).toContain('<phoneme alphabet="ipa" ph="durra">دُرَّة</phoneme>');
     expect(speechSsml({ ar: 'دُرَّة' }).chars).toBe(6);
+  });
+
+  test('sentences are read at 90%, headwords at the default rate', () => {
+    const w = wordSpeech(durrah);
+    expect(w.word.ssml).not.toContain('prosody');
+    expect(w.examples[0].ssml).toContain(`<prosody rate="${SENTENCE_RATE}">`);
+    expect(SENTENCE_RATE).toBe('90%');
   });
 
   test('every headword and every sentence has a file to make', () => {
@@ -101,6 +108,21 @@ describe('pronunciation fixes in words.json', () => {
     expect(one((w) => (w.say = { take: 0 }))).toHaveLength(1);
     expect(one((w) => (w.examples[0].say = { ipa: '<x>' }))).toHaveLength(1);
     expect(one((w) => Object.assign(w, { audio: 'x.mp3' }))).toHaveLength(1);
+  });
+
+  test('every sentence is read from a fully vowelled copy that adds only marks; a missing one is a warning', () => {
+    const marks = /[ً-ْٰ]/g;
+    for (const w of WORDS)
+      for (const ex of w.examples) {
+        expect(ex.say?.ar, `${w.slug}: ${ex.ar}`).toBeTruthy();
+        // al-ʿayyūq keeps its doubled y spelled out, like its headword's fix.
+        if (w.slug !== 'ayyuq') expect(ex.say!.ar!.replace(marks, ''), w.slug).toBe(ex.ar.replace(marks, ''));
+      }
+    const list = structuredClone(WORDS);
+    delete list[0].examples[0].say;
+    const { errors, warnings } = validateWords(list, topics);
+    expect(errors).toEqual([]);
+    expect(warnings.some((m: string) => m.includes('no fully vowelled say.ar'))).toBe(true);
   });
 
   test('survive a Sheet import while the sentence is unchanged', () => {
