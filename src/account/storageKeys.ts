@@ -8,3 +8,4 @@ export const PROGRESS_OUTBOX_KEY = 'durar-progress-outbox'; // signed-in progres
 export const SEA_DEPTH_KEY = 'durar-sea-depth'; // last visit's sea depth, so it never jumps at load
 export const HELP_SEEN_KEY = 'durar-help-seen'; // “How it works” has been shown once, so it doesn't open by itself again
 export const TOPIC_KEY = 'durar-topic'; // the sea topic last chosen in the picker (a preference)
+export const ANATOMY_TEACH_KEY = 'durar-anatomy-teach'; // how often the letters' teaching animation has played, and whether a letter was tapped
