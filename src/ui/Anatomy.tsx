@@ -3,6 +3,7 @@ import { anatomy, countLabel, describe, joinSentence, positional, shapes, type F
 import { hasCoarsePointer, letterHint, noteLetterTap, takeTeach } from '../lib/anatomyTeach';
 import { prefersReducedMotion } from '../lib/device';
 import { pronounce } from '../lib/pronounce';
+import { useVoiceModule, withVoice } from '../lib/voiceLoader';
 import { fullWord } from '../lib/wordDetails';
 import { headAnchor } from '../state/anchors';
 import { closeAnatomy, useDialogs } from '../state/dialogs';
@@ -66,6 +67,8 @@ export default function Anatomy() {
   // The teaching animation (peek and glint) plays once the letters settle, the first few times only.
   const [teach, setTeach] = useState(false);
   const [coarse, setCoarse] = useState(hasCoarsePointer);
+  // The whole-word speaker (Phase 0.8, section D): the voice chunk, once the browser has loaded it.
+  const voice = useVoiceModule();
   const closing = useRef(false);
   const panel = useRef<HTMLDivElement>(null);
   const row = useRef<HTMLDivElement>(null);
@@ -173,6 +176,13 @@ export default function Anatomy() {
         data-teach={(teach && !closingNow) || undefined}
         // A finger taps and a mouse clicks: the hint follows whichever was used last.
         onPointerDown={(e) => setCoarse(e.pointerType !== 'mouse')}
+        onKeyDown={(e) => {
+          // P plays the word here too (the page's own shortcuts rest while a dialog is open).
+          if ((e.key === 'p' || e.key === 'P') && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            withVoice((m) => m.playWord(slug, word.ar, false));
+          }
+        }}
         onClick={(e) => {
           // A tap on the open water around the word threads it back together.
           const t = e.target as HTMLElement;
@@ -278,11 +288,7 @@ export default function Anatomy() {
           <button type="button" className="anat-step" aria-pressed={sylls} onClick={() => setStage('syllables')} data-testid="anatomy-syllables-step">
             Syllables
           </button>
-          {play && (
-            <button type="button" className="anat-step" onClick={() => play({ kind: 'word', slug })}>
-              Listen
-            </button>
-          )}
+          {voice && <voice.Speaker slug={slug} className="anat-speak" />}
         </div>
 
         <section id={detailId} className="anat-detail" aria-live="polite" hidden={sylls} data-testid="anatomy-detail">

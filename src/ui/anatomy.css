@@ -458,3 +458,7 @@
 .anat-panel[data-reduced] .anat-peek {
   animation: none !important;
 }
+/* The whole-word speaker, at the end of the Letters · Syllables row. */
+.anat-speak {
+  margin: -2px 0;
+}

@@ -1,5 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
+import words from '../src/data/words.json' with { type: 'json' };
+import { wordAudio } from '../shared/audio';
 
 // The anatomy of a word (Phase 0.7, section G): the focused word unthreads into its letters.
 
@@ -227,6 +229,55 @@ test.describe('text-only view', () => {
     await page.goto('/word/hilal');
     await page.keyboard.press('l');
     await expect(page.getByRole('button', { name: 'لَ lām. Show its four shapes.' })).toBeVisible();
+  });
+
+  test('the whole-word speaker: plays on a press or P, never on its own', async ({ page }) => {
+    // The audio host answers with an empty WAV; every play() is recorded.
+    await page.route('https://img.durar.space/audio/**', (route) => {
+      const b = Buffer.alloc(44 + 1600);
+      b.write('RIFF', 0);
+      b.writeUInt32LE(36 + 1600, 4);
+      b.write('WAVEfmt ', 8);
+      b.writeUInt32LE(16, 16);
+      b.writeUInt16LE(1, 20);
+      b.writeUInt16LE(1, 22);
+      b.writeUInt32LE(8000, 24);
+      b.writeUInt32LE(16000, 28);
+      b.writeUInt16LE(2, 32);
+      b.writeUInt16LE(16, 34);
+      b.write('data', 36);
+      b.writeUInt32LE(1600, 40);
+      return route.fulfill({ body: b, headers: { 'content-type': 'audio/wav' } });
+    });
+    await page.addInitScript(() => {
+      const w = window as unknown as { __played: string[] };
+      w.__played = [];
+      const play = HTMLMediaElement.prototype.play;
+      HTMLMediaElement.prototype.play = function (this: HTMLMediaElement) {
+        w.__played.push(this.src);
+        return play.call(this);
+      };
+    });
+    const played = () => page.evaluate(() => (window as unknown as { __played: string[] }).__played);
+    const src = `https://img.durar.space/${wordAudio(words.find((w) => w.slug === 'hilal')!).word}`;
+
+    await page.goto('/word/hilal');
+    await page.keyboard.press('l');
+    await settled(page);
+    const speaker = layer(page).getByTestId('speak-word');
+    await expect(speaker).toHaveAccessibleName('Play the word هِلَال');
+    await page.waitForTimeout(500);
+    expect(await played()).toEqual([]);
+
+    await speaker.click();
+    await expect.poll(played).toEqual([src]);
+    // Still open: the press didn't close the letters.
+    await expect(layer(page)).toBeVisible();
+
+    await expect(speaker).toHaveAttribute('data-state', 'idle', { timeout: 5000 });
+    await letters(page).nth(0).focus();
+    await page.keyboard.press('p');
+    await expect.poll(played).toEqual([src, src]);
   });
 
   // Visual snapshots: a word of letters that never touch, one with a long ā, one with لا and one
