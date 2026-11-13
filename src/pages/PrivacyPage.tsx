@@ -199,8 +199,10 @@ export default function PrivacyPage() {
           Durar sets no cookies and uses no analytics or tracking of any kind. When you sign in, your browser’s local storage
           keeps your session so you stay signed in. If you tap Save while signed out, it briefly remembers that word so we can
           save it once you’ve signed in. Without an account, it keeps your progress. It also remembers how deep the sea was
-          on your last visit, so it doesn’t change suddenly, and whether you’ve seen “How it works”, so it only opens by itself
+          on your last visit, so it doesn’t change suddenly, and whether you’ve seen “How it works” (and, on iPhone, the Home Screen tip), so each only shows by itself
           once. All of this is strictly necessary for features you use, so
+          on your last visit, so it doesn’t change suddenly, and whether you’ve seen “How it works”, so it only opens by itself
+          once, and how many times the letters’ short teaching animation has played, so it stops after three. All of this is strictly necessary for features you use, so
           there’s no cookie banner.
         </p>
 
