@@ -51,9 +51,10 @@ describe('the site’s copy of the data', () => {
     for (const w of CORE) expect(Object.keys(w).filter((k) => ['examples', 'etymology', 'root', 'syllables'].includes(k))).toEqual([]);
   });
 
-  test('the details come back whole', async () => {
+  test('the details come back whole (without the voice-only `say` fixes)', async () => {
     const { fullWord } = await import('../../src/lib/wordDetails');
-    for (const w of WORDS) expect(fullWord(w.slug)).toEqual(w);
+    for (const { say: _say, ...w } of WORDS as (typeof WORDS[number] & { say?: unknown })[])
+      expect(fullWord(w.slug)).toEqual({ ...w, examples: w.examples.map(({ say: _s, ...ex }: { say?: unknown }) => ex) });
   });
 
   test('search stays instant: 500 queries over every word take well under a frame each', () => {
