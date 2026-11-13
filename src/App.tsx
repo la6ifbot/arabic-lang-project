@@ -1,10 +1,12 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { accountsMode } from './account/backend';
+import { HELP_SEEN_KEY, INSTALL_HINT_KEY } from './account/storageKeys';
 import { bootAccounts, toggleSave, useAccount } from './account/store';
 import { hasAuthCallback } from './account/urlState';
 import { configureTextureSize } from './lib/cardTexture';
 import { mayHaveWebGL2, pickQuality, prefersReducedMotion } from './lib/device';
 import { loadCardFonts } from './lib/fonts';
+import { isFullscreen, offersFullscreen, takeInstallHint, toggleFullscreen } from './lib/fullscreen';
 import { cancelIdle, whenIdle } from './lib/idle';
 import { linkHandler, syncUrl, useRoute } from './lib/router';
 import { saveAnchor } from './state/anchors';
@@ -13,6 +15,7 @@ import { startProgress } from './state/progress';
 import { useDurar } from './state/store';
 import { AccountMenu } from './ui/AccountMenu';
 import { CardActions } from './ui/CardActions';
+import { FullscreenButton } from './ui/FullscreenButton';
 import { HelpBox } from './ui/HelpBox';
 import { Announcer } from './ui/Announcer';
 import { PearlLabel } from './ui/PearlLabel';
@@ -37,6 +40,16 @@ const DeleteAccountDialog = lazy(() => import('./ui/DeleteAccountDialog'));
 const ResetProgressDialog = lazy(() => import('./ui/ResetProgressDialog'));
 const AboutModal = lazy(() => import('./ui/AboutModal'));
 const Anatomy = lazy(loadAnatomy);
+const InstallHint = lazy(() => import('./ui/InstallHint'));
+
+// Read before “How it works” marks itself seen on a first visit.
+const helpSeenAtStart = (() => {
+  try {
+    return localStorage.getItem(HELP_SEEN_KEY) !== null;
+  } catch {
+    return false;
+  }
+})();
 
 class SceneBoundary extends Component<{ fallback: ReactNode; onError: () => void; children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -116,6 +129,7 @@ function Sea() {
   const [sceneReady, setSceneReady] = useState(false);
   const [lost, setLost] = useState(false);
   const [touched, setTouched] = useState(false);
+  const [installHint, setInstallHint] = useState(false);
   const textMode = useDurar((s) => s.textMode);
   const setTextMode = useDurar((s) => s.setTextMode);
   const focused = useDurar((s) => s.order[0]);
@@ -140,7 +154,14 @@ function Sea() {
     return () => cancelIdle(id);
   }, [use3D, sceneReady]);
 
-  // Keyboard: “/” jumps to search, “S” saves the focused pearl, “L” unthreads it into its letters.
+  // The iPhone “add to Home Screen” tip, once the sea is up (decided once per visit).
+  const ready = sceneReady || !use3D;
+  useEffect(() => {
+    if (ready && takeInstallHint(window, INSTALL_HINT_KEY, helpSeenAtStart)) setInstallHint(true);
+  }, [ready]);
+
+  // Keyboard: “/” jumps to search, “S” saves the focused pearl, “L” unthreads it into its letters,
+  // “F” toggles fullscreen where the browser allows it.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
@@ -154,6 +175,9 @@ function Sea() {
       } else if (e.key === 'l' || e.key === 'L') {
         e.preventDefault();
         openAnatomy(useDurar.getState().order[0]);
+      } else if ((e.key === 'f' || e.key === 'F') && (isFullscreen() || offersFullscreen())) {
+        e.preventDefault();
+        void toggleFullscreen();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -206,7 +230,8 @@ function Sea() {
           <span className="brand-en">Durar</span>
         </a>
         <AccountMenu />
-        <HelpBox ready={sceneReady || !use3D} />
+        <HelpBox ready={ready} />
+        <FullscreenButton />
       </header>
 
       {use3D && <PearlLabel />}
@@ -214,6 +239,11 @@ function Sea() {
       <TopicPicker />
       <ProgressNote />
       <SwipeControls showHint={!touched} onUse={firstUse} />
+      {installHint && (
+        <Suspense fallback={null}>
+          <InstallHint />
+        </Suspense>
+      )}
 
       {webgl && !lost && (
         <button type="button" className="mode-toggle" onClick={() => setTextMode(!textMode)} aria-pressed={textMode} data-testid="mode-toggle">
