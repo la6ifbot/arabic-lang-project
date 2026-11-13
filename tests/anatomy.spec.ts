@@ -70,7 +70,7 @@ test.describe('text-only view', () => {
     await page.keyboard.press('l');
     await settled(page);
     const detail = page.getByTestId('anatomy-detail');
-    await expect(detail).toContainText('Tap a letter to meet it.');
+    await expect(detail).toContainText('Click a letter to see its four shapes.');
 
     await page.keyboard.press('ArrowLeft');
     await expect(letters(page).nth(0)).toBeFocused();
@@ -106,7 +106,7 @@ test.describe('text-only view', () => {
     await page.goto('/word/durrah');
     await page.keyboard.press('l');
     await settled(page);
-    await expect(letters(page).nth(1)).toHaveAttribute('aria-label', 'رَّ rāʾ, doubled');
+    await expect(letters(page).nth(1)).toHaveAttribute('aria-label', 'رَّ rāʾ, doubled. Show its four shapes.');
     await page.getByTestId('anatomy-syllables-step').click();
     await expect(page.getByTestId('anatomy-syllables')).toBeVisible();
     await expect(page.getByTestId('anatomy-syllables').locator('li')).toHaveText(['دُرْdur', 'رَةrah']);
@@ -151,6 +151,84 @@ test.describe('text-only view', () => {
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`)).toEqual([]);
   });
 
+  test('teaching animation: peek and glint play the first 3 times Letters opens, then never again', async ({ page }) => {
+    await page.goto('/word/hilal');
+    for (let n = 1; n <= 4; n++) {
+      await page.keyboard.press('l');
+      await settled(page);
+      if (n <= 3) {
+        await expect(layer(page), `opening ${n}`).toHaveAttribute('data-teach', 'true');
+        // The peek: the first (rightmost) letter's standalone shape, beside it, unread by screen readers.
+        await expect(page.getByTestId('anatomy-peek')).toHaveCount(1);
+        await expect(letters(page).nth(0).getByTestId('anatomy-peek')).toHaveText('هِ');
+        await expect(page.getByTestId('anatomy-peek')).toHaveAttribute('aria-hidden', 'true');
+        // The glint runs along every letter, one after the other.
+        const names = await letters(page).evaluateAll((els) => els.map((el) => getComputedStyle(el).animationName));
+        expect(names.every((name) => name.includes('anat-glint'))).toBe(true);
+        expect(names[0]).toContain('anat-peek-lift');
+      } else {
+        await expect(layer(page), `opening ${n}`).not.toHaveAttribute('data-teach', /.*/);
+        await expect(page.getByTestId('anatomy-peek')).toHaveCount(0);
+      }
+      await page.keyboard.press('Escape');
+      await expect(layer(page)).toHaveCount(0);
+    }
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('durar-anatomy-teach')!))).toEqual({ shown: 3, tapped: false });
+  });
+
+  test('teaching animation: never again once a letter has been tapped', async ({ page }) => {
+    await page.goto('/word/hilal');
+    await page.keyboard.press('l');
+    await settled(page);
+    await expect(layer(page)).toHaveAttribute('data-teach', 'true');
+    await letters(page).nth(1).click();
+    // It stops at once, and the next opening (after a reload too) has none.
+    await expect(layer(page)).not.toHaveAttribute('data-teach', /.*/);
+    await page.keyboard.press('Escape');
+    await page.reload();
+    await page.keyboard.press('l');
+    await settled(page);
+    await expect(layer(page)).not.toHaveAttribute('data-teach', /.*/);
+    await expect(page.getByTestId('anatomy-peek')).toHaveCount(0);
+  });
+
+  test('hover: with a mouse a letter lifts and glows, with a pointer cursor', async ({ page }) => {
+    await page.goto('/word/sarab');
+    await page.keyboard.press('l');
+    await settled(page);
+    const first = letters(page).nth(0);
+    expect(await first.evaluate((el) => getComputedStyle(el).cursor)).toBe('pointer');
+    await first.hover();
+    await expect.poll(() => first.evaluate((el) => getComputedStyle(el).translate)).not.toBe('none');
+    expect(await first.evaluate((el) => getComputedStyle(el).textShadow)).not.toBe('none');
+  });
+
+  test('reduced motion: no teaching animation, and a faint dotted underline instead', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/word/hilal');
+    await page.keyboard.press('l');
+    await settled(page);
+    await expect(layer(page)).not.toHaveAttribute('data-teach', /.*/);
+    await expect(page.getByTestId('anatomy-peek')).toHaveCount(0);
+    const deco = await letters(page)
+      .nth(0)
+      .locator('.anat-alone')
+      .evaluate((el) => getComputedStyle(el).textDecorationStyle + ' ' + getComputedStyle(el).textDecorationLine);
+    expect(deco).toBe('dotted underline');
+    // Nothing moves on hover either.
+    await letters(page).nth(0).hover();
+    await page.waitForTimeout(400);
+    expect(await letters(page).nth(0).evaluate((el) => getComputedStyle(el).translate)).toBe('none');
+    // A reduced-motion opening doesn't use up one of the 3 showings.
+    expect(await page.evaluate(() => localStorage.getItem('durar-anatomy-teach'))).toBeNull();
+  });
+
+  test('every letter is a button named by its shape and name, then what it does', async ({ page }) => {
+    await page.goto('/word/hilal');
+    await page.keyboard.press('l');
+    await expect(page.getByRole('button', { name: 'لَ lām. Show its four shapes.' })).toBeVisible();
+  });
+
   // Visual snapshots: a word of letters that never touch, one with a long ā, one with لا and one
   // with shadda. Still frames (reduced motion) so the animation can't make them flaky.
   for (const slug of ['sarab', 'hilal', 'durrah', 'luulu']) {
@@ -164,4 +242,20 @@ test.describe('text-only view', () => {
       await expect(page.getByTestId('anatomy-letters')).toHaveScreenshot(`anatomy-${slug}.png`, { maxDiffPixelRatio: 0.02 });
     });
   }
+});
+
+test.describe('touch screen', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 412, height: 860 } });
+
+  test('the hint says tap, and says click once a mouse is used', async ({ page }) => {
+    await page.goto('/word/sarab');
+    await page.getByTestId('html-card').getByTestId('anatomy-button').tap();
+    await settled(page);
+    await expect(page.getByTestId('anatomy-hint')).toHaveText('Tap a letter to see its four shapes.');
+    // A mouse on the same screen (say, a touch laptop): the words follow it.
+    await page.getByTestId('anatomy-count').click();
+    await expect(page.getByTestId('anatomy-hint')).toHaveText('Click a letter to see its four shapes.');
+    await page.getByTestId('anatomy-count').tap();
+    await expect(page.getByTestId('anatomy-hint')).toHaveText('Tap a letter to see its four shapes.');
+  });
 });
