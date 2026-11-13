@@ -1,0 +1,56 @@
+# Voice audition (Phase 0.8): makes the same 10 words and 3 sentences in each Amazon Polly Arabic voice,
+# uploads them to img.durar.space/audio/audition/v1/ and lists them on the pull request, so Lativ can
+# pick the voice by ear. Runs on pull requests that touch the audition, or from the Actions tab
+# ("Voice audition" > Run workflow) after the Polly secrets are added. Samples already on the host are
+# not made again, so a re-run costs nothing.
+name: Voice audition
+
+on:
+  pull_request:
+    paths: ['scripts/voice-audition.mjs', '.github/workflows/voice-audition.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: voice-audition-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  audition:
+    # Forks and Dependabot get no secrets.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Make and upload the samples
+        run: npm run voice:audition -- --upload
+        env:
+          POLLY_AWS_ACCESS_KEY_ID: ${{ secrets.POLLY_AWS_ACCESS_KEY_ID }}
+          POLLY_AWS_SECRET_ACCESS_KEY: ${{ secrets.POLLY_AWS_SECRET_ACCESS_KEY }}
+          IMAGES_AWS_ACCESS_KEY_ID: ${{ secrets.IMAGES_AWS_ACCESS_KEY_ID }}
+          IMAGES_AWS_SECRET_ACCESS_KEY: ${{ secrets.IMAGES_AWS_SECRET_ACCESS_KEY }}
+      - name: Listening links on the pull request
+        # Updates one sticky comment. From the Actions tab, it finds the branch's open pull request.
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          [ -f .voice/audition.md ] || exit 0
+          [ -n "$PR" ] || PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json number --jq '.[0].number')
+          [ -n "$PR" ] || exit 0
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate --jq '.[] | select(.body | startswith("<!-- durar:voice-audition -->")) | .id' | head -n1)
+          if [ -n "$id" ]; then gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F body=@.voice/audition.md > /dev/null
+          else gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F body=@.voice/audition.md > /dev/null; fi

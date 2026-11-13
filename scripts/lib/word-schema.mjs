@@ -25,6 +25,23 @@ export const TOPIC_TARGET = 20;
 const text = (v) => typeof v === 'string' && v.trim() !== '' && v.trim() === v;
 const bilingual = (v) => v && typeof v === 'object' && text(v.en) && text(v.ar) && ARABIC.test(v.ar);
 
+/**
+ * A pronunciation fix for the voice (shared/audio.ts): { "ar": "…" } (a spelling for the voice only),
+ * or { "ipa": "…" } (the exact sounds), optionally with "take": 2, 3… to remake a bad file.
+ */
+export function sayError(say) {
+  if (say === undefined) return null;
+  const msg = 'say must be { "ar": "<Arabic spelling for the voice>" } or { "ipa": "<sounds>" }, optionally with "take": 2';
+  if (!say || typeof say !== 'object' || Array.isArray(say)) return msg;
+  const keys = Object.keys(say);
+  if (keys.some((k) => !['ar', 'ipa', 'take'].includes(k)) || keys.length === 0) return msg;
+  if (say.ar !== undefined && say.ipa !== undefined) return 'say: use "ar" or "ipa", not both';
+  if (say.ar !== undefined && !(text(say.ar) && ARABIC.test(say.ar))) return 'say.ar must be Arabic text';
+  if (say.ipa !== undefined && !(text(say.ipa) && !/["<>&]/.test(say.ipa))) return 'say.ipa must be IPA text (no quotes or < > &)';
+  if (say.take !== undefined && !(Number.isInteger(say.take) && say.take >= 2)) return 'say.take must be a whole number, 2 or more';
+  return null;
+}
+
 /** Returns { errors, warnings } for the topic registry. */
 export function validateTopics(topics) {
   const errors = [];
@@ -79,7 +96,12 @@ export function validateWords(words, topics = []) {
     if (!Array.isArray(w.examples) || w.examples.length < 1 || w.examples.length > 3) err('needs 1–3 examples');
     for (const ex of w.examples ?? []) {
       if (!ARABIC.test(ex.ar ?? '') || !text(ex.en)) err('example needs ar + en');
+      const bad = sayError(ex.say);
+      if (bad) err(`example "${ex.ar}": ${bad}`);
     }
+    const badSay = sayError(w.say);
+    if (badSay) err(badSay);
+    if (w.audio !== undefined) err('audio is generated at build time (shared/audio.ts); use "say" to fix a pronunciation');
 
     if (w.tags !== undefined) err('tags were replaced by topics (scripts/migrate-tags-to-topics.mjs)');
     if (!Array.isArray(w.topics)) err('topics must be an array of topic ids (may be empty: the whole sea)');

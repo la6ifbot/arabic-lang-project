@@ -633,3 +633,31 @@ are rebuilt at once. The answer says what it did. Spelling and capitals don't ne
 Names already on the board aren't re-checked when the list changes; hide them with `deep_hide`.
 
 There are no rank notifications, emails or badges, on purpose.
+
+## Voice (Phase 0.8)
+
+Word and sentence audio is made once by Amazon Polly (Frankfurt) in CI and served from
+img.durar.space like the card images. Nothing calls Polly while someone uses the site, and the
+browser only talks to our own image host.
+
+- **Audition** (`scripts/voice-audition.mjs`, `.github/workflows/voice-audition.yml`): the same
+  10 words and 3 sentences in each Arabic voice (Zayd, Hala, Zeina) under `audio/audition/v1/`,
+  with a listening page at https://img.durar.space/audio/audition/v1/index.html and links on the
+  pull request. Samples already on the host are not made again. One full run is about $0.02.
+- **Files:** `audio/<voice>/<hash>.mp3`, one per headword and per example sentence. The hash covers
+  the voice, the text and any `say` fix (shared/audio.ts), so a changed word gets new audio and old
+  files are never overwritten. The voice is `VOICE` in shared/audio.ts; changing it remakes all.
+- **CI** (`images` job): `npm run voice -- --upload` makes only what the host lacks, then
+  `npm run voice -- --check` fails if any word or sentence has no audio.
+- **The site:** speaker buttons beside the headword and sentences (text-only view and word pages),
+  and word and sentence speakers on the 3D card; P plays the word, Shift+P the sentence; a Slow
+  voice toggle (0.75×, pitch kept). The audio lookup is its own small chunk, loaded when idle, and
+  only the focused card's audio is fetched ahead. While a voice plays, the page sends a
+  `durar:voice` event (`detail.playing`), for background music to dip.
+- **Fixing a word:** docs/CONTENT.md, Voice.
+- **Cost:** the whole set (~1,090 files, ~24,000 characters) is about $0.38 at neural prices, once.
+  A new word costs a fraction of a cent. Serving comes under the CloudFront free plan.
+
+| Where | What |
+| --- | --- |
+| GitHub → Settings → Secrets → Actions (repository) | `POLLY_AWS_ACCESS_KEY_ID`, `POLLY_AWS_SECRET_ACCESS_KEY` (IAM user `durar-voice`, inline policy `DurarPollySpeakOnly`: `polly:SynthesizeSpeech` only). Uploads use the existing `IMAGES_AWS_*` key. |

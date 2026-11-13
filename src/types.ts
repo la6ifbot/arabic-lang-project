@@ -5,6 +5,8 @@ export interface Example {
   en: string;
   /** Attribution for quotations or proverbs. */
   source?: string;
+  /** A pronunciation fix for this sentence's audio (shared/audio.ts). Build-time only. */
+  say?: Say;
 }
 
 export interface Word {
@@ -19,8 +21,8 @@ export interface Word {
   root?: string;
   /** Topic ids from src/data/topics.json. Empty: the word is only in the whole sea. */
   topics: string[];
-  /** Reserved for future pronunciation audio. */
-  audio?: string;
+  /** A pronunciation fix for the headword's audio (shared/audio.ts). Build-time only. */
+  say?: Say;
   /** ISO date the word joined the dataset (2026-09-24 for the original set); drives Pearl of the Day cycles. */
   added: string;
   /**
@@ -64,3 +66,26 @@ export interface Topic {
 }
 
 export type SwipeDir = 'known' | 'learning';
+
+/**
+ * A pronunciation fix for one headword or sentence's audio (shared/audio.ts, docs/CONTENT.md). At
+ * most one of `ar` (a different spelling for the voice only, e.g. extra vowel marks) and `ipa` (the
+ * exact sounds). `take` remakes the audio without changing the text: bump it when a file came out badly.
+ */
+export interface Say {
+  ar?: string;
+  ipa?: string;
+  take?: number;
+}
+
+/** A word's audio on img.durar.space: the headword's key, then one per example, in order. */
+export interface WordAudio {
+  word: string;
+  examples: string[];
+}
+
+/** words.json?audio (shared/audio.ts, audioLookup): the voice's folder and each word's hashes, space-separated. */
+export interface AudioLookup {
+  dir: string;
+  words: Record<string, string>;
+}

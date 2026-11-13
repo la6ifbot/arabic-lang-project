@@ -1,15 +1,29 @@
 import { useRef } from 'react';
 import { useFullWord } from '../lib/fullWord';
+import { useVoiceModule } from '../lib/voiceLoader';
 import type { WordCore } from '../types';
 
 /**
  * Semantic HTML rendering of a card — used for screen readers and the text-only view. The examples
  * come with the word details chunk, a moment after the rest.
  * `onHeadword`: a tap on the headword (not the end of a swipe) calls it; keyboard users have the
- * Letters button and L.
+ * Letters button and L. `speakers`: speaker buttons beside the headword and each sentence (the
+ * text-only card; the screen-reader mirror of the 3D card leaves them to the card's own buttons).
  */
-export function WordDetails({ word: core, headingLevel = 2, onHeadword }: { word: WordCore; headingLevel?: 1 | 2; onHeadword?: () => void }) {
+export function WordDetails({
+  word: core,
+  headingLevel = 2,
+  onHeadword,
+  speakers = false,
+}: {
+  word: WordCore;
+  headingLevel?: 1 | 2;
+  onHeadword?: () => void;
+  speakers?: boolean;
+}) {
   const word = useFullWord(core);
+  const voice = useVoiceModule();
+  const Speaker = speakers ? voice?.Speaker : undefined;
   const H = `h${headingLevel}` as const;
   const down = useRef<{ x: number; y: number } | null>(null);
   return (
@@ -31,6 +45,7 @@ export function WordDetails({ word: core, headingLevel = 2, onHeadword }: { word
       >
         {word.ar}
       </H>
+      {Speaker && <Speaker slug={word.slug} className="wd-speak" />}
       <div className="wd-rule" aria-hidden="true" />
       <p className="wd-meaning">{word.meanings[0]}</p>
       {word.meanings.length > 1 && <p className="wd-meaning2">{word.meanings.slice(1).join('; ')}</p>}
@@ -40,7 +55,10 @@ export function WordDetails({ word: core, headingLevel = 2, onHeadword }: { word
             <p className="wd-ex-ar" lang="ar" dir="rtl">
               {ex.ar}
             </p>
-            <p className="wd-ex-en">{ex.en}</p>
+            <p className="wd-ex-en">
+              {Speaker && <Speaker slug={word.slug} example={i} />}
+              {ex.en}
+            </p>
             {ex.source && <p className="wd-ex-src">— {ex.source}</p>}
           </li>
         ))}

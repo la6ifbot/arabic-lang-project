@@ -11,3 +11,9 @@ declare module '*/words.json?details' {
   const details: Record<string, Pick<import('./types').Word, import('./types').WordDetailKey>>;
   export default details;
 }
+
+/** The audio lookup (vite.config.ts, splitWords; shared/audio.ts). Import only from src/lib/audioKeys.ts. */
+declare module '*/words.json?audio' {
+  const audio: import('./types').AudioLookup;
+  export default audio;
+}

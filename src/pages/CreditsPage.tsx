@@ -165,6 +165,12 @@ export default function CreditsPage() {
           </>
         )}
 
+        <h2>Voice</h2>
+        <p>
+          Voice generated with Amazon Polly. Each word and sentence is recorded once and played from our own image
+          host, so listening sends nothing to Amazon.
+        </p>
+
         <h2>Fonts</h2>
         <ul>
           {FONTS.map((f) => (

@@ -3,7 +3,8 @@ import { join, resolve, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { deepFlag, emailSignupFlag } from './shared/flags';
 import { canonicalOrigin } from './shared/site';
-import type { WordDetailKey } from './src/types';
+import { audioLookup } from './shared/audio';
+import type { Word, WordDetailKey } from './src/types';
 
 /**
  * `vite preview` parity with Vercel: a file is served as is, /word/x serves dist/word/x/index.html
@@ -58,6 +59,8 @@ const slimTopics = (): Plugin => ({
  * Word data in two parts, so the first-paint bundle doesn't grow with the word count:
  * `words.json?core` is every word without its examples, etymology, root and syllables (src/lib/words.ts),
  * and `words.json?details` is those fields by slug (src/lib/wordDetails.ts, imported only by lazy chunks).
+ * `words.json?audio` is the audio lookup (shared/audio.ts, audioLookup), its own small chunk that loads
+ * when the browser is idle (src/lib/voice.ts).
  * A plain import of words.json is the whole file, as before (tests, tools).
  */
 export const DETAIL_KEYS = ['examples', 'etymology', 'root', 'syllables'] as const satisfies readonly WordDetailKey[];
@@ -67,12 +70,15 @@ export const splitWords = (): Plugin => ({
   load(id) {
     const [path, query = ''] = id.replace(/\\/g, '/').split('?');
     const params = new URLSearchParams(query);
-    const part = params.has('core') ? false : params.has('details') ? true : null;
+    const part = params.has('core') ? false : params.has('details') || params.has('audio') ? true : null;
     if (part === null || !path.endsWith('/src/data/words.json')) return null;
-    const words = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>[];
-    const pick = (w: Record<string, unknown>) =>
-      Object.fromEntries(Object.entries(w).filter(([k]) => (DETAIL_KEYS as readonly string[]).includes(k) === part));
-    return JSON.stringify(part ? Object.fromEntries(words.map((w) => [w.slug as string, pick(w)])) : words.map(pick));
+    const words = JSON.parse(readFileSync(path, 'utf8')) as Word[];
+    // `say` (pronunciation fixes) only shapes the audio files, so the browser never gets it.
+    const pick = (w: Word) =>
+      Object.fromEntries(Object.entries(w).filter(([k]) => k !== 'say' && (DETAIL_KEYS as readonly string[]).includes(k) === part));
+    if (params.has('audio')) return JSON.stringify(audioLookup(words));
+    const details = (w: Word) => ({ ...pick(w), examples: w.examples.map(({ say: _say, ...ex }) => ex) });
+    return JSON.stringify(part ? Object.fromEntries(words.map((w) => [w.slug, details(w)])) : words.map(pick));
   },
 });
 import react from '@vitejs/plugin-react';

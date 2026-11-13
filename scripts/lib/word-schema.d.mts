@@ -7,3 +7,4 @@ export interface Report {
 }
 export function validateTopics(topics: unknown): Report;
 export function validateWords(words: unknown, topics?: { id: string }[]): Report;
+export function sayError(say: unknown): string | null;
