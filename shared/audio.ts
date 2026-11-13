@@ -12,13 +12,13 @@ export type { AudioLookup, Say, WordAudio };
  * finished keys through the word details chunk (vite.config.ts).
  */
 
-/** The voice Lativ picks by ear in the audition (scripts/voice-audition.mjs). Changing it remakes all audio. */
+/** The voice Lativ picked by ear in the audition (13 Nov 2026; scripts/voice-audition.mjs). Changing it remakes all audio. */
 export const VOICE = { id: 'zayd', name: 'Zayd', engine: 'neural' } as const satisfies Voice;
 /**
  * False until Lativ has picked the voice: CI then makes no audio (nothing is paid for in a voice that
  * may not be kept) and doesn't check for it. Set to true with the chosen VOICE.
  */
-export const VOICE_PICKED = false;
+export const VOICE_PICKED = true;
 /** Bump to remake every file under new names (e.g. after changing the SSML below). */
 export const AUDIO_VERSION = 1;
 export const AUDIO_REGION = 'eu-central-1';
