@@ -96,11 +96,12 @@ async function checkLayout(page: Page, info: TestInfo, label: string, phone: boo
   expect(card.left, `${at}card on screen`).toBeGreaterThanOrEqual(0);
   expect(card.top, `${at}card on screen`).toBeGreaterThanOrEqual(0);
 
-  // The button row: just below the card, centred under it, never over it, on screen.
+  // The button row: just below the card, centred under it (within the card's gentle sway, as for
+  // centring), never over it, on screen.
   expect(row, `${at}card buttons showing`).toBeTruthy();
   expect(row.top, `${at}buttons below the card`).toBeGreaterThanOrEqual(card.bottom - 1);
   expect(row.top - card.bottom, `${at}buttons right below the card`).toBeLessThanOrEqual(16);
-  expect(Math.abs((row.left + row.right) / 2 - (card.left + card.right) / 2), `${at}buttons centred under the card`).toBeLessThanOrEqual(3);
+  expect(Math.abs((row.left + row.right) / 2 - (card.left + card.right) / 2), `${at}buttons centred under the card`).toBeLessThanOrEqual(5);
   expect(row.left >= 0 && row.right <= width && row.bottom <= height, `${at}buttons on screen`).toBe(true);
   if (phone) {
     // Listen, Letters, Share, Save (the sentence and 0.75× join Listen only after a first play).
