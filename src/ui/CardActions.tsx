@@ -4,28 +4,19 @@ import { SaveButton } from './SaveButton';
 import { ShareButton } from './ShareButton';
 
 /**
- * The focused card's controls, top-right: Letters, Share, then the save pearl in the corner. Over the
- * 3D card (`speakers`), the word and first sentence speakers come first, since the card's text is
- * drawn in the scene; the text-only card has them beside the text instead.
+ * The focused card's controls. Over the 3D card (`speakers`) they are one centred row just below the
+ * card (src/scene/SaveAnchor.tsx): Listen (word, sentence, 0.75×), Letters, Share and the save pearl,
+ * since the card's text is drawn in the scene. The text-only card has its speakers beside the text
+ * instead, and these three top-right.
  */
 export function CardActions({ slug, className = '', speakers = false }: { slug: string; className?: string; speakers?: boolean }) {
+  const voice = useVoiceModule();
   return (
     <div className={`card-actions ${className}`}>
-      {speakers && <Speakers slug={slug} />}
+      {speakers && voice && <voice.Listen slug={slug} />}
       <AnatomyButton slug={slug} />
       <ShareButton slug={slug} />
       <SaveButton slug={slug} />
     </div>
-  );
-}
-
-function Speakers({ slug }: { slug: string }) {
-  const voice = useVoiceModule();
-  if (!voice) return null;
-  return (
-    <>
-      <voice.Speaker slug={slug} />
-      <voice.Speaker slug={slug} example={0} what="the example sentence" />
-    </>
   );
 }

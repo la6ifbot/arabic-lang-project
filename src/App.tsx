@@ -11,7 +11,7 @@ import { cancelIdle, whenIdle } from './lib/idle';
 import { loadedVoice, useVoiceModule, withVoice } from './lib/voiceLoader';
 import { WORD_BY_SLUG } from './lib/words';
 import { linkHandler, syncUrl, useRoute } from './lib/router';
-import { saveAnchor } from './state/anchors';
+import { crispText, saveAnchor } from './state/anchors';
 import { loadAnatomy, openAnatomy, useDialogs } from './state/dialogs';
 import { startProgress } from './state/progress';
 import { useDurar } from './state/store';
@@ -27,6 +27,7 @@ import { StatusAnnouncer } from './ui/StatusAnnouncer';
 import { SwipeControls } from './ui/SwipeControls';
 import { TextView } from './ui/TextView';
 import { TopicPicker } from './ui/TopicPicker';
+import { useCardZone } from './ui/useCardZone';
 
 // three.js + r3f load in their own chunk so the chrome, text and SEO copy paint immediately.
 const Experience = lazy(() => import('./scene/Experience').then((m) => ({ default: m.Experience })));
@@ -157,6 +158,7 @@ function Sea() {
   }, [focused]);
 
   const use3D = webgl && !lost && !textMode;
+  useCardZone(use3D);
 
   // Accounts and progress load after the scene is up, so they never compete with the first paint.
   useEffect(() => {
@@ -229,6 +231,17 @@ function Sea() {
           textView
         )}
         {use3D && (
+          <canvas
+            className="crisp-text"
+            aria-hidden="true"
+            width={0}
+            height={0}
+            ref={(el) => {
+              crispText.el = el;
+            }}
+          />
+        )}
+        {use3D && (
           <div
             className="save-anchor"
             data-visible="false"
@@ -242,21 +255,23 @@ function Sea() {
         <Announcer />
       </main>
 
-      <header className="corner-left">
-        <a className="brand" href="/" onClick={linkHandler('/')}>
-          <span className="brand-ar" lang="ar">
-            دُرَر
-          </span>
-          <span className="brand-en">Durar</span>
-        </a>
-        <AccountMenu />
-        <HelpBox ready={ready} />
-        <FullscreenButton />
-      </header>
-
-      {use3D && <PearlLabel />}
-      <SearchBar />
-      <TopicPicker />
+      <div className="topbar">
+        <header className="corner-left">
+          <a className="brand" href="/" onClick={linkHandler('/')}>
+            <span className="brand-ar" lang="ar">
+              دُرَر
+            </span>
+            <span className="brand-en">Durar</span>
+          </a>
+          <AccountMenu />
+          <HelpBox ready={ready} textToggle={webgl && !lost} />
+          <FullscreenButton />
+        </header>
+        <SearchBar />
+        <div className="topbar-break" />
+        {use3D && <PearlLabel />}
+        <TopicPicker />
+      </div>
       <ProgressNote />
       <SwipeControls showHint={!touched} onUse={firstUse} />
       {installHint && (

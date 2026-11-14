@@ -24,8 +24,10 @@ export default defineConfig({
     storageState: { cookies: [], origins: [{ origin: 'http://localhost:4173', localStorage: [{ name: 'durar-help-seen', value: '1' }] }] },
   },
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }, testIgnore: /mobile\.spec\.ts/ },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }, testIgnore: /(mobile|layout)\.spec\.ts/ },
     { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: /mobile\.spec\.ts/ },
+    // Phones, tablet and desktop at every phone text size, both orientations (each test sets its device).
+    { name: 'layout', use: { ...devices['Desktop Chrome'] }, testMatch: /layout\.spec\.ts/ },
   ],
   webServer: {
     command: 'npm run preview -- --strictPort',

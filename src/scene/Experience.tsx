@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { Backdrop } from './Backdrop';
 import { Bubbles } from './Bubbles';
 import { CameraRig } from './CameraRig';
+import { CrispText } from './CrispText';
 import { CardField } from './CardField';
 import { GodRays } from './GodRays';
 import { CAMERA_FOV, CAMERA_Z } from './layout';
@@ -68,6 +69,7 @@ export function Experience({
         <Particles count={quality.particles} reducedMotion={reducedMotion} />
         <Bubbles />
         <SaveAnchor />
+        <CrispText />
       </Canvas>
     </div>
   );

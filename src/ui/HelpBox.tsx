@@ -2,9 +2,12 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { accountsMode } from '../account/backend';
 import { HELP_SEEN_KEY } from '../account/storageKeys';
 import { hasAuthCallback } from '../account/urlState';
+import { emailSignupEnabled } from '../lib/flags';
 import { offersFullscreen } from '../lib/fullscreen';
 import { slugFromLocation } from '../lib/router';
-import { openAbout } from '../state/dialogs';
+import { useVoiceModule } from '../lib/voiceLoader';
+import { openAbout, openSubscribe } from '../state/dialogs';
+import { useDurar } from '../state/store';
 
 // Read at startup, before the site tidies the URL. An email or sign-in link landing never opens it,
 // and a shared word (/word/<slug>) is never covered: the “?” only glows, and the box waits.
@@ -28,12 +31,16 @@ function markSeen() {
 }
 
 /**
- * “?” in the top-left corner: a small box with how to use the sea, and a way into “What is Durar?”.
+ * “?” in the top-left corner: a small box with how to use the sea, the view settings (Text-only view,
+ * Slow voice, Daily email: on phones this is their only place) and a way into “What is Durar?”.
  * On a first visit it opens by itself once the sea is ready (`ready`); after that, only from the “?”.
  * Arriving on a shared word, the “?” glows gently instead, until it is opened or a later visit opens it.
  */
-export function HelpBox({ ready = false }: { ready?: boolean }) {
+export function HelpBox({ ready = false, textToggle = false }: { ready?: boolean; textToggle?: boolean }) {
   const [open, setOpen] = useState(false);
+  const textMode = useDurar((s) => s.textMode);
+  const setTextMode = useDurar((s) => s.setTextMode);
+  const voice = useVoiceModule();
   const [hint, setHint] = useState(false);
   const button = useRef<HTMLButtonElement>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -79,7 +86,7 @@ export function HelpBox({ ready = false }: { ready?: boolean }) {
         className="help-btn"
         aria-expanded={open}
         aria-controls={boxId}
-        aria-label="How it works"
+        aria-label="How it works and settings"
         data-hint={hint || undefined}
         onClick={() => setOpen((o) => !o)}
         data-testid="help-button"
@@ -122,6 +129,30 @@ export function HelpBox({ ready = false }: { ready?: boolean }) {
             </li>
           )}
         </ul>
+        {(textToggle || voice || emailSignupEnabled) && (
+          <div className="help-settings" role="group" aria-label="Settings">
+            {textToggle && (
+              <button type="button" className="help-setting" aria-pressed={textMode} onClick={() => setTextMode(!textMode)} data-testid="menu-text-view">
+                Text-only view
+              </button>
+            )}
+            {voice && <voice.SlowToggle className="help-setting" testId="menu-slow-voice" />}
+            {emailSignupEnabled && (
+              <button
+                type="button"
+                className="help-setting"
+                aria-haspopup="dialog"
+                onClick={() => {
+                  setOpen(false);
+                  openSubscribe();
+                }}
+                data-testid="menu-daily-email"
+              >
+                Daily email
+              </button>
+            )}
+          </div>
+        )}
         <button
           type="button"
           className="help-about"

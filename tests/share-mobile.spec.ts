@@ -136,7 +136,9 @@ test('text-only view: the same Share on the card', async ({ page }) => {
   await mockShareSheet(page);
   await page.goto('/word/nur');
   await waitForScene(page);
-  await page.getByTestId('mode-toggle').tap();
+  // On phones the Text-only view switch is in the “?” menu.
+  await page.getByTestId('help-button').tap();
+  await page.getByTestId('menu-text-view').tap();
   const card = page.getByTestId('html-card');
   await expect(card.getByTestId('share-button')).toHaveCount(1);
   await expect(page.getByTestId('share-button')).toHaveCount(1);

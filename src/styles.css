@@ -64,15 +64,42 @@ body[data-cursor='pointer'] .scene {
   cursor: grabbing;
 }
 
-/* ---------- Brand + account corner ---------- */
-.corner-left {
+/* Reads the safe-area insets for the card's layout (src/ui/useCardZone.ts). */
+.safe-probe {
+  position: fixed;
+  inset: 0;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ---------- Top bar: brand + account corner, search; Pearl of the Day + topic picker below ---------- */
+/* One wrapping row, so a large text size moves the search to its own line instead of overlapping. */
+.topbar {
   position: absolute;
   top: max(14px, env(safe-area-inset-top));
   left: max(18px, env(safe-area-inset-left));
+  right: max(16px, env(safe-area-inset-right));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 12px;
+  z-index: 10;
+  pointer-events: none;
+}
+.topbar > * {
+  pointer-events: auto;
+}
+.topbar-break {
+  flex-basis: 100%;
+  height: 0;
+}
+.corner-left {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
-  z-index: 10;
 }
 .brand {
   display: flex;
@@ -114,7 +141,7 @@ body[data-cursor='pointer'] .scene {
 /* ---------- Pearl of the Day ---------- */
 .potd {
   position: absolute;
-  top: max(20px, env(safe-area-inset-top));
+  top: 6px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -164,19 +191,44 @@ body[data-cursor='pointer'] .scene {
   transform: none;
   margin-bottom: 12px;
 }
-@media (max-width: 640px) {
+/* Phones and tablets: the label sits on the left of the topic picker's row, clear of the search; on
+   phones the email offer moves into the “?” menu (“Daily email”), so nothing touches the card. */
+@media (max-width: 1023px), (max-height: 500px) {
   .potd:not(.potd-inline) {
-    top: max(96px, calc(env(safe-area-inset-top) + 82px));
+    position: static;
+    transform: none;
+    align-items: flex-start;
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .potd:not(.potd-inline) .potd-label {
+    font-size: 0.9rem;
+    line-height: 1.2;
+    padding-top: 6px;
+    white-space: normal;
+    text-align: left;
+  }
+}
+@media (max-width: 640px), (max-height: 500px) {
+  .potd:not(.potd-inline) .potd-sub {
+    display: none;
   }
 }
 
 /* ---------- Search ---------- */
 .search {
+  position: relative;
+  /* Grows to 300px, and moves to its own line only when less than 110px is left beside the corner. */
+  flex: 1 1 110px;
+  max-width: 300px;
+  margin-left: auto;
+}
+.topbar .search-list {
   position: absolute;
-  top: max(14px, env(safe-area-inset-top));
-  right: max(16px, env(safe-area-inset-right));
-  width: min(300px, calc(100vw - 150px));
-  z-index: 10;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1;
 }
 .search input {
   width: 100%;
@@ -309,13 +361,17 @@ body[data-cursor='pointer'] .scene {
 
 /* ---------- Topic picker (under the search) ---------- */
 .topics {
-  position: absolute;
-  top: calc(max(14px, env(safe-area-inset-top)) + 48px);
-  right: max(16px, env(safe-area-inset-right));
-  z-index: 9;
+  position: relative;
+  margin-left: auto;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
+}
+.topbar .topics-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1;
 }
 .topics-button {
   display: inline-flex;
@@ -685,6 +741,17 @@ body[data-cursor='pointer'] .scene {
   font: 600 1.15rem/1 var(--font-ar);
 }
 
+/* The focused card's text at the screen's real density, laid over the 3D card (CrispText.tsx). */
+.crisp-text {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
 /* ---------- Save pearl ---------- */
 .save-anchor {
   position: absolute;
@@ -704,12 +771,78 @@ body[data-cursor='pointer'] .scene {
   pointer-events: auto;
 }
 .save-anchor .card-actions {
+  /* One centred row hanging just below the focused card (src/scene/SaveAnchor.tsx pins the anchor to
+     the middle of the card's bottom edge), never over its text. */
   position: absolute;
-  right: 12px;
-  top: 12px;
+  left: 0;
+  top: 8px;
+  transform: translateX(-50%);
+  align-items: center;
+  padding: 0 4px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge);
+  background: rgba(6, 28, 38, 0.42);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  white-space: nowrap;
   pointer-events: none;
 }
-/* Share + save, top-right of the focused card: 44px targets, centres 46px apart. */
+/* Menus and notes from the row open upwards, over the card's lower edge, not off the screen. */
+.save-anchor .share-menu,
+.save-anchor .share-note,
+.save-anchor .save-error {
+  top: auto;
+  bottom: calc(100% + 10px);
+}
+.save-anchor .share-menu,
+.save-anchor .share-note {
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.save-anchor .save-error {
+  right: -4px;
+}
+/* Listen: the word, its sentence, and the 0.75× switch once something has played. */
+.listen {
+  display: inline-flex;
+  align-items: center;
+}
+.listen-rate {
+  min-width: 44px;
+  height: 44px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-faint);
+  font: 500 0.78rem/1 var(--font-ui);
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  animation: fade 0.5s var(--ease-water);
+  transition: color 0.4s var(--ease-water);
+}
+.listen-rate[aria-pressed='true'] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--glow);
+  text-underline-offset: 4px;
+}
+.listen-rate:hover,
+.listen-rate:focus-visible {
+  color: var(--ink);
+  outline: none;
+}
+.listen-rate:focus-visible {
+  box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.35);
+}
+/* A divider between Listen and the card's other buttons. */
+.save-anchor .listen {
+  margin-right: 2px;
+  padding-right: 2px;
+  border-right: 1px solid var(--glass-edge);
+}
+/* The card's buttons: 44px targets, centres 46px apart. */
 .card-actions {
   display: flex;
   align-items: flex-start;
@@ -763,9 +896,20 @@ body[data-cursor='pointer'] .scene {
     transform 0.9s var(--ease-water);
 }
 .save-glint {
-  fill: #fff;
-  opacity: 0;
+  fill: currentColor;
+  opacity: 0.7;
   transition: opacity 0.6s var(--ease-water);
+}
+.save-sheen {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  opacity: 0.6;
+  transition: opacity 0.6s var(--ease-water);
+}
+.save-btn[aria-pressed='true'] .save-sheen {
+  opacity: 0;
 }
 .save-btn:hover,
 .save-btn:focus-visible,
@@ -784,6 +928,7 @@ body[data-cursor='pointer'] .scene {
   transform: scale(1);
 }
 .save-btn[aria-pressed='true'] .save-glint {
+  fill: #fff;
   opacity: 0.9;
 }
 .save-btn[aria-pressed='true'] .save-ring {
@@ -967,6 +1112,46 @@ a.acct-item {
 }
 .help-about:focus-visible {
   box-shadow: 0 3px 0 -1px rgba(127, 214, 214, 0.5);
+}
+
+/* Settings in the “?” menu: Text-only view, Slow voice, Daily email. */
+.help-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--glass-edge);
+}
+.help-setting {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge);
+  background: rgba(8, 34, 46, 0.4);
+  color: var(--ink-soft);
+  font: 400 0.8rem/1.2 var(--font-ui);
+  cursor: pointer;
+  transition:
+    color 0.4s var(--ease-water),
+    border-color 0.4s var(--ease-water);
+}
+.help-setting[aria-pressed='true'] {
+  color: var(--ink);
+  border-color: rgba(127, 214, 214, 0.6);
+  background: rgba(20, 70, 80, 0.5);
+}
+.help-setting[aria-pressed='true']::before {
+  content: '✓ ';
+}
+.help-setting:hover,
+.help-setting:focus-visible {
+  color: var(--ink);
+  border-color: rgba(190, 240, 240, 0.4);
+  outline: none;
+}
+.help-setting:focus-visible {
+  box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.3);
 }
 
 @media (hover: none) {
@@ -1374,15 +1559,34 @@ a.acct-item {
   .hint-save {
     display: none;
   }
-  .search {
-    width: calc(100vw - 226px);
-  }
   .search-kbd {
     display: none;
   }
+}
+/* Phones and tablets: Text-only view and Slow voice live in the “?” menu (clear of the swipe
+   controls). On phones the sentence speaker and 0.75× join Listen after the first play, so the
+   card's row keeps four buttons. */
+@media (max-width: 1023px), (max-height: 500px) {
   .view-toggles {
-    bottom: auto;
-    top: max(58px, calc(env(safe-area-inset-top) + 44px));
+    display: none;
+  }
+}
+@media (max-width: 640px), (max-height: 500px) {
+  .listen:not([data-played]) .listen-sentence {
+    display: none;
+  }
+}
+/* Phones on their side: the swipe buttons drop their words too, as in portrait. */
+@media (max-height: 500px) {
+  .ctrl span,
+  .hint-save {
+    display: none;
+  }
+  .ctrl {
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    justify-content: center;
   }
 }
 

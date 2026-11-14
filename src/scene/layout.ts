@@ -20,12 +20,28 @@ export interface Pose {
   s: number;
 }
 
+/** The free rectangle the focused card fits into, in CSS px from the screen's edges (see src/state/anchors.ts). */
+export interface Zone {
+  ready: boolean;
+  width: number;
+  height: number;
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
 export class Layout {
   aspect = 1;
+  height = 1;
   tanHalf = Math.tan(THREE.MathUtils.degToRad(CAMERA_FOV / 2));
+  zone: Zone | null = null;
 
-  update(width: number, height: number) {
+  update(width: number, height: number, zone?: Zone) {
     this.aspect = width / Math.max(height, 1);
+    this.height = Math.max(height, 1);
+    // A zone measured for another screen size (mid-rotation) is ignored until it is re-measured.
+    this.zone = zone?.ready && Math.abs(zone.width - width) < 2 && Math.abs(zone.height - height) < 2 ? zone : null;
   }
 
   halfH(z: number) {
@@ -44,7 +60,13 @@ export class Layout {
   focusScale() {
     const hh = this.halfH(0);
     const hw = this.halfW(0);
-    return Math.min((hh * 2 * (this.portrait ? 0.68 : 0.74)) / CARD_H, (hw * 2 * 0.86) / CARD_W);
+    const fallback = Math.min((hh * 2 * (this.portrait ? 0.68 : 0.74)) / CARD_H, (hw * 2 * 0.86) / CARD_W);
+    const z = this.zone;
+    if (!z) return fallback;
+    // Fits the measured zone (world units per CSS px at the card's depth), never larger than before.
+    const wpp = (hh * 2) / this.height;
+    const fit = Math.min(((z.bottom - z.top) * wpp) / CARD_H, ((z.width - z.left - z.right) * wpp) / CARD_W);
+    return Math.max(0.05, Math.min(fallback, fit));
   }
 
   /**
@@ -57,7 +79,14 @@ export class Layout {
   }
 
   focus(): Pose {
-    return { x: 0, y: this.portrait ? -this.halfH(0) * 0.02 : -this.halfH(0) * 0.01, z: 0, rx: 0, ry: 0, rz: 0, s: this.focusScale() };
+    const z = this.zone;
+    if (!z) return { x: 0, y: this.portrait ? -this.halfH(0) * 0.02 : -this.halfH(0) * 0.01, z: 0, rx: 0, ry: 0, rz: 0, s: this.focusScale() };
+    // Centred in the zone: even margins left and right (inside the safe area), and between the top
+    // controls and the card's button row.
+    const wpp = (this.halfH(0) * 2) / this.height;
+    const x = ((z.left + z.width - z.right) / 2 - z.width / 2) * wpp;
+    const y = (z.height / 2 - (z.top + z.bottom) / 2) * wpp;
+    return { x, y, z: 0, rx: 0, ry: 0, rz: 0, s: this.focusScale() };
   }
 
   /**

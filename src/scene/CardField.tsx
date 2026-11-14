@@ -4,6 +4,7 @@ import { isDue } from '../../shared/mastery';
 import { WORD_BY_SLUG } from '../lib/words';
 import { useProgress } from '../state/progress';
 import { EXIT_MS, sceneCards, useDurar } from '../state/store';
+import { cardZone } from '../state/anchors';
 import { Layout } from './layout';
 import { PearlCard } from './PearlCard';
 
@@ -15,9 +16,9 @@ export function CardField({ visibleCount, reducedMotion }: { visibleCount: numbe
   const drifting = useRef<string[]>([]);
   const layout = useMemo(() => new Layout(), []);
   const size = useThree((s) => s.size);
-  layout.update(size.width, size.height);
+  layout.update(size.width, size.height, cardZone);
 
-  useFrame(({ size: sz }) => layout.update(sz.width, sz.height));
+  useFrame(({ size: sz }) => layout.update(sz.width, sz.height, cardZone));
 
   // Unmount sunk cards once their exit animation has played out.
   const [, force] = useReducer((x: number) => x + 1, 0);
