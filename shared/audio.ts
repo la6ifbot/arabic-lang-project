@@ -22,6 +22,11 @@ export const VOICE_PICKED = true;
 /** Bump to remake every file under new names (e.g. after changing the SSML below). */
 export const AUDIO_VERSION = 1;
 export const AUDIO_REGION = 'eu-central-1';
+/**
+ * Sentences are read a little slower than Polly's default, which Lativ found too quick to sound
+ * natural (13 Nov 2026). Headwords keep the default rate (and so their files).
+ */
+export const SENTENCE_RATE = '90%';
 
 export interface Voice {
   /** Folder on the host: audio/<id>/. */
@@ -52,14 +57,15 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
  * The SSML for a headword or sentence. Hala and Zayd are Gulf Arabic voices that read Modern
  * Standard Arabic inside <lang xml:lang="arb">; for Zeina (Standard Arabic already) it changes nothing.
  */
-export function speechSsml({ ar, say }: Spoken): { ssml: string; chars: number } {
+export function speechSsml({ ar, say }: Spoken, rate?: string): { ssml: string; chars: number } {
   const text = say?.ar ?? ar;
-  const inner = say?.ipa ? `<phoneme alphabet="ipa" ph="${esc(say.ipa)}">${esc(text)}</phoneme>` : esc(text);
+  const spoken = say?.ipa ? `<phoneme alphabet="ipa" ph="${esc(say.ipa)}">${esc(text)}</phoneme>` : esc(text);
+  const inner = rate ? `<prosody rate="${rate}">${spoken}</prosody>` : spoken;
   return { ssml: `<speak><lang xml:lang="arb">${inner}</lang></speak>`, chars: text.length };
 }
 
-export function speech(item: Spoken, voice: Voice = VOICE): Speech {
-  const { ssml, chars } = speechSsml(item);
+export function speech(item: Spoken, voice: Voice = VOICE, rate?: string): Speech {
+  const { ssml, chars } = speechSsml(item, rate);
   const hash = createHash('sha256')
     .update(JSON.stringify([AUDIO_VERSION, voice.id, voice.engine, ssml, item.say?.take ?? 0]))
     .digest('hex')
@@ -71,7 +77,10 @@ interface AudioWord extends Spoken {
   examples: Spoken[];
 }
 
-export const wordSpeech = (w: AudioWord, voice: Voice = VOICE) => ({ word: speech(w, voice), examples: w.examples.map((ex) => speech(ex, voice)) });
+export const wordSpeech = (w: AudioWord, voice: Voice = VOICE) => ({
+  word: speech(w, voice),
+  examples: w.examples.map((ex) => speech(ex, voice, SENTENCE_RATE)),
+});
 
 /**
  * What the site gets (words.json?audio): the voice's folder, and per word its hashes, headword first,
