@@ -91,6 +91,17 @@ body[data-cursor='pointer'] .scene {
 .topbar > * {
   pointer-events: auto;
 }
+/* Full screen on a touch screen (iPad Safari): the browser's own close button sits in the top-left
+   corner, so the brand and its buttons start to the right of it. (Two rules: a selector a browser
+   doesn't know would drop the whole rule.) */
+@media (hover: none) {
+  :root:fullscreen .topbar {
+    left: calc(max(18px, env(safe-area-inset-left)) + 64px);
+  }
+  :root:-webkit-full-screen .topbar {
+    left: calc(max(18px, env(safe-area-inset-left)) + 64px);
+  }
+}
 .topbar-break {
   flex-basis: 100%;
   height: 0;
@@ -803,38 +814,10 @@ body[data-cursor='pointer'] .scene {
 .save-anchor .save-error {
   right: -4px;
 }
-/* Listen: the word, its sentence, and the 0.75× switch once something has played. */
+/* Listen: the word, and its sentence (on phones once something has played). */
 .listen {
   display: inline-flex;
   align-items: center;
-}
-.listen-rate {
-  min-width: 44px;
-  height: 44px;
-  padding: 0 6px;
-  border: 0;
-  border-radius: 999px;
-  background: none;
-  color: var(--ink-faint);
-  font: 500 0.78rem/1 var(--font-ui);
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  animation: fade 0.5s var(--ease-water);
-  transition: color 0.4s var(--ease-water);
-}
-.listen-rate[aria-pressed='true'] {
-  color: var(--ink);
-  text-decoration: underline;
-  text-decoration-color: var(--glow);
-  text-underline-offset: 4px;
-}
-.listen-rate:hover,
-.listen-rate:focus-visible {
-  color: var(--ink);
-  outline: none;
-}
-.listen-rate:focus-visible {
-  box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.35);
 }
 /* A divider between Listen and the card's other buttons. */
 .save-anchor .listen {
@@ -1564,8 +1547,8 @@ a.acct-item {
   }
 }
 /* Phones and tablets: Text-only view and Slow voice live in the “?” menu (clear of the swipe
-   controls). On phones the sentence speaker and 0.75× join Listen after the first play, so the
-   card's row keeps four buttons. */
+   controls). On phones the sentence speaker joins Listen after the first play, so the card's row
+   starts with four buttons. */
 @media (max-width: 1023px), (max-height: 500px) {
   .view-toggles {
     display: none;

@@ -17,6 +17,9 @@ type Stage = 'threaded' | 'letters' | 'syllables';
 const UNTHREAD_MS = 2600;
 const RETHREAD_MS = 1500;
 const FADE_MS = 400;
+/** The reading guide: first pass this long after the letters settle (after the teaching one), then every GUIDE_EVERY_MS. */
+const GUIDE_FIRST_MS = 6000;
+const GUIDE_EVERY_MS = 9000;
 
 const FORMS: { form: Form; label: string }[] = [
   { form: 'alone', label: 'Alone' },
@@ -66,6 +69,9 @@ export default function Anatomy() {
   const [style, setStyle] = useState<CSSProperties>({});
   // The teaching animation (peek and glint) plays once the letters settle, the first few times only.
   const [teach, setTeach] = useState(false);
+  // The reading guide: the same soft light passing along the letters, right to left, now and then
+  // while the letters (not the syllables) are showing, so the reading direction keeps being shown.
+  const [guide, setGuide] = useState(0);
   const [coarse, setCoarse] = useState(hasCoarsePointer);
   // The whole-word speaker (Phase 0.8, section D): the voice chunk, once the browser has loaded it.
   const voice = useVoiceModule();
@@ -107,6 +113,28 @@ export default function Anatomy() {
       window.clearTimeout(t);
     };
   }, [reduced]);
+
+  const lettersShowing = settled && stage === 'letters' && !closingNow && !reduced;
+  useEffect(() => {
+    if (!lettersShowing || !a) return;
+    // A pass takes a moment longer than the last letter's glint; the first waits past the teaching one.
+    const pass = 900 + a.count * 120 + 200;
+    let next = 0;
+    let off = 0;
+    const schedule = (delay: number) => {
+      next = window.setTimeout(() => {
+        setGuide((g) => g + 1);
+        off = window.setTimeout(() => setGuide(0), pass);
+        schedule(GUIDE_EVERY_MS);
+      }, delay);
+    };
+    schedule(GUIDE_FIRST_MS);
+    return () => {
+      window.clearTimeout(next);
+      window.clearTimeout(off);
+      setGuide(0);
+    };
+  }, [lettersShowing, a]);
 
   // Focus goes back to where it was (Modal); after a tap or the L key that's the Letters button.
   useEffect(
@@ -174,6 +202,7 @@ export default function Anatomy() {
         data-reduced={reduced || undefined}
         data-closing={closingNow || undefined}
         data-teach={(teach && !closingNow) || undefined}
+        data-guide={guide > 0 || undefined}
         // A finger taps and a mouse clicks: the hint follows whichever was used last.
         onPointerDown={(e) => setCoarse(e.pointerType !== 'mouse')}
         onKeyDown={(e) => {

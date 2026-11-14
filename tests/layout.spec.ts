@@ -104,7 +104,7 @@ async function checkLayout(page: Page, info: TestInfo, label: string, phone: boo
   expect(Math.abs((row.left + row.right) / 2 - (card.left + card.right) / 2), `${at}buttons centred under the card`).toBeLessThanOrEqual(5);
   expect(row.left >= 0 && row.right <= width && row.bottom <= height, `${at}buttons on screen`).toBe(true);
   if (phone) {
-    // Listen, Letters, Share, Save (the sentence and 0.75× join Listen only after a first play).
+    // Listen, Letters, Share, Save (the sentence joins Listen only after a first play).
     const buttons = page.locator('.save-anchor .card-actions button:visible');
     expect(await buttons.count(), `${at}four buttons under the card`).toBeLessThanOrEqual(4);
   }
@@ -212,7 +212,7 @@ test.describe('phone menus and buttons', () => {
     await expect(row.locator('.save-glint')).toHaveCSS('opacity', '0.7');
   });
 
-  test('after the first play, Listen gains the sentence and a 0.75× switch', async ({ page }) => {
+  test('after the first play, Listen gains the sentence; no 0.75× on the card (Slow voice is in the menu)', async ({ page }) => {
     await page.addInitScript(() => {
       // A silent stand-in for the audio element, so nothing is fetched.
       HTMLMediaElement.prototype.play = function () {
@@ -224,12 +224,10 @@ test.describe('phone menus and buttons', () => {
     await settledCard(page);
     const row = page.locator('.save-anchor .card-actions');
     await expect(row.getByTestId('speak-sentence')).toBeHidden();
-    await expect(row.getByTestId('listen-rate')).toHaveCount(0);
     await row.getByTestId('speak-word').tap();
-    await expect(row.getByTestId('listen-rate')).toBeVisible();
     await expect(row.getByTestId('speak-sentence')).toBeVisible();
-    await row.getByTestId('listen-rate').tap();
-    await expect(row.getByTestId('listen-rate')).toHaveAttribute('aria-pressed', 'true');
+    await expect(row.getByText('0.75×')).toHaveCount(0);
+    await expect(row.getByRole('button', { name: /slow/i })).toHaveCount(0);
   });
 });
 

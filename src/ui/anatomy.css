@@ -416,6 +416,12 @@
     anat-peek-lift 1.6s var(--ease-water),
     anat-glint 0.9s var(--ease-water) 1.3s backwards;
 }
+/* The reading guide (src/ui/Anatomy.tsx): the glint again, right to left, every few seconds while
+   the letters (not the syllables) show; never with reduced motion (below). */
+.anat-panel[data-guide] .anat-letter,
+.anat-panel[data-guide] .anat-letter:first-child {
+  animation: anat-glint 0.9s var(--ease-water) calc(var(--i) * 0.12s) backwards;
+}
 @keyframes anat-peek-lift {
   0%,
   100% {
