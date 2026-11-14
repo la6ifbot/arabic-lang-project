@@ -3,6 +3,7 @@ import { useAccount } from '../account/store';
 import { WORD_BY_SLUG } from '../lib/words';
 import { progressLabel, useProgress } from '../state/progress';
 import { openAnatomy } from '../state/dialogs';
+import { noteWordTap } from '../lib/wordTap';
 import { gesture, setMaxZoom, setPan, useDurar, ZOOM_FIT } from '../state/store';
 import { useSwipeInput } from '../scene/useSwipeInput';
 import { CardActions } from './CardActions';
@@ -74,7 +75,10 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
       )}
       <article ref={card} key={slug} className="html-card" data-testid="html-card" data-glint={glinting || undefined}>
         <CardActions slug={slug} className="card-actions-in-card" />
-        <WordDetails word={word} onHeadword={() => openAnatomy(slug)} speakers />
+        <WordDetails word={word} onHeadword={() => {
+            noteWordTap();
+            openAnatomy(slug);
+          }} speakers />
         {label && (
           <p className="card-depth" data-testid="card-depth">
             {label}

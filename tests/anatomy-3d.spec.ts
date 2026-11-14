@@ -52,3 +52,61 @@ test.describe('over the 3D card', () => {
     await expect(layer(page)).toBeVisible();
   });
 });
+
+// Showing that the word can be tapped (src/ui/WordTapHint.tsx): a breathing glow until the first tap,
+// and a short hint the first time.
+test.describe('“tap the word” glow and hint', () => {
+  test.use({
+    storageState: { cookies: [], origins: [{ origin: 'http://localhost:4173', localStorage: [{ name: 'durar-help-seen', value: '1' }] }] },
+  });
+
+  test('the hint shows once and fades, the glow breathes until the word is tapped, then both stop for good', async ({ page }) => {
+    await page.goto('/word/hilal');
+    await waitForSea(page);
+    const tap = page.getByTestId('word-tap');
+    const hint = page.getByTestId('word-tap-hint');
+    await expect(tap).toHaveAttribute('data-visible', 'true');
+    await expect(hint).toHaveAttribute('data-on', 'true');
+    await expect(hint).toHaveText('Click the word to see its letters');
+    await expect(tap).toHaveAttribute('aria-hidden', 'true');
+    expect(await page.locator('.word-tap-glow').evaluate((el) => getComputedStyle(el).animationName)).toBe('word-breathe');
+    // It sits over the headword.
+    const [hx, hy] = (await page.locator('.save-anchor').getAttribute('data-head'))!.split(',').map(Number);
+    const box = (await page.locator('.word-tap-glow').boundingBox())!;
+    expect(Math.abs(box.x + box.width / 2 - hx)).toBeLessThan(30);
+    expect(Math.abs(box.y + box.height / 2 - hy)).toBeLessThan(30);
+    // The hint fades after a few seconds, and doesn't come back on the next visit; the glow does.
+    await expect(hint).not.toHaveAttribute('data-on', /.*/, { timeout: 9000 });
+    await page.reload();
+    await waitForSea(page);
+    await expect(tap).toHaveAttribute('data-visible', 'true');
+    await page.waitForTimeout(1500);
+    await expect(hint).not.toHaveAttribute('data-on', /.*/);
+
+    // The first tap on the word: both stop, also on the next visit.
+    await page.waitForTimeout(800);
+    const [x, y] = (await page.locator('.save-anchor').getAttribute('data-head'))!.split(',').map(Number);
+    await page.mouse.click(x, y);
+    await expect(layer(page)).toBeVisible();
+    await expect(tap).toHaveCount(0);
+    await page.reload();
+    await waitForSea(page);
+    await page.waitForTimeout(1000);
+    await expect(tap).toHaveCount(0);
+  });
+
+  test('waits for “How it works” on a first visit; with reduced motion, the hint but no glow', async ({ browser }) => {
+    const context = await browser.newContext({ reducedMotion: 'reduce', storageState: { cookies: [], origins: [] } });
+    const page = await context.newPage();
+    await page.goto('/');
+    await waitForSea(page);
+    await expect(page.getByTestId('help-box')).toBeVisible();
+    await page.waitForTimeout(1500);
+    await expect(page.getByTestId('word-tap-hint')).not.toHaveAttribute('data-on', /.*/);
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('help-box')).toBeHidden();
+    await expect(page.getByTestId('word-tap-hint')).toHaveAttribute('data-on', 'true');
+    await expect(page.locator('.word-tap-glow')).toBeHidden();
+    await context.close();
+  });
+});

@@ -10,6 +10,9 @@ export const crispText: { el: HTMLCanvasElement | null } = { el: null };
 /** Where the focused 3D card's headword is on screen (CSS px): the anatomy layer opens over it. */
 export const headAnchor = { x: 0, y: 0, visible: false };
 
+/** The glow and first-time hint that show the headword can be tapped (src/ui/WordTapHint.tsx). */
+export const wordTap: { el: HTMLElement | null } = { el: null };
+
 /**
  * The free rectangle the focused 3D card fits into (CSS px, from the stage's edges): below the top
  * controls, above the card's own button row and the swipe controls, inside the safe area (notch,

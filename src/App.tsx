@@ -19,6 +19,7 @@ import { AccountMenu } from './ui/AccountMenu';
 import { CardActions } from './ui/CardActions';
 import { FullscreenButton } from './ui/FullscreenButton';
 import { HelpBox } from './ui/HelpBox';
+import { WordTapHint } from './ui/WordTapHint';
 import { Announcer } from './ui/Announcer';
 import { PearlLabel } from './ui/PearlLabel';
 import { ProgressNote } from './ui/ProgressNote';
@@ -252,6 +253,7 @@ function Sea() {
             <CardActions slug={focused} speakers />
           </div>
         )}
+        {use3D && <WordTapHint />}
         <Announcer />
       </main>
 
