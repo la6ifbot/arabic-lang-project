@@ -28,7 +28,7 @@ const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's'] as const;
 const GLINT_MS = 1150;
 
 /** Live pose of the focused card, read by the scene to pin HTML controls (e.g. Save) to it. */
-export const focusedCard = { slug: '', matrix: new THREE.Matrix4(), focus: 0, opacity: 0, head: { top: 0.08, bottom: 0.4 } };
+export const focusedCard = { slug: '', matrix: new THREE.Matrix4(), focus: 0, opacity: 0, head: { top: 0.08, bottom: 0.4 }, ink: 1 };
 
 /** True when a point on the card (uv) is on its headword or transliteration. */
 const onHeadword = (uv: THREE.Vector2 | undefined, head: { top: number; bottom: number } | undefined) =>
@@ -144,7 +144,7 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
         const worldPerPx = (layout.halfW(0) * 2) / state.size.width;
         const dx = gesture.dragPx * worldPerPx;
         const n = gesture.dragPx / state.size.width;
-        target = { ...target, x: dx, y: target.y - Math.abs(n) * 0.6 * (n > 0 ? 1 : -0.4), rz: -n * 0.5, ry: n * 0.9, rx: Math.abs(n) * 0.3 };
+        target = { ...target, x: target.x + dx, y: target.y - Math.abs(n) * 0.6 * (n > 0 ? 1 : -0.4), rz: -n * 0.5, ry: n * 0.9, rx: Math.abs(n) * 0.3 };
         smooth = 0.07;
       }
     } else if (slot !== undefined) {
@@ -203,6 +203,8 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
     const gk = glint && glint.slug === slug ? (now - glint.at) / GLINT_MS : -1;
     u.uGlint.value = gk >= 0 && gk <= 1 ? gk : -1;
     u.uStill.value = reducedMotion ? 1 : 0;
+    // The focused card's own text fades while its sharp copy covers it (CrispText.tsx).
+    u.uInk.value = idx === 0 && departAt === undefined && focusedCard.slug === slug ? focusedCard.ink : 1;
 
     if (idx === 0 && departAt === undefined) {
       g.updateMatrixWorld();

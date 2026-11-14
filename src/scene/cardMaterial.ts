@@ -15,8 +15,12 @@ export type CardMaterial = THREE.ShaderMaterial & {
     uBend: { value: number };
     uGlint: { value: number };
     uStill: { value: number };
+    uInk: { value: number };
   };
 };
+
+/** How much the card curves, like a sliver of shell (the sharp text overlay follows it too). */
+export const BEND = 0.035;
 
 const vertexShader = /* glsl */ `
   uniform float uTime;
@@ -52,6 +56,7 @@ const fragmentShader = /* glsl */ `
   uniform float uFocus, uOpacity, uSeed, uHover, uPulse, uGlow;
   uniform float uGlint; // -1 = idle, 0..1 = progress of the “saved” glint
   uniform float uStill; // 1 = reduced motion
+  uniform float uInk; // 0 while the sharp copy of the focused card's text covers it (CrispText.tsx)
   varying vec2 vUv;
   varying vec3 vNormalW;
   varying vec3 vViewDirW;
@@ -108,7 +113,7 @@ const fragmentShader = /* glsl */ `
     vec3 col = body + irid * inner * 0.07;
 
     // Text (premultiplied alpha, so blurred mips stay luminous instead of turning grey).
-    float ink = 0.5 + 0.5 * uFocus;
+    float ink = (0.5 + 0.5 * uFocus) * uInk;
     col = col * (1.0 - tex.a * ink) + tex.rgb * ink;
     col = mix(col, irid, band * mix(0.45, 0.95, uFocus));
 
@@ -148,9 +153,10 @@ export function createCardMaterial(map: THREE.Texture, seed: number): CardMateri
       uHover: { value: 0 },
       uPulse: { value: 0 },
       uGlow: { value: 0 },
-      uBend: { value: 0.035 },
+      uBend: { value: BEND },
       uGlint: { value: -1 },
       uStill: { value: 0 },
+      uInk: { value: 1 },
     },
     vertexShader,
     fragmentShader,

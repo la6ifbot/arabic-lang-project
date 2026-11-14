@@ -15,6 +15,8 @@ interface VoiceState {
   key: string | null;
   phase: VoicePhase;
   slow: boolean;
+  /** Something has been played this visit: the 0.75× switch shows beside the speaker from then on. */
+  played: boolean;
   /** For the live region: a new id makes the same text speak again. */
   said: { text: string; id: number };
 }
@@ -29,12 +31,14 @@ const readSlow = () => {
 };
 
 export const SLOW_RATE = 0.75;
-export const useVoice = create<VoiceState>(() => ({ key: null, phase: 'idle', slow: readSlow(), said: { text: '', id: 0 } }));
+export const useVoice = create<VoiceState>(() => ({ key: null, phase: 'idle', slow: readSlow(), played: false, said: { text: '', id: 0 } }));
 
 const say = (text: string) => useVoice.setState((s) => ({ said: { text, id: s.said.id + 1 } }));
 
 export function setSlow(slow: boolean) {
   useVoice.setState({ slow });
+  // Switched while a word plays: the rest of it changes speed at once.
+  if (current) current.playbackRate = slow ? SLOW_RATE : 1;
   try {
     localStorage.setItem(SLOW_KEY, slow ? '1' : '0');
   } catch {
@@ -87,7 +91,7 @@ export function play(key: string, what: string) {
   stop();
   const a = element(key);
   current = a;
-  useVoice.setState({ key, phase: 'loading' });
+  useVoice.setState({ key, phase: 'loading', played: true });
   const failed = () => {
     if (current !== a) return;
     current = null;

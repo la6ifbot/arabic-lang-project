@@ -73,19 +73,50 @@ function SpeakButton({
 }
 
 /** Slow voice: the same audio at 0.75×, remembered on this device. */
-export function SlowToggle() {
+export function SlowToggle({ className = 'mode-toggle slow-toggle', testId = 'slow-toggle' }: { className?: string; testId?: string }) {
   const slow = useVoice((s) => s.slow);
   return (
     <button
       type="button"
-      className="mode-toggle slow-toggle"
+      className={className}
       aria-pressed={slow}
       title="Play word audio at three-quarter speed"
       onClick={() => setSlow(!slow)}
-      data-testid="slow-toggle"
+      data-testid={testId}
     >
       Slow voice
     </button>
+  );
+}
+
+/**
+ * “Listen” in the 3D card's button row: the word's speaker, then (on wide screens always, on phones
+ * after the first play) the example sentence's, and after the first play a small 0.75× switch for
+ * the slow voice.
+ */
+export function Listen({ slug }: { slug: string }) {
+  const slow = useVoice((s) => s.slow);
+  const played = useVoice((s) => s.played);
+  if (!audioOf(slug)) return null;
+  return (
+    <span className="listen" data-played={played || undefined}>
+      <Speaker slug={slug} />
+      <Speaker slug={slug} example={0} what="the example sentence" className="listen-sentence" />
+      {played && (
+        <button
+          type="button"
+          className="listen-rate"
+          aria-pressed={slow}
+          aria-label="Slow voice (three-quarter speed)"
+          title="Slow voice (three-quarter speed)"
+          onClick={() => setSlow(!slow)}
+          onPointerDown={(e) => e.stopPropagation()}
+          data-testid="listen-rate"
+        >
+          0.75×
+        </button>
+      )}
+    </span>
   );
 }
 

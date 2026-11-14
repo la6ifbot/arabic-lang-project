@@ -17,7 +17,9 @@ export function CameraRig({ reducedMotion }: { reducedMotion: boolean }) {
     camera.position.x += (tx - camera.position.x) * kx;
     camera.position.y += (ty - camera.position.y) * k;
     camera.position.z = CAMERA_Z;
-    camera.lookAt(camera.position.x * 0.3, camera.position.y * 0.3, -6);
+    // Looks through the focused card's plane at the same point however the camera drifts, so the
+    // focused card stays centred on screen (its buttons with it) while the deeper pearls still drift.
+    camera.lookAt(-camera.position.x * (2 / 3), -camera.position.y * (2 / 3), -6);
   });
   return null;
 }

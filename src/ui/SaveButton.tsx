@@ -3,8 +3,8 @@ import { toggleSave, useAccount } from '../account/store';
 import { WORD_BY_SLUG } from '../lib/words';
 
 /**
- * “Save to My Pearls” for the focused card. A pearl outline when not saved, a lustrous pearl when
- * saved. Used over the 3D card (positioned by the scene) and inside the text-only card.
+ * “Save to My Pearls” for the focused card. A pearl in outline (rim, sheen, glint) when not saved, a
+ * lustrous pearl when saved. Used over the 3D card (positioned by the scene) and inside the text-only card.
  */
 export function SaveButton({ slug, className = '' }: { slug: string; className?: string }) {
   const status = useAccount((s) => s.status);
@@ -45,8 +45,10 @@ export function SaveButton({ slug, className = '' }: { slug: string; className?:
             </radialGradient>
           </defs>
           <circle className="save-ring" cx="16" cy="16" r="10.5" />
+          {/* Not saved: a pearl drawn in outline (its sheen and glint), not an empty circle. */}
+          <path className="save-sheen" d="M21.4 17.9a6 6 0 0 1-4.3 4" />
           <circle className="save-fill" cx="16" cy="16" r="10.5" fill="url(#save-pearl-fill)" />
-          <circle className="save-glint" cx="12.5" cy="12" r="2.4" />
+          <circle className="save-glint" cx="12.6" cy="12.4" r="2.1" />
         </svg>
       </button>
       {showError && error && (
