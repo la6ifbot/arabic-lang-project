@@ -15,7 +15,7 @@ interface VoiceState {
   key: string | null;
   phase: VoicePhase;
   slow: boolean;
-  /** Something has been played this visit: the 0.75× switch shows beside the speaker from then on. */
+  /** Something has been played this visit: on phones the sentence speaker shows from then on. */
   played: boolean;
   /** For the live region: a new id makes the same text speak again. */
   said: { text: string; id: number };

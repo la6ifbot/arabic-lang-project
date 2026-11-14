@@ -153,6 +153,24 @@ test.describe('text-only view', () => {
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`)).toEqual([]);
   });
 
+  test('reading guide: the right-to-left light comes back now and then on the letters, not on the syllables', async ({ page }) => {
+    test.setTimeout(60_000);
+    await page.goto('/word/hilal');
+    await page.keyboard.press('l');
+    await settled(page);
+    // Every few seconds, again and again, each time along every letter, right to left.
+    for (let pass = 1; pass <= 2; pass++) {
+      await expect(layer(page), `pass ${pass}`).toHaveAttribute('data-guide', 'true', { timeout: 12_000 });
+      const names = await letters(page).evaluateAll((els) => els.map((el) => getComputedStyle(el).animationName));
+      expect(names.every((name) => name === 'anat-glint')).toBe(true);
+      await expect(layer(page)).not.toHaveAttribute('data-guide', /.*/, { timeout: 5_000 });
+    }
+    // Not while the syllables show.
+    await page.getByTestId('anatomy-syllables-step').click();
+    await page.waitForTimeout(10_000);
+    await expect(layer(page)).not.toHaveAttribute('data-guide', /.*/);
+  });
+
   test('teaching animation: peek and glint play the first 3 times Letters opens, then never again', async ({ page }) => {
     await page.goto('/word/hilal');
     for (let n = 1; n <= 4; n++) {
