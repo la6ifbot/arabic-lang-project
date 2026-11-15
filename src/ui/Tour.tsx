@@ -78,7 +78,8 @@ const STEPS: Step[] = [
   {
     id: 'buttons',
     title: 'Under the card',
-    text: () => `Listen to the word, see its letters, share it${accountsMode !== 'off' ? ', or keep it with the small pearl' : ''}.`,
+    text: () =>
+      `Listen to the word, see its letters, look up the hard words in its sentence (the little book), share it${accountsMode !== 'off' ? ', or keep it with the small pearl' : ''}.`,
     target: () => box('.save-anchor .card-actions') ?? box('.card-actions-in-card'),
   },
   {

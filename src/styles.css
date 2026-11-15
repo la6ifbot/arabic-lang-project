@@ -2891,3 +2891,41 @@ a.acct-item {
     animation: none;
   }
 }
+
+/* ---------- Hard words (src/ui/WordsDialog.tsx) ---------- */
+.words-modal .modal-body {
+  max-height: min(60dvh, 520px);
+  overflow-y: auto;
+}
+.words-group + .words-group {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--glass-edge);
+}
+.words-sentence {
+  margin: 0 0 10px;
+  font: 400 1.25rem/1.6 var(--font-ar);
+  color: var(--ink);
+}
+.words-list {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.words-item {
+  display: grid;
+  gap: 2px;
+}
+.words-item dt {
+  font: 500 1.2rem/1.4 var(--font-ar);
+  color: var(--ink);
+  text-align: right;
+}
+.words-item dd {
+  margin: 0;
+  font: 400 0.92rem/1.4 var(--font-ui);
+  color: var(--ink-soft);
+}
+.words-src {
+  font-size: 0.78rem;
+}

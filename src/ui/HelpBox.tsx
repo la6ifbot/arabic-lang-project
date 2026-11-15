@@ -110,6 +110,10 @@ export function HelpBox({ ready = false, textToggle = false }: { ready?: boolean
             <span className="help-kbd"> or press ←</span> if you’re still learning it. It comes back soon.
           </li>
           <li>
+            <span className="help-key">Hard words</span> in a sentence: the little book under the card
+            <span className="help-kbd"> or press W</span> gives their meanings.
+          </li>
+          <li>
             <span className="help-key">Back</span>
             <span className="help-kbd"> or Backspace</span> brings the last word back.
           </li>

@@ -259,6 +259,20 @@ test.describe('fallbacks & accessibility', () => {
     });
   });
 
+  test('the book under the card explains the hard words of its sentence', async ({ page }) => {
+    await page.goto('/word/nasim');
+    await waitForScene(page);
+    await page.getByTestId('words-button').click();
+    const dialog = page.getByRole('dialog', { name: 'Hard words' });
+    await expect(dialog).toContainText('عَلِيل');
+    await expect(dialog).toContainText('mild, gentle');
+    await expect(dialog).toContainText('Hans Wehr');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await page.keyboard.press('w');
+    await expect(dialog).toBeVisible();
+  });
+
   test('“back” brings the last swiped word back', async ({ page }) => {
     await page.goto('/');
     await waitForScene(page);

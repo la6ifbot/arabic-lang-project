@@ -104,9 +104,10 @@ async function checkLayout(page: Page, info: TestInfo, label: string, phone: boo
   expect(Math.abs((row.left + row.right) / 2 - (card.left + card.right) / 2), `${at}buttons centred under the card`).toBeLessThanOrEqual(5);
   expect(row.left >= 0 && row.right <= width && row.bottom <= height, `${at}buttons on screen`).toBe(true);
   if (phone) {
-    // Listen, Letters, Share, Save (the sentence joins Listen only after a first play).
+    // Listen, Letters, Hard words (on cards that have some), Share, Save (the sentence joins Listen
+    // only after a first play).
     const buttons = page.locator('.save-anchor .card-actions button:visible');
-    expect(await buttons.count(), `${at}four buttons under the card`).toBeLessThanOrEqual(4);
+    expect(await buttons.count(), `${at}at most five buttons under the card`).toBeLessThanOrEqual(5);
   }
   if (phone || width < 1024) await expect(page.locator('.view-toggles')).toBeHidden();
   for (const [name, box] of Object.entries(b)) {

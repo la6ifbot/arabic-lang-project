@@ -25,3 +25,12 @@ export function useFullWord(word: WordCore): WordCore & Partial<Word> {
   }, []);
   return details?.fullWord(word.slug) ?? word;
 }
+
+/** The harder words in a word's example sentences, once the details have loaded (empty until then). */
+export function useGlosses(slug: string) {
+  const [, setLoaded] = useState(details !== null);
+  useEffect(() => {
+    if (!details) loadWordDetails().then(() => setLoaded(true), () => {});
+  }, []);
+  return details?.glossesOf(slug) ?? [];
+}
