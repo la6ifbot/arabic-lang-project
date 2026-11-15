@@ -7,6 +7,7 @@ import { offersFullscreen } from '../lib/fullscreen';
 import { slugFromLocation } from '../lib/router';
 import { useVoiceModule } from '../lib/voiceLoader';
 import { openAbout, openSubscribe } from '../state/dialogs';
+import { startTour } from '../state/tour';
 import { useDurar } from '../state/store';
 
 // Read at startup, before the site tidies the URL. An email or sign-in link landing never opens it,
@@ -33,8 +34,10 @@ function markSeen() {
 /**
  * “?” in the top-left corner: a small box with how to use the sea, the view settings (Text-only view,
  * Slow voice, Daily email: on phones this is their only place) and a way into “What is Durar?”.
- * On a first visit it opens by itself once the sea is ready (`ready`); after that, only from the “?”.
- * Arriving on a shared word, the “?” glows gently instead, until it is opened or a later visit opens it.
+ * On a first visit the short walk-through (src/ui/Tour.tsx) starts by itself once the sea is ready
+ * (`ready`), in place of this box; after that, the box opens only from the “?”, and its “Show me
+ * around” runs the walk-through again. Arriving on a shared word, the “?” glows gently instead,
+ * until it is opened or a later visit starts the walk-through.
  */
 export function HelpBox({ ready = false, textToggle = false }: { ready?: boolean; textToggle?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -55,7 +58,7 @@ export function HelpBox({ ready = false, textToggle = false }: { ready?: boolean
       return;
     }
     markSeen();
-    setOpen(true);
+    startTour();
   }, [ready]);
 
   useEffect(() => {
@@ -107,6 +110,10 @@ export function HelpBox({ ready = false, textToggle = false }: { ready?: boolean
             <span className="help-kbd"> or press ←</span> if you’re still learning it. It comes back soon.
           </li>
           <li>
+            <span className="help-key">Back</span>
+            <span className="help-kbd"> or Backspace</span> brings the last word back.
+          </li>
+          <li>
             <span className="help-key">Tap a pearl</span> in the background to bring it forward.
           </li>
           <li>
@@ -153,17 +160,30 @@ export function HelpBox({ ready = false, textToggle = false }: { ready?: boolean
             )}
           </div>
         )}
-        <button
-          type="button"
-          className="help-about"
-          onClick={() => {
-            setOpen(false);
-            openAbout();
-          }}
-          data-testid="about-open"
-        >
-          What is Durar?
-        </button>
+        <div className="help-links">
+          <button
+            type="button"
+            className="help-about"
+            onClick={() => {
+              setOpen(false);
+              startTour();
+            }}
+            data-testid="tour-open"
+          >
+            Show me around
+          </button>
+          <button
+            type="button"
+            className="help-about"
+            onClick={() => {
+              setOpen(false);
+              openAbout();
+            }}
+            data-testid="about-open"
+          >
+            What is Durar?
+          </button>
+        </div>
       </div>
     </div>
   );

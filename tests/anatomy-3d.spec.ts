@@ -95,18 +95,34 @@ test.describe('“tap the word” glow and hint', () => {
     await expect(tap).toHaveCount(0);
   });
 
-  test('waits for “How it works” on a first visit; with reduced motion, the hint but no glow', async ({ browser }) => {
+  test('waits for the walk-through on a first visit; with reduced motion, the hint but no glow', async ({ browser }) => {
     const context = await browser.newContext({ reducedMotion: 'reduce', storageState: { cookies: [], origins: [] } });
     const page = await context.newPage();
     await page.goto('/');
     await waitForSea(page);
-    await expect(page.getByTestId('help-box')).toBeVisible();
+    await expect(page.getByTestId('tour')).toBeVisible();
     await page.waitForTimeout(1500);
     await expect(page.getByTestId('word-tap-hint')).not.toHaveAttribute('data-on', /.*/);
+    // Skipped before its step on the word: the hint says it instead.
     await page.keyboard.press('Escape');
-    await expect(page.getByTestId('help-box')).toBeHidden();
+    await expect(page.getByTestId('tour')).toHaveCount(0);
     await expect(page.getByTestId('word-tap-hint')).toHaveAttribute('data-on', 'true');
     await expect(page.locator('.word-tap-glow')).toBeHidden();
     await context.close();
   });
+
+  test('the walk-through’s step on the word stands in for the hint; the glow stays', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+    const page = await context.newPage();
+    await page.goto('/');
+    await waitForSea(page);
+    await page.getByTestId('tour-next').click();
+    await expect(page.getByTestId('tour')).toHaveAttribute('data-step', 'word');
+    await page.getByTestId('tour-skip').click();
+    await page.waitForTimeout(1500);
+    await expect(page.getByTestId('word-tap-hint')).not.toHaveAttribute('data-on', /.*/);
+    await expect(page.getByTestId('word-tap')).toHaveCount(1);
+    await context.close();
+  });
+
 });
