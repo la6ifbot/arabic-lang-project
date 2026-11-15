@@ -1,12 +1,13 @@
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { cardZone, headAnchor, saveAnchor } from '../state/anchors';
+import { cardZone, headAnchor, saveAnchor, wordTap } from '../state/anchors';
 import { gesture } from '../state/store';
 import { CARD_H, CARD_W } from './layout';
 import { focusedCard } from './PearlCard';
 
 const below = new THREE.Vector3();
 const head = new THREE.Vector3();
+const headTop = new THREE.Vector3();
 const corner = new THREE.Vector3();
 const CORNERS = [
   [-CARD_W / 2, CARD_H / 2],
@@ -56,6 +57,18 @@ export function SaveAnchor() {
     if (el.dataset.card !== box) el.dataset.card = box;
     const mirror = `${hx},${hy}`;
     if (el.dataset.head !== mirror) el.dataset.head = mirror;
+
+    // The headword's glow and hint (src/ui/WordTapHint.tsx): over the word, as wide as its text.
+    const tap = wordTap.el;
+    if (tap) {
+      headTop.set(0, CARD_H / 2 - band.top * CARD_H, 0).applyMatrix4(focusedCard.matrix).project(camera);
+      const hh = Math.max(8, Math.round(2 * (hy - ((1 - headTop.y) / 2) * size.height)));
+      const moved = `translate3d(${hx}px, ${hy}px, 0)`;
+      if (tap.style.transform !== moved) tap.style.transform = moved;
+      tap.style.setProperty('--hw', `${Math.round((r - l) * 0.72)}px`);
+      tap.style.setProperty('--hh', `${hh}px`);
+      if ((tap.dataset.visible === 'true') !== settled) tap.dataset.visible = String(settled);
+    }
   });
   return null;
 }

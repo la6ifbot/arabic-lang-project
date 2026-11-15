@@ -3,6 +3,7 @@ import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAccount } from '../account/store';
 import { openAnatomy } from '../state/dialogs';
+import { noteWordTap } from '../lib/wordTap';
 import { acquireCardTexture, releaseCardTexture } from './texturePool';
 import { fullWord } from '../lib/wordDetails';
 import { depthOf } from '../progress/queue';
@@ -233,7 +234,10 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
     if (e.delta > 8 || indexRef.current === -1) return;
     // The focused card: a tap on its headword unthreads it into its letters.
     if (indexRef.current === 0) {
-      if (onHeadword(e.uv, texture.userData.head) && (sim.current?.focus ?? 0) > 0.6) openAnatomy(slug);
+      if (onHeadword(e.uv, texture.userData.head) && (sim.current?.focus ?? 0) > 0.6) {
+        noteWordTap();
+        openAnatomy(slug);
+      }
       return;
     }
     useDurar.getState().surface(slug);

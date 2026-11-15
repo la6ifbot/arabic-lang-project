@@ -10,3 +10,4 @@ export const HELP_SEEN_KEY = 'durar-help-seen'; // “How it works” has been s
 export const TOPIC_KEY = 'durar-topic'; // the sea topic last chosen in the picker (a preference)
 export const INSTALL_HINT_KEY = 'durar-install-hint-seen'; // the iPhone “add to Home Screen” tip has been shown once
 export const ANATOMY_TEACH_KEY = 'durar-anatomy-teach'; // how often the letters' teaching animation has played, and whether a letter was tapped
+export const WORD_TAP_KEY = 'durar-word-tap'; // whether the card's Arabic word has been tapped (its glow then stops) and its first-time hint shown

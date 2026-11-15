@@ -20,8 +20,20 @@ export default defineConfig({
     baseURL: 'http://localhost:4173',
     launchOptions: { executablePath, args },
     trace: 'retain-on-failure',
-    // Every test starts as a returning visitor, so “How it works” doesn't open over what it checks.
-    storageState: { cookies: [], origins: [{ origin: 'http://localhost:4173', localStorage: [{ name: 'durar-help-seen', value: '1' }] }] },
+    // Every test starts as a returning visitor, so “How it works” doesn't open over what it checks,
+    // and the card's “tap the word” glow and hint don't show in its screenshots (tests/anatomy-3d.spec.ts checks them).
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://localhost:4173',
+          localStorage: [
+            { name: 'durar-help-seen', value: '1' },
+            { name: 'durar-word-tap', value: '{"tapped":true,"hinted":true}' },
+          ],
+        },
+      ],
+    },
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } }, testIgnore: /(mobile|layout)\.spec\.ts/ },
