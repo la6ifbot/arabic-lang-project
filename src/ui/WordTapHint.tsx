@@ -30,6 +30,8 @@ export function WordTapHint() {
     if (hint === 'wait') {
       const id = window.setInterval(() => {
         if (!clear()) return;
+        // The first-time walk-through may have said it already (src/ui/Tour.tsx).
+        if (readWordTap().hinted) return setHint('done');
         noteWordHinted();
         setHint('on');
       }, 500);

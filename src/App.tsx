@@ -12,9 +12,10 @@ import { loadedVoice, useVoiceModule, withVoice } from './lib/voiceLoader';
 import { WORD_BY_SLUG } from './lib/words';
 import { linkHandler, syncUrl, useRoute } from './lib/router';
 import { crispText, saveAnchor } from './state/anchors';
-import { loadAnatomy, openAnatomy, useDialogs } from './state/dialogs';
+import { loadAnatomy, openAnatomy, openWords, useDialogs } from './state/dialogs';
 import { startProgress } from './state/progress';
 import { useDurar } from './state/store';
+import { loadTour, useTour } from './state/tour';
 import { AccountMenu } from './ui/AccountMenu';
 import { CardActions } from './ui/CardActions';
 import { FullscreenButton } from './ui/FullscreenButton';
@@ -45,6 +46,8 @@ const ResetProgressDialog = lazy(() => import('./ui/ResetProgressDialog'));
 const AboutModal = lazy(() => import('./ui/AboutModal'));
 const Anatomy = lazy(loadAnatomy);
 const InstallHint = lazy(() => import('./ui/InstallHint'));
+const Tour = lazy(loadTour);
+const WordsDialog = lazy(() => import('./ui/WordsDialog'));
 
 // Read before “How it works” marks itself seen on a first visit.
 const helpSeenAtStart = (() => {
@@ -79,6 +82,8 @@ export function App() {
   const resetOpen = useDialogs((s) => s.resetProgress);
   const aboutOpen = useDialogs((s) => s.about);
   const anatomyOpen = useDialogs((s) => s.anatomy !== null);
+  const tourOpen = useTour((s) => s.open);
+  const wordsOpen = useDialogs((s) => s.words !== null);
 
   // Auth redirects (email links, Google) must be handled right away, wherever they land.
   useEffect(() => {
@@ -119,6 +124,8 @@ export function App() {
         {resetOpen && <ResetProgressDialog />}
         {aboutOpen && <AboutModal />}
         {anatomyOpen && route.name === 'scene' && <Anatomy />}
+        {tourOpen && route.name === 'scene' && <Tour />}
+        {wordsOpen && route.name === 'scene' && <WordsDialog />}
       </Suspense>
     </>
   );
@@ -178,7 +185,8 @@ function Sea() {
   }, [ready]);
 
   // Keyboard: “/” jumps to search, “S” saves the focused pearl, “L” unthreads it into its letters,
-  // “P” plays it (Shift+P: its sentence), “F” toggles fullscreen where the browser allows it.
+  // “P” plays it (Shift+P: its sentence), Backspace goes back to the previous word, “F” toggles
+  // fullscreen where the browser allows it.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
@@ -198,6 +206,17 @@ function Sea() {
         const slug = useDurar.getState().order[0];
         const sentence = e.shiftKey;
         withVoice((m) => m.playWord(slug, WORD_BY_SLUG.get(slug)?.ar ?? '', sentence));
+      } else if (e.key === 'w' || e.key === 'W') {
+        // The harder words of the focused card's sentences (only cards that have some).
+        const slug = useDurar.getState().order[0];
+        if (document.querySelector('[data-testid=words-button]')) {
+          e.preventDefault();
+          openWords(slug);
+        }
+      } else if (e.key === 'Backspace') {
+        // Back to the previous word.
+        e.preventDefault();
+        useDurar.getState().back();
       } else if ((e.key === 'f' || e.key === 'F') && (isFullscreen() || offersFullscreen())) {
         e.preventDefault();
         void toggleFullscreen();

@@ -171,7 +171,7 @@ test.describe('The Deep, parked (flag off)', () => {
   test('no way in anywhere, and /deep opens the sea at /', async ({ page }) => {
     await page.addInitScript(() => {
       (window as unknown as { __DURAR_DEEP__: boolean }).__DURAR_DEEP__ = false;
-      localStorage.removeItem('durar-help-seen'); // the first-visit help opens too
+      localStorage.removeItem('durar-help-seen'); // the first-visit walk-through opens too
     });
     await seed(page, { signedIn: true, member: 'Layla', divers: DIVERS, progress: [verified(W[3], 3)] });
     const noWayIn = async () => {
@@ -182,8 +182,10 @@ test.describe('The Deep, parked (flag off)', () => {
     await page.goto('/deep');
     await waitForSea(page);
     await expect(page).not.toHaveURL(/\/deep/);
-    await expect(page.getByTestId('help-box')).toBeVisible(); // first-visit help
+    await expect(page.getByTestId('tour')).toBeVisible(); // first-visit walk-through
     await noWayIn();
+    await page.keyboard.press('Escape');
+    await page.getByTestId('help-button').click();
     await page.getByTestId('about-open').click();
     await expect(page.getByRole('dialog', { name: 'What is Durar?' })).toBeVisible();
     await noWayIn();

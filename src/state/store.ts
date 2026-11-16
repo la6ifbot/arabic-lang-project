@@ -12,6 +12,8 @@ export const LEARNING_REINSERT_AT = 4;
 export const REVIEW_REINSERT_AT = 8;
 /** Comebacks still owed after the first one, when a card is marked “still learning”. */
 const REVIEWS_AFTER_FIRST = 1;
+/** How many swiped words “Back” can step through. */
+export const HISTORY_MAX = 30;
 /** How long a departing (“known”) card keeps rendering while it sinks. */
 export const EXIT_MS = 3200;
 
@@ -60,7 +62,11 @@ interface DurarState {
   topic: string | null;
   /** When the topic last changed (performance.now()), for the switch choreography. */
   switchedAt: number;
+  /** Words swiped away this visit, oldest first: “Back” brings the last one back into focus. */
+  history: string[];
   swipe: (dir: SwipeDir) => void;
+  /** Brings the last swiped word back into focus (the answer given stays counted). */
+  back: () => void;
   /** Switches the sea to a topic (null: the whole sea): its cards rise as the current ones sink. */
   setTopic: (topic: string | null) => void;
   surface: (slug: string) => void;
@@ -106,13 +112,15 @@ export const useDurar = create<DurarState>((set, get) => ({
   surfacing: null,
   swipes: 0,
   reviews: {},
+  history: [],
   textMode: false,
 
   swipe: (dir) => {
-    const { order, departures, swipes, reviews } = get();
+    const { order, departures, swipes, reviews, history } = get();
     if (order.length < 2) return;
     const now = performance.now();
     const [current, ...rest] = order;
+    set({ history: [...history.filter((h) => h !== current), current].slice(-HISTORY_MAX) });
     const owed = reviews[current] ?? 0;
     const event: SwipeEvent = { slug: current, dir, returning: current in reviews, at: Date.now() };
     const fresh = departures.filter((d) => now - d.at < EXIT_MS && d.slug !== current);
@@ -154,6 +162,14 @@ export const useDurar = create<DurarState>((set, get) => ({
     else swipeHook.early.push(event);
   },
 
+  back: () => {
+    const { history, order, surface } = get();
+    const last = history[history.length - 1];
+    if (!last) return;
+    set({ history: history.slice(0, -1) });
+    if (order[0] !== last) surface(last);
+  },
+
   surface: (slug) => {
     const { order, departures } = get();
     if (!WORD_BY_SLUG.has(slug) || order[0] === slug) return;
@@ -176,6 +192,7 @@ export const useDurar = create<DurarState>((set, get) => ({
       switchedAt: now,
       order: next,
       reviews: {},
+      history: [],
       learning: null,
       // Reduced motion: no rise from the deep; the new cards fade in where they belong.
       surfacing: next[0] === order[0] || prefersReducedMotion() ? null : { slug: next[0], at: now },

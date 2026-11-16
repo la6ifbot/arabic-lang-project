@@ -103,7 +103,7 @@ test.describe('installable app', () => {
     const page = await context.newPage();
     await asIPhone(page);
     await page.goto('/');
-    await expect(page.getByTestId('help-box')).toBeVisible();
+    await expect(page.getByTestId('tour')).toBeVisible();
     await expect(page.getByTestId('install-hint')).toHaveCount(0);
     await page.reload();
     await expect(page.getByTestId('install-hint')).toBeVisible();

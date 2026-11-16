@@ -199,25 +199,43 @@ test.describe('fallbacks & accessibility', () => {
   test.describe('a first visit', () => {
     test.use({ storageState: { cookies: [], origins: [] } });
 
-    test('opens How it works by itself once, then only from the “?”', async ({ page }) => {
+    test('starts the walk-through by itself once; then “How it works” only from the “?”', async ({ page }) => {
       await page.goto('/');
       await waitForScene(page);
-      const help = page.getByRole('button', { name: 'How it works' });
-      await expect(page.getByTestId('help-box')).toBeVisible();
-      await expect(help).toHaveAttribute('aria-expanded', 'true');
-      // Using the sea closes it, and the swipe still works.
+      const tour = page.getByTestId('tour');
+      await expect(tour).toBeVisible();
+      await expect(page.getByTestId('help-box')).toBeHidden();
+      await expect(page.getByRole('dialog', { name: /One word, one pearl/ })).toBeVisible();
+      await expect(page.getByTestId('tour-next')).toBeFocused();
+      // While it runs, the arrow keys step through it instead of swiping.
       const before = await focusedSlug(page);
       await page.keyboard.press('ArrowRight');
+      await expect(tour).toHaveAttribute('data-step', 'word');
+      await page.getByTestId('tour-back').click();
+      await expect(tour).toHaveAttribute('data-step', 'card');
+      for (const step of ['word', 'swipe', 'buttons', 'topics']) {
+        await page.getByTestId('tour-next').click();
+        await expect(tour).toHaveAttribute('data-step', step);
+      }
+      await expect(page.getByTestId('tour-next')).toHaveText('Start');
+      await page.getByTestId('tour-next').click();
+      await expect(tour).toHaveCount(0);
+      expect(await focusedSlug(page)).toBe(before);
+      // Afterwards the sea works as usual.
+      await page.keyboard.press('ArrowRight');
       await expect.poll(() => focusedSlug(page)).not.toBe(before);
-      await page.mouse.click(720, 600);
-      await expect(page.getByTestId('help-box')).toBeHidden();
 
       await page.reload();
       await waitForScene(page);
       await page.waitForTimeout(500);
+      await expect(tour).toHaveCount(0);
       await expect(page.getByTestId('help-box')).toBeHidden();
-      await help.click();
+      await page.getByRole('button', { name: 'How it works' }).click();
       await expect(page.getByTestId('help-box')).toBeVisible();
+      await page.getByTestId('tour-open').click();
+      await expect(tour).toBeVisible();
+      await page.getByTestId('tour-skip').click();
+      await expect(tour).toHaveCount(0);
     });
 
     test('never covers a shared word: the “?” glows, and the box opens on the next visit', async ({ page }) => {
@@ -230,14 +248,46 @@ test.describe('fallbacks & accessibility', () => {
 
       await page.goto('/');
       await waitForScene(page);
-      await expect(page.getByTestId('help-box')).toBeVisible();
+      await expect(page.getByTestId('tour')).toBeVisible();
     });
 
     test('stays closed when arriving from an email link', async ({ page }) => {
       await page.goto('/?durar=verify&error=access_denied&error_description=Email+link+is+invalid+or+has+expired');
       await page.waitForTimeout(2500);
       await expect(page.getByTestId('help-box')).toBeHidden();
+      await expect(page.getByTestId('tour')).toHaveCount(0);
     });
+  });
+
+  test('the book under the card explains the hard words of its sentence', async ({ page }) => {
+    await page.goto('/word/nasim');
+    await waitForScene(page);
+    await page.getByTestId('words-button').click();
+    const dialog = page.getByRole('dialog', { name: 'Hard words' });
+    await expect(dialog).toContainText('عَلِيل');
+    await expect(dialog).toContainText('mild, gentle');
+    await expect(dialog).toContainText('Hans Wehr');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await page.keyboard.press('w');
+    await expect(dialog).toBeVisible();
+  });
+
+  test('“back” brings the last swiped word back', async ({ page }) => {
+    await page.goto('/');
+    await waitForScene(page);
+    await expect(page.getByTestId('btn-back')).toHaveCount(0);
+    const first = await focusedSlug(page);
+    await page.getByTestId('btn-known').click();
+    await expect.poll(() => focusedSlug(page)).not.toBe(first);
+    const second = await focusedSlug(page);
+    await page.getByTestId('btn-learning').click();
+    await expect.poll(() => focusedSlug(page)).not.toBe(second);
+    await page.keyboard.press('Backspace');
+    await expect.poll(() => focusedSlug(page)).toBe(second);
+    await page.getByTestId('btn-back').click();
+    await expect.poll(() => focusedSlug(page)).toBe(first);
+    await expect(page.getByTestId('btn-back')).toHaveCount(0);
   });
 
   test('the live region announces the focused word', async ({ page }) => {
