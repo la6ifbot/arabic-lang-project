@@ -36,7 +36,7 @@ test.describe('accessibility (axe)', () => {
   test('Library with pearls, and the delete dialog', async ({ page }) => {
     await seed(page, { signedIn: true, saved: SAVED });
     await page.goto('/library');
-    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 0 still learning · 2 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 2 saved');
     let { violations } = await scan(page).analyze();
     expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`)).toEqual([]);
 

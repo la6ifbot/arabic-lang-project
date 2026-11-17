@@ -22,6 +22,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
     // Every test starts as a returning visitor, so “How it works” doesn't open over what it checks,
     // and the card's “tap the word” glow and hint don't show in its screenshots (tests/anatomy-3d.spec.ts checks them).
+    // The first-card swipe nudge has been seen too (tests/gestures.spec.ts checks it).
     storageState: {
       cookies: [],
       origins: [
@@ -30,6 +31,7 @@ export default defineConfig({
           localStorage: [
             { name: 'durar-help-seen', value: '1' },
             { name: 'durar-word-tap', value: '{"tapped":true,"hinted":true}' },
+            { name: 'durar.nudge.v1', value: '1' },
           ],
         },
       ],

@@ -23,6 +23,10 @@ export function WordsButton({ slug }: { slug: string }) {
         <path d="M10.5 12.2c2-.9 3.9-.7 5.5.5 1.6-1.2 3.5-1.4 5.5-.5v8.6c-2-.9-3.9-.7-5.5.5-1.6-1.2-3.5-1.4-5.5-.5z" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
         <path d="M16 12.7v8.6" fill="none" stroke="currentColor" strokeWidth="0.9" opacity="0.7" />
       </svg>
+      {/* Written on screen (Phase 0.9, decision 10): a tester looked for this without seeing the icon. */}
+      <span className="words-label" aria-hidden="true">
+        Hard words
+      </span>
     </button>
   );
 }

@@ -27,8 +27,8 @@ test.describe('save to My Pearls', () => {
     await page.keyboard.press('S');
     await expect(saveButton(page)).toHaveAttribute('aria-pressed', 'true');
 
-    // Swiping moves on to a new, unsaved card.
-    await page.keyboard.press('ArrowRight');
+    // Turning to the next card moves on to a new, unsaved one.
+    await page.keyboard.press('ArrowLeft');
     await expect(saveButton(page)).toHaveAttribute('aria-pressed', 'false');
   });
 
@@ -106,14 +106,14 @@ test.describe('Library', () => {
     await expect(page.getByTestId('library-signed-out')).toContainText('Sign in to save pearls and carry your progress to any device.');
     await page.getByTestId('library-signed-out').getByRole('button', { name: 'Sign in' }).click();
     await signInViaDialog(page);
-    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 0 still learning · 3 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 3 saved');
   });
 
   test('lists, counts and sorts saved words, skipping words that no longer exist', async ({ page }) => {
     await seed(page, { signedIn: true, saved: SAVED });
     await page.goto('/library');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('My Pearls');
-    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 0 still learning · 3 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 3 saved');
     const slugs = () => page.getByTestId('library-list').locator('a').evaluateAll((els) => els.map((e) => e.getAttribute('data-slug')));
     expect(await slugs()).toEqual(['hanin', 'amal', 'bahr']);
     await page.getByRole('button', { name: /Alphabetical/ }).click();
@@ -127,22 +127,22 @@ test.describe('Library', () => {
   test('remove with undo; a removal without undo sticks', async ({ page }) => {
     await seed(page, { signedIn: true, saved: SAVED });
     await page.goto('/library');
-    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 0 still learning · 3 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 3 saved');
     await page.getByRole('button', { name: /Remove أَمَل/ }).click();
-    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 0 still learning · 2 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 2 saved');
     const undo = page.getByRole('button', { name: 'Undo' });
     await expect(undo).toBeFocused();
     await undo.click();
-    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 0 still learning · 3 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 3 saved');
     // Restored to its original place in “Newest”.
     const first = await page.getByTestId('library-list').locator('a').nth(1).getAttribute('data-slug');
     expect(first).toBe('amal');
 
     await page.getByRole('button', { name: /Remove بَحْر/ }).click();
-    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 0 still learning · 2 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 2 saved');
     await waitForServer(page, 'bahr', false);
     await page.reload();
-    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 0 still learning · 2 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 2 saved');
     await expect(page.getByTestId('library-list')).not.toContainText('بَحْر');
   });
 
@@ -166,7 +166,7 @@ test.describe('Library', () => {
     await page.getByRole('menuitem', { name: /My Pearls/ }).click();
     await expect(page).toHaveURL(/\/library$/);
     await expect(page.getByTestId('library-empty-all')).toContainText('No pearls yet.');
-    await expect(page.getByTestId('library-empty-all')).toContainText('Every word you swipe finds its place here');
+    await expect(page.getByTestId('library-empty-all')).toContainText('Every word you swipe up (“I know it”) finds its place here');
     await page.getByRole('link', { name: 'Dive in' }).click();
     await waitForSea(page);
   });

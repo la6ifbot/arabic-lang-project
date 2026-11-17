@@ -5,7 +5,7 @@ import { PROGRESS_KEY, PROGRESS_OUTBOX_KEY, SEA_DEPTH_KEY } from '../account/sto
 import { topicSlugs } from '../lib/topics';
 import { WORDS } from '../lib/words';
 import { useProgress } from '../state/progress';
-import { swipeHook, useDurar, type SwipeEvent } from '../state/store';
+import { swipeHook, UNDO_MS, useDurar, type SwipeEvent } from '../state/store';
 import { isFresh, knownShare, metEveryPearl, planOrder, seaDeepening, settleOrder } from './queue';
 
 /**
@@ -67,6 +67,8 @@ function writeGuest(seed: string, map: PMap) {
 interface Swipe {
   slug: string;
   dir: Direction;
+  /** Date.now() before which it isn't sent, so “Undo” can still take it back. Not stored. */
+  hold?: number;
 }
 
 const swipes = (v: unknown): Swipe[] =>
@@ -106,13 +108,17 @@ let retry = 0;
 
 function persistOutbox() {
   if (owner)
-    writeJson(PROGRESS_OUTBOX_KEY, outbox.size || pending.length ? { user: owner, items: [...outbox.values()], reviews: pending } : null);
+    writeJson(
+      PROGRESS_OUTBOX_KEY,
+      outbox.size || pending.length ? { user: owner, items: [...outbox.values()], reviews: pending.map(({ slug, dir }) => ({ slug, dir })) } : null,
+    );
 }
 
+/** A swipe waits out its Undo time (decision 4) before it goes to the server. */
 function queueReview(s: Swipe) {
-  pending.push(s);
+  pending.push({ ...s, hold: Date.now() + UNDO_MS });
   persistOutbox();
-  schedule(BATCH_MS);
+  schedule(UNDO_MS + BATCH_MS);
 }
 
 function schedule(ms: number) {
@@ -120,12 +126,26 @@ function schedule(ms: number) {
   timer = window.setTimeout(() => void flush(), ms);
 }
 
-async function flush() {
+/** How many swipes at the front of the queue are past their Undo time (all of them when forced). */
+function ready(force: boolean): number {
+  if (force) return pending.length;
+  const now = Date.now();
+  const held = pending.findIndex((p) => (p.hold ?? 0) > now);
+  return held < 0 ? pending.length : held;
+}
+
+/** Sends what's waiting. `force`: leaving the page, going offline-to-online or switching account. */
+async function flush(force = false) {
   window.clearTimeout(timer);
   if (!owner || (!outbox.size && !pending.length)) return;
   const user = owner;
   const batch = [...outbox.values()];
-  const sent = pending.splice(0, 100);
+  const sent = pending.splice(0, Math.min(100, ready(force))).map(({ slug, dir }) => ({ slug, dir }));
+  if (!batch.length && !sent.length) {
+    // Only swipes still inside their Undo time: come back when the first one is free to go.
+    schedule(Math.max(0, (pending[0]?.hold ?? 0) - Date.now()) + 50);
+    return;
+  }
   outbox.clear();
   let merged = false;
   try {
@@ -218,8 +238,8 @@ function reload() {
 
 /** Recomputes the whole queue behind the focused card. */
 function rebuild() {
-  const { order, reviews } = useDurar.getState();
-  const returning = new Set(Object.keys(reviews));
+  const { order } = useDurar.getState();
+  const returning = NONE;
   const now = Date.now();
   const { topic } = useDurar.getState();
   // The chosen topic's words only: its queue has its own new and due words.
@@ -231,12 +251,22 @@ function rebuild() {
 // ---------------------------------------------------------------------------------------------
 // Swipes
 
+/**
+ * There are no in-session returns any more: without a “still learning” gesture (Phase 0.9,
+ * decision 3), every word comes back on its normal schedule. The queue keeps the parameter.
+ */
+const NONE: ReadonlySet<string> = new Set();
+
+/** The last “I know it” and the word as it was before it, so “Undo” can put it back. */
+let lastRecord: { slug: string; prev: Progress | undefined; moved: boolean } | null = null;
+
 /** Applies the box rules to one swipe and saves it. */
 function record(e: SwipeEvent, announce = true) {
   const prev = map()[e.slug];
   const moves =
     !e.returning &&
     (e.dir === 'known' ? !counted.has(e.slug) && isFresh(prev, e.at) : !counted.has(e.slug) || (prev?.box ?? 1) > 1);
+  lastRecord = { slug: e.slug, prev, moved: moves };
   let p = prev;
   if (moves) {
     counted.add(e.slug);
@@ -248,14 +278,11 @@ function record(e: SwipeEvent, announce = true) {
   if (announce && p) {
     const when = returnsIn(p, e.at);
     // A known word that isn't due stays where it is (and doesn't count on The Deep until it is).
-    const text =
-      e.dir === 'learning'
-        ? `Still learning · back ${when}`
-        : moves || e.returning
-          ? `Marked known · returns ${when}`
-          : p.box > 1
-            ? `Already in the deep · returns ${when}`
-            : `Not due yet · back ${when}`;
+    const text = moves
+      ? `Marked known · returns ${when}`
+      : p.box > 1
+        ? `Already in the deep · returns ${when}`
+        : `Not due yet · back ${when}`;
     set((s) => ({ note: { text, id: s.note.id + 1 } }));
   }
 }
@@ -268,14 +295,43 @@ function onSwipe(e: SwipeEvent) {
   const next = useDurar.getState().order[0];
   const nextProgress = map()[next];
   record(e);
-  const { order, reviews } = useDurar.getState();
-  const returning = new Set(Object.keys(reviews));
-  const now = Date.now();
-  const settled = settleOrder(order, map(), returning, now);
-  useDurar.setState({ order: settled });
-  set({ metAll: metEveryPearl(settled, map(), returning, now) });
+  settle();
   if (!nextProgress) sinceDue++;
-  else if (isDue(nextProgress, now)) sinceDue = 0;
+  else if (isDue(nextProgress, now())) sinceDue = 0;
+}
+
+const now = () => Date.now();
+
+function settle() {
+  const t = now();
+  const settled = settleOrder(useDurar.getState().order, map(), NONE, t);
+  useDurar.setState({ order: settled });
+  set({ metAll: metEveryPearl(settled, map(), NONE, t) });
+}
+
+/**
+ * “Undo” (decision 4): the word goes back to how it was. Its review is still waiting out its hold,
+ * so it's simply dropped and the server never sees it. (Only if the page was hidden or closed within
+ * those seconds has it already gone; then the server's copy stands.)
+ */
+function onUndo(slug: string) {
+  const r = lastRecord;
+  if (!r || r.slug !== slug) return;
+  lastRecord = null;
+  if (r.moved) {
+    counted.delete(slug);
+    const next = { ...map() };
+    if (r.prev) next[slug] = r.prev;
+    else delete next[slug];
+    set({ map: next });
+    if (owner) {
+      const i = pending.map((p) => p.slug).lastIndexOf(slug);
+      if (i >= 0) pending.splice(i, 1);
+      persistOutbox();
+    } else writeGuest(seed, map());
+  }
+  set((s) => ({ note: { text: 'Undone', id: s.note.id + 1 } }));
+  settle();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -288,6 +344,7 @@ export async function start() {
   started = true;
   await reload();
   swipeHook.after = onSwipe;
+  swipeHook.undo = onUndo;
   // A new topic gets its own queue.
   useDurar.subscribe((s, prev) => {
     if (s.topic !== prev.topic && !loading) rebuild();
@@ -296,13 +353,13 @@ export async function start() {
   useAccount.subscribe((s) => {
     const id = s.status === 'signed-in' ? (s.user?.id ?? null) : s.status === 'signed-out' ? null : undefined;
     if (id === undefined || id === owner) return;
-    void flush().then(reload);
+    void flush(true).then(reload);
   });
   window.addEventListener('online', () => void flush());
-  // Leaving the page: send what's waiting (the requests use keepalive).
-  window.addEventListener('pagehide', () => void flush());
+  // Leaving the page: send everything waiting, Undo time or not (the requests use keepalive).
+  window.addEventListener('pagehide', () => void flush(true));
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') void flush();
+    if (document.visibilityState === 'hidden') void flush(true);
   });
 }
 

@@ -17,22 +17,30 @@ import { useAnimationFrame } from './useAnimationFrame';
  */
 export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwipe: () => void }) {
   const slug = useDurar((s) => s.order[0]);
-  const learning = useDurar((s) => s.learning);
+  const turn = useDurar((s) => s.turn);
+  const known = useDurar((s) => s.known);
   const word = WORD_BY_SLUG.get(slug)!;
   const label = useProgress((s) => progressLabel(s.map[slug]));
   const wrap = useRef<HTMLDivElement>(null);
   const card = useRef<HTMLElement>(null);
   useSwipeInput(wrap, onFirstSwipe);
 
-  // “Still learning”: the previous word lingers beside the new one for a moment, then fades.
-  const [ghost, setGhost] = useState<{ slug: string; at: number } | null>(null);
+  // The card that just left, for a moment: it slides off the side it was swiped to (next, previous),
+  // or rises and fades (“I know it”), as the 3D cards do.
+  const [ghost, setGhost] = useState<{ slug: string; at: number; kind: 'next' | 'previous' | 'know' } | null>(null);
+  // Only for what just happened: switching to this view later doesn't replay an old turn.
   useEffect(() => {
-    if (!learning) return;
-    setGhost(learning);
-    const id = window.setTimeout(() => setGhost(null), 3400);
+    if (turn && performance.now() - turn.at < 500) setGhost({ slug: turn.slug, at: turn.at, kind: turn.dir > 0 ? 'next' : 'previous' });
+  }, [turn]);
+  useEffect(() => {
+    if (known && Date.now() - known.at < 500) setGhost({ slug: known.slug, at: known.at, kind: 'know' });
+  }, [known]);
+  useEffect(() => {
+    if (!ghost) return;
+    const id = window.setTimeout(() => setGhost(null), 900);
     return () => window.clearTimeout(id);
-  }, [learning]);
-  const ghostWord = ghost ? WORD_BY_SLUG.get(ghost.slug) : undefined;
+  }, [ghost]);
+  const ghostWord = ghost && ghost.slug !== slug ? WORD_BY_SLUG.get(ghost.slug) : undefined;
 
   // The same “saved” glint as the 3D card, as a light running around the rim.
   const glint = useAccount((st) => (st.glint?.slug === slug ? st.glint.at : null));
@@ -49,6 +57,7 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
     const el = card.current;
     if (!el) return;
     const dx = gesture.dragPx;
+    const dy = gesture.dragPy;
     // Zoom only as far as the card's text still fits across the screen.
     const cs = getComputedStyle(el);
     const text = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
@@ -56,7 +65,10 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
     const z = gesture.zoom;
     const maxPan = ((z - 1) * el.offsetHeight) / 2;
     setPan(Math.max(-maxPan, Math.min(maxPan, gesture.panPx)));
-    const transform = (dx ? `translateX(${dx}px) rotate(${dx * 0.02}deg)` : '') + (z !== 1 ? ` translateY(${gesture.panPx}px) scale(${z})` : '');
+    const transform =
+      (dx ? `translateX(${dx}px) rotate(${dx * 0.02}deg)` : '') +
+      (dy ? ` translateY(${dy}px)` : '') +
+      (z !== 1 ? ` translateY(${gesture.panPx}px) scale(${z})` : '');
     if (el.style.transform !== transform.trim()) el.style.transform = transform.trim();
   });
 
@@ -69,7 +81,7 @@ export function TextView({ notice, onFirstSwipe }: { notice?: string; onFirstSwi
       )}
       <PearlLabel className="potd-inline" />
       {ghostWord && (
-        <article key={ghost!.at} className="html-card html-card-ghost" aria-hidden="true" inert data-testid="linger-card">
+        <article key={ghost!.at} className="html-card html-card-ghost" data-kind={ghost!.kind} aria-hidden="true" inert data-testid="leaving-card">
           <WordDetails word={ghostWord} />
         </article>
       )}

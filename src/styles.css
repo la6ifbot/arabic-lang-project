@@ -559,89 +559,74 @@ body[data-cursor='pointer'] .scene {
 .ctrl:focus-visible {
   box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.25);
 }
-.hint {
+/* “I know it”, between Next and Previous: a touch brighter, since it's the one that counts. */
+.ctrl-know {
+  color: var(--ink);
+  border-color: rgba(190, 240, 240, 0.32);
+  background: rgba(10, 52, 66, 0.42);
+}
+/* Previous before anything has been turned: still there (so the row never jumps), but quiet. */
+.ctrl:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.ctrl:disabled:hover {
+  color: var(--ink-soft);
+  border-color: var(--glass-edge);
+  background: rgba(8, 34, 46, 0.3);
+}
+
+/* What a drag will do (“Next”, “Previous”, “↑ I know it”), fading in with its distance. */
+.drag-label {
+  position: absolute;
+  left: 50%;
+  top: 22%;
+  transform: translateX(-50%);
   margin: 0;
-  min-width: 8.5rem;
-  text-align: center;
-  font: 400 0.72rem/1 var(--font-ui);
-  letter-spacing: 0.2em;
-  color: var(--ink-faint);
-  white-space: nowrap;
-  transition: opacity 1.6s var(--ease-water);
-}
-.hint[data-hidden] {
-  opacity: 0;
-}
-.hint-arrow {
-  display: inline-block;
-  letter-spacing: 0;
-  animation: hint-nudge 2.4s ease-in-out infinite;
-}
-.hint-arrow:first-child {
-  animation-name: hint-nudge-left;
-}
-@keyframes hint-nudge {
-  0%,
-  60%,
-  100% {
-    transform: none;
-  }
-  30% {
-    transform: translateX(4px);
-  }
-}
-@keyframes hint-nudge-left {
-  0%,
-  60%,
-  100% {
-    transform: none;
-  }
-  30% {
-    transform: translateX(-4px);
-  }
-}
-.controls-mid {
-  display: flex;
-  justify-content: center;
-  min-width: 8.5rem;
-}
-/* “Back”: once a word has been swiped away, it takes the hint's place between the arrows. */
-.back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 34px;
-  padding: 0 14px 0 10px;
+  padding: 6px 16px;
   border-radius: 999px;
   border: 1px solid var(--glass-edge);
-  background: rgba(8, 34, 46, 0.3);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: var(--ink-soft);
+  background: rgba(6, 28, 38, 0.7);
+  color: #f4fbfb;
+  font: 500 0.95rem/1.2 var(--font-ui);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+.drag-label[data-ready] {
+  border-color: rgba(190, 240, 240, 0.55);
+}
+
+/* The swipe's result and, after “I know it”, a quiet Undo beside it. */
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.undo-btn {
+  pointer-events: auto;
+  height: 30px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-edge);
+  background: rgba(8, 34, 46, 0.55);
+  color: var(--ink);
   font: 500 0.8rem/1 var(--font-ui);
   letter-spacing: 0.06em;
   cursor: pointer;
-  animation: fade 0.8s var(--ease-water);
-  transition:
-    color 0.6s var(--ease-water),
-    border-color 0.6s var(--ease-water),
-    background 0.6s var(--ease-water);
+  animation: fade 0.6s var(--ease-water);
 }
-.back-btn svg {
-  width: 16px;
-  height: 16px;
-}
-.back-btn:hover,
-.back-btn:focus-visible {
-  color: var(--ink);
-  border-color: rgba(190, 240, 240, 0.4);
-  background: rgba(8, 44, 58, 0.55);
+.undo-btn:hover,
+.undo-btn:focus-visible {
+  border-color: rgba(190, 240, 240, 0.45);
   outline: none;
 }
-.back-btn:focus-visible {
+.undo-btn:focus-visible {
   box-shadow: 0 0 0 3px rgba(127, 214, 214, 0.25);
 }
-/* The word under each round arrow on phones (the wide buttons say it in full instead). */
+/* The word under each round button on phones (the wide buttons say it in full instead). */
 .ctrl {
   position: relative;
 }
@@ -656,11 +641,6 @@ body[data-cursor='pointer'] .scene {
   letter-spacing: 0.08em;
   color: var(--ink-soft);
   white-space: nowrap;
-}
-@media (prefers-reduced-motion: reduce) {
-  .hint-arrow {
-    animation: none;
-  }
 }
 
 /* Text-only view and Slow voice, bottom-left. */
@@ -1715,13 +1695,9 @@ a.acct-item {
     padding: 0;
     justify-content: center;
   }
-  .hint {
-    min-width: 6rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.14em;
-  }
-  .controls-mid {
-    min-width: 6rem;
+  /* Room for the words under the three round buttons (“Previous” is the widest). */
+  .controls {
+    gap: 30px;
   }
   .brand-en {
     display: none;
@@ -1734,9 +1710,6 @@ a.acct-item {
   }
   .acct-signin {
     padding: 0 10px;
-  }
-  .hint-save {
-    display: none;
   }
   .search-kbd {
     display: none;
@@ -1766,9 +1739,11 @@ a.acct-item {
 }
 /* Phones on their side: the swipe buttons drop their words too, as in portrait. */
 @media (max-height: 500px) {
-  .ctrl span,
-  .hint-save {
+  .ctrl span {
     display: none;
+  }
+  .controls {
+    gap: 30px;
   }
   .ctrl {
     width: 46px;
@@ -1969,50 +1944,60 @@ a.acct-item {
   left: 50%;
   z-index: 0;
   pointer-events: none;
-  animation: linger 3.4s var(--ease-water) forwards;
+  animation: leave-next 0.9s var(--ease-water) forwards;
 }
-@keyframes linger {
+/* Next: the page slides off to the right; previous: to the left; “I know it”: up, then gone. */
+.html-card-ghost[data-kind='previous'] {
+  animation-name: leave-previous;
+}
+.html-card-ghost[data-kind='know'] {
+  animation-name: leave-know;
+}
+@keyframes leave-next {
   0% {
     transform: translate(-50%, -50%);
     opacity: 1;
   }
-  22%,
-  64% {
-    transform: translate(-128%, -50%) scale(0.9);
-    opacity: 0.95;
-    filter: none;
+  100% {
+    transform: translate(40%, -50%) rotate(4deg) scale(0.9);
+    opacity: 0;
+  }
+}
+@keyframes leave-previous {
+  0% {
+    transform: translate(-50%, -50%);
+    opacity: 1;
   }
   100% {
-    transform: translate(-134%, -48%) scale(0.86);
+    transform: translate(-140%, -50%) rotate(-4deg) scale(0.9);
+    opacity: 0;
+  }
+}
+@keyframes leave-know {
+  0% {
+    transform: translate(-50%, -50%);
+    opacity: 1;
+    filter: none;
+  }
+  45% {
+    transform: translate(-50%, -64%);
+    opacity: 1;
+    filter: brightness(1.25);
+  }
+  100% {
+    transform: translate(-50%, -20%) scale(0.86);
     opacity: 0;
     filter: blur(6px);
   }
 }
-@media (max-width: 900px) {
-  @keyframes linger {
-    0% {
-      transform: translate(-50%, -50%);
-      opacity: 1;
-    }
-    22%,
-    64% {
-      transform: translate(-72%, -56%) scale(0.9);
-      opacity: 0.55;
-    }
-    100% {
-      transform: translate(-76%, -56%) scale(0.86);
-      opacity: 0;
-    }
-  }
-}
 @media (prefers-reduced-motion: reduce) {
-  .html-card-ghost {
+  .html-card-ghost,
+  .html-card-ghost[data-kind] {
     z-index: 2;
-    animation: linger-still 1.4s linear forwards !important;
+    animation: leave-still 0.5s linear forwards !important;
   }
-  @keyframes linger-still {
-    0%,
-    55% {
+  @keyframes leave-still {
+    0% {
       transform: translate(-50%, -50%);
       opacity: 1;
     }
@@ -2600,6 +2585,20 @@ a.acct-item {
 .anatomy-bead {
   fill: currentColor;
 }
+/* The book: its icon plus the words “Hard words”, so it can't be missed. */
+.anatomy-btn.words-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  width: auto;
+  padding: 0 12px 0 7px;
+  border-radius: 999px;
+}
+.words-label {
+  font: 500 0.74rem/1 var(--font-ui);
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
 .anatomy-btn:hover,
 .anatomy-btn:focus-visible {
   color: #fff;
@@ -2853,9 +2852,16 @@ a.acct-item {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
+  row-gap: 6px;
   margin-top: 12px;
   font: 500 0.78rem/1 var(--font-ui);
   color: var(--ink-soft);
+}
+/* “↑ I know it” sits above the little card, next and previous either side of it. */
+.tour-demo-up {
+  flex-basis: 100%;
+  text-align: center;
 }
 .tour-demo-card {
   width: 30px;

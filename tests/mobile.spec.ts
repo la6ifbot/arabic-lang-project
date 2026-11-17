@@ -21,7 +21,10 @@ test('touch swipe works on a phone and nothing scrolls', async ({ page }) => {
   await expect(focused(page)).not.toHaveAttribute('data-slug', start);
   const overflow = await page.evaluate(() => document.scrollingElement!.scrollHeight - window.innerHeight);
   expect(overflow).toBe(0);
-  await expect(page.getByTestId('btn-known')).toBeVisible();
+  // Swipe right = the next card; the three buttons carry their words.
+  await expect(page.getByTestId('btn-know')).toBeVisible();
+  await expect(page.getByTestId('btn-next')).toContainText('Next');
+  await expect(page.getByTestId('btn-previous')).toContainText('Previous');
   await expect(page.getByRole('combobox')).toBeVisible();
 });
 

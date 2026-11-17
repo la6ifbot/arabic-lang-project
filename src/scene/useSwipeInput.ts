@@ -1,38 +1,63 @@
 import { useEffect } from 'react';
+import {
+  classifyDrag,
+  keyAction,
+  releaseAction,
+  startsAtBottomEdge,
+  turnThreshold,
+  upThreshold,
+  wheelAction,
+  type DragMode,
+  type SwipeAction,
+} from '../lib/swipeGesture';
 import { gesture, MIN_ZOOM, setZoom, useDurar } from '../state/store';
-import type { SwipeDir } from '../types';
 
 const isTyping = (el: EventTarget | null) =>
   el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 
+/** Runs a swipe's action on the store. */
+export function act(action: SwipeAction) {
+  const s = useDurar.getState();
+  if (action === 'next') s.next();
+  else if (action === 'previous') s.previous();
+  else s.know();
+}
+
 /**
- * One gesture model for every input: mouse drag, touch swipe, trackpad two-finger swipe and the
- * arrow keys. Right = “I know this”, left = “still learning”. Two fingers spread apart (or a
- * trackpad pinch) enlarge the focused card instead; it keeps that size until pinched back, and
- * while it's enlarged an up/down drag (or scroll) moves it to show its top and bottom.
+ * One gesture model for every input (Phase 0.9, src/lib/swipeGesture.ts): mouse drag, touch swipe,
+ * trackpad two-finger swipe and the arrow keys. Right = next card, left = previous, up = “I know it”.
+ * Two fingers spread apart (or a trackpad pinch) enlarge the focused card instead; it keeps that size
+ * until pinched back, and while it's enlarged an up/down drag (or scroll) moves it to show its top
+ * and bottom, so “I know it” can't fire by accident.
  */
 export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFirstUse?: () => void) {
   useEffect(() => {
     const el = target.current;
     if (!el) return;
-    const swipe = (dir: SwipeDir) => {
-      useDurar.getState().swipe(dir);
+    const run = (action: SwipeAction) => {
+      act(action);
       onFirstUse?.();
     };
-    const threshold = () => Math.min(170, el.clientWidth * 0.2);
     gesture.el = el;
     // A new card in focus starts at its normal size.
     const unsubscribe = useDurar.subscribe((s, prev) => {
       if (s.order[0] !== prev.order[0]) setZoom(1);
     });
 
+    const resetDrag = () => {
+      gesture.dragging = false;
+      gesture.dragPx = 0;
+      gesture.dragPy = 0;
+      gesture.mode = 'undecided';
+      delete el.dataset.dragging;
+    };
+
     // ---- Pointer (mouse + touch + pen) ---------------------------------------------------------
     let startX = 0;
     let startY = 0;
     let pointerId: number | null = null;
-    let samples: { x: number; t: number }[] = [];
-    // On an enlarged card a drag is either a swipe or a pan, decided by its first few pixels.
-    let mode: 'undecided' | 'swipe' | 'pan' = 'undecided';
+    let samples: { x: number; y: number; t: number }[] = [];
+    let mode: DragMode = 'undecided';
     let panStart = 0;
     // Every finger currently down on the scene, for the pinch.
     const fingers = new Map<number, { x: number; y: number }>();
@@ -41,6 +66,8 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       const [a, b] = [...fingers.values()];
       return Math.hypot(a.x - b.x, a.y - b.y);
     };
+    /** Rubber-band slightly past the commit point, for weight. */
+    const band = (d: number, lim: number) => (Math.abs(d) > lim ? Math.sign(d) * (lim + (Math.abs(d) - lim) * 0.35) : d);
 
     const down = (e: PointerEvent) => {
       if (e.button !== 0) return;
@@ -50,23 +77,25 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       if (fingers.size === 2) {
         // A second finger turns the swipe into a pinch: the card goes back to centre and grows.
         pointerId = null;
-        gesture.dragging = false;
-        gesture.dragPx = 0;
-        delete el.dataset.dragging;
+        resetDrag();
         pinch = { dist: Math.max(1, spread()), zoom: gesture.zoom };
         gesture.pinching = true;
         return;
       }
-      // Only a gesture that starts with one finger swipes (not the finger left after a pinch).
+      // Only a gesture that starts with one finger swipes (not the finger left after a pinch), and
+      // never one that starts on the phone's own bottom edge (the iPhone home gesture).
       if (pointerId !== null || fingers.size > 1 || pinch) return;
+      if (startsAtBottomEdge(e.clientY, window.innerHeight, e.pointerType)) return;
       pointerId = e.pointerId;
       startX = e.clientX;
       startY = e.clientY;
-      samples = [{ x: e.clientX, t: e.timeStamp }];
-      mode = gesture.zoom > MIN_ZOOM ? 'undecided' : 'swipe';
+      samples = [{ x: e.clientX, y: e.clientY, t: e.timeStamp }];
+      mode = 'undecided';
       panStart = gesture.panPx;
       gesture.dragging = true;
       gesture.dragPx = 0;
+      gesture.dragPy = 0;
+      gesture.mode = 'undecided';
     };
     const move = (e: PointerEvent) => {
       gesture.px = (e.clientX / window.innerWidth) * 2 - 1;
@@ -84,20 +113,22 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       if (e.pointerId !== pointerId) return;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
-      if (mode === 'undecided' && Math.hypot(dx, dy) > 8) mode = Math.abs(dy) > Math.abs(dx) ? 'pan' : 'swipe';
-      if (mode !== 'swipe') {
-        if (mode === 'pan') {
-          gesture.panPx = panStart + dy;
-          el.dataset.dragging = 'true';
-        }
-        return;
+      if (mode === 'undecided') {
+        mode = classifyDrag(dx, dy, gesture.zoom > MIN_ZOOM);
+        gesture.mode = mode;
       }
-      // Rubber-band slightly past the commit point for weight.
-      const lim = threshold() * 1.6;
-      gesture.dragPx = Math.abs(dx) > lim ? Math.sign(dx) * (lim + (Math.abs(dx) - lim) * 0.35) : dx;
-      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) el.dataset.dragging = 'true';
-      samples.push({ x: e.clientX, t: e.timeStamp });
+      samples.push({ x: e.clientX, y: e.clientY, t: e.timeStamp });
       if (samples.length > 6) samples.shift();
+      if (mode === 'pan') {
+        gesture.panPx = panStart + dy;
+        el.dataset.dragging = 'true';
+      } else if (mode === 'horizontal') {
+        gesture.dragPx = band(dx, turnThreshold(el.clientWidth) * 1.6);
+        el.dataset.dragging = 'true';
+      } else if (mode === 'up') {
+        gesture.dragPy = band(Math.min(0, dy), upThreshold(window.innerHeight) * 1.6);
+        el.dataset.dragging = 'true';
+      }
     };
     const lift = (e: PointerEvent) => {
       if (!fingers.delete(e.pointerId)) return;
@@ -108,25 +139,25 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       lift(e);
       if (e.pointerId !== pointerId) return;
       pointerId = null;
-      gesture.dragging = false;
-      delete el.dataset.dragging;
-      if (mode !== 'swipe') {
-        gesture.dragPx = 0;
-        return;
-      }
-      const dx = e.clientX - startX;
       const first = samples[0];
-      const v = first && e.timeStamp > first.t ? (e.clientX - first.x) / (e.timeStamp - first.t) : 0; // px/ms
-      gesture.dragPx = 0;
-      if (Math.abs(dx) > threshold() || (Math.abs(v) > 0.55 && Math.abs(dx) > 40)) swipe(dx > 0 ? 'known' : 'learning');
+      const dt = first && e.timeStamp > first.t ? e.timeStamp - first.t : 0;
+      const action = releaseAction({
+        mode,
+        dx: e.clientX - startX,
+        dy: e.clientY - startY,
+        vx: dt ? (e.clientX - first.x) / dt : 0,
+        vy: dt ? (e.clientY - first.y) / dt : 0,
+        width: el.clientWidth,
+        height: window.innerHeight,
+      });
+      resetDrag();
+      if (action) run(action);
     };
     const cancel = (e: PointerEvent) => {
       lift(e);
       if (e.pointerId !== pointerId) return;
       pointerId = null;
-      gesture.dragging = false;
-      gesture.dragPx = 0;
-      delete el.dataset.dragging;
+      resetDrag();
     };
 
     // ---- Trackpad (horizontal wheel) -----------------------------------------------------------
@@ -157,17 +188,20 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       }
       acc -= e.deltaX * (e.deltaMode === 1 ? 16 : 1);
       gesture.dragPx = acc;
-      if (Math.abs(acc) > threshold()) {
-        const dir: SwipeDir = acc > 0 ? 'known' : 'learning';
+      gesture.mode = 'horizontal';
+      const action = wheelAction(acc, el.clientWidth);
+      if (action) {
         acc = 0;
         gesture.dragPx = 0;
+        gesture.mode = 'undecided';
         lockedUntil = now + 450;
-        swipe(dir);
+        run(action);
         return;
       }
       idle = window.setTimeout(() => {
         acc = 0;
         gesture.dragPx = 0;
+        gesture.mode = 'undecided';
       }, 180);
     };
 
@@ -188,16 +222,13 @@ export function useSwipeInput(target: React.RefObject<HTMLElement | null>, onFir
       if (gesture.zoom !== want && scale > 0) gestureStart = gesture.zoom / scale;
     };
 
-    // ---- Keyboard ---------------------------------------------------------------------------
+    // ---- Keyboard: ← next, → previous (the right-to-left page turn), ↑ “I know it” ----------------
     const key = (e: KeyboardEvent) => {
       if (isTyping(e.target) || e.altKey || e.ctrlKey || e.metaKey || document.body.dataset.modal) return;
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        swipe('known');
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        swipe('learning');
-      }
+      const action = keyAction(e.key);
+      if (!action) return;
+      e.preventDefault();
+      run(action);
     };
 
     el.addEventListener('pointerdown', down);

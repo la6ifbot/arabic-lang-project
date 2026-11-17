@@ -27,7 +27,8 @@ import { ProgressNote } from './ui/ProgressNote';
 import { SearchBar } from './ui/SearchBar';
 import { StatusAnnouncer } from './ui/StatusAnnouncer';
 import { SwipeControls } from './ui/SwipeControls';
-import { TextView } from './ui/TextView';
+import { DragLabel } from './ui/DragLabel';
+import { SwipeNudge } from './ui/SwipeNudge';import { TextView } from './ui/TextView';
 import { TopicPicker } from './ui/TopicPicker';
 import { useCardZone } from './ui/useCardZone';
 
@@ -216,7 +217,7 @@ function Sea() {
       } else if (e.key === 'Backspace') {
         // Back to the previous word.
         e.preventDefault();
-        useDurar.getState().back();
+        useDurar.getState().previous();
       } else if ((e.key === 'f' || e.key === 'F') && (isFullscreen() || offersFullscreen())) {
         e.preventDefault();
         void toggleFullscreen();
@@ -294,7 +295,9 @@ function Sea() {
         <TopicPicker />
       </div>
       <ProgressNote />
-      <SwipeControls showHint={!touched} onUse={firstUse} />
+      <SwipeControls onUse={firstUse} />
+      <DragLabel />
+      {ready && <SwipeNudge used={touched} />}
       {installHint && (
         <Suspense fallback={null}>
           <InstallHint />

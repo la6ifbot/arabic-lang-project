@@ -36,8 +36,9 @@ If Playwright can't download browsers in your environment, point it at an existi
 
 | Action | Mouse / trackpad | Touch | Keyboard |
 | --- | --- | --- | --- |
-| **I know this** (card sinks into the deep) | drag right · two-finger swipe right | swipe right | `→` |
-| **Still learning** (card drifts aside, comes back soon) | drag left · two-finger swipe left | swipe left | `←` |
+| **Next word** (like turning a page in an Arabic book) | drag right · two-finger swipe right · Next | swipe right | `←` |
+| **Previous word** | drag left · two-finger swipe left · Previous | swipe left | `→` or `Backspace` |
+| **I know it** (card rises, then sinks into the deep; Undo for 5 s) | drag up · I know it | swipe up | `↑` |
 | Search | click the search box | tap it | `/` |
 | Bring a background pearl forward | click it | tap it | — |
 | Save to My Pearls | the pearl on the card's corner | tap it | `S` |

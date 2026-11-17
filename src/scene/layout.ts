@@ -107,16 +107,16 @@ export class Layout {
   }
 
   /**
-   * Where a “still learning” card lingers: beside the new focus, near the light and still sharp,
-   * so it can be read once or twice more before it softens back into the field.
+   * Where a turned page goes for a moment: off the side it was swiped to (+1 right, -1 left), mostly
+   * out of view, before it softens back into the field.
    */
-  aside(): Pose {
-    const z = this.portrait ? -2.4 : -0.8;
+  aside(side: 1 | -1 = -1): Pose {
+    const z = this.portrait ? -2.4 : -1.2;
     const hw = this.halfW(z);
     const s = this.focusScale() * (this.portrait ? 0.8 : 0.72);
     const half = (CARD_W * s) / 2;
-    const x = this.portrait ? -hw * 0.62 : -(hw - half - hw * 0.05);
-    return { x, y: this.focus().y + 0.05, z, rx: 0, ry: 0.26, rz: 0.03, s };
+    const x = side * (hw + half * 0.15);
+    return { x, y: this.focus().y + 0.05, z, rx: 0, ry: -side * 0.32, rz: -side * 0.06, s };
   }
 
   /** Where a “known” card sinks to: down, away and into the dark, deeper for higher boxes. */

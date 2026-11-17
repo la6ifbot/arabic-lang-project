@@ -1,15 +1,14 @@
-import { accountsMode } from '../account/backend';
 import { useDurar } from '../state/store';
 
 /**
- * The bottom row: ← still learning, → I know this, and between them, first a hint that the card can
- * be swiped, then (once a word has been swiped away) “Back”, which brings the last word back.
- * On phones the arrows are round buttons with a short word under each, so what a swipe means is
- * always written on screen.
+ * The bottom row (Phase 0.9, decision 6), laid out like the pages of an Arabic book: Next on the
+ * left, Previous on the right, and “I know it” between them for anyone who doesn't swipe. Each has
+ * its icon and its word on screen (on phones the word sits under a round button).
  */
-export function SwipeControls({ showHint, onUse }: { showHint: boolean; onUse: () => void }) {
-  const swipe = useDurar((s) => s.swipe);
-  const back = useDurar((s) => s.back);
+export function SwipeControls({ onUse }: { onUse: () => void }) {
+  const next = useDurar((s) => s.next);
+  const previous = useDurar((s) => s.previous);
+  const know = useDurar((s) => s.know);
   const canGoBack = useDurar((s) => s.history.length > 0);
   return (
     <div className="controls" data-testid="swipe-controls">
@@ -17,62 +16,59 @@ export function SwipeControls({ showHint, onUse }: { showHint: boolean; onUse: (
         type="button"
         className="ctrl"
         onClick={() => {
-          swipe('learning');
+          next();
           onUse();
         }}
         aria-keyshortcuts="ArrowLeft"
-        aria-label="Still learning — keep this word near"
-        data-testid="btn-learning"
+        aria-label="Next word"
+        data-testid="btn-next"
       >
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M14.5 6 8.5 12l6 6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
-        <span>still learning</span>
+        <span>Next</span>
         <small className="ctrl-under" aria-hidden="true">
-          learning
+          Next
         </small>
       </button>
-      <div className="controls-mid">
-        {canGoBack ? (
-          <button
-            type="button"
-            className="back-btn"
-            onClick={back}
-            aria-keyshortcuts="Backspace"
-            aria-label="Back to the previous word"
-            title="Back (Backspace)"
-            data-testid="btn-back"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M9 7 5 11l4 4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M5.5 11H14a5 5 0 0 1 0 10h-2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-            back
-          </button>
-        ) : (
-          <p className="hint" data-hidden={!showHint || undefined} aria-hidden="true">
-            <span className="hint-arrow">←</span> swipe <span className="hint-arrow">→</span>
-            {accountsMode !== 'off' && <span className="hint-save"> · S to save</span>}
-          </p>
-        )}
-      </div>
+      <button
+        type="button"
+        className="ctrl ctrl-know"
+        onClick={() => {
+          know();
+          onUse();
+        }}
+        aria-keyshortcuts="ArrowUp"
+        aria-label="I know it — let it sink into the deep"
+        data-testid="btn-know"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 14.5 12 8.5l6 6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span>I know it</span>
+        <small className="ctrl-under" aria-hidden="true">
+          I know it
+        </small>
+      </button>
       <button
         type="button"
         className="ctrl"
         onClick={() => {
-          swipe('known');
+          previous();
           onUse();
         }}
-        aria-keyshortcuts="ArrowRight"
-        aria-label="I know this — let it sink"
-        data-testid="btn-known"
+        disabled={!canGoBack}
+        aria-keyshortcuts="ArrowRight Backspace"
+        aria-label="Previous word"
+        title="Previous (→ or Backspace)"
+        data-testid="btn-previous"
       >
-        <span>I know this</span>
+        <span>Previous</span>
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="m9.5 6 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
         <small className="ctrl-under" aria-hidden="true">
-          I know this
+          Previous
         </small>
       </button>
     </div>
