@@ -42,6 +42,8 @@ body[data-cursor='pointer'] .scene {
   inset: 0;
   height: 100dvh;
   overflow: hidden;
+  /* For the “Hard words” label's container query (it's a fixed full-screen box, so nothing changes size). */
+  container: app / inline-size;
   background:
     radial-gradient(120% 70% at 50% -10%, rgba(48, 148, 158, 0.55), transparent 60%),
     radial-gradient(140% 90% at 50% 40%, #04202d 0%, #020b14 70%);
@@ -2598,6 +2600,19 @@ a.acct-item {
   font: 500 0.74rem/1 var(--font-ui);
   letter-spacing: 0.03em;
   white-space: nowrap;
+}
+/* The words grow with the reader's text size but the row can't: on a narrow screen with large text
+   the book keeps only its icon, so the row stays centred on screen. A container query on the app
+   (not a media query) so rem follows the page's own text size. */
+@container app (max-width: 22rem) {
+  .anatomy-btn.words-btn {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .words-label {
+    display: none;
+  }
 }
 .anatomy-btn:hover,
 .anatomy-btn:focus-visible {
