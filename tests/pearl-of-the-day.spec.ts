@@ -17,7 +17,7 @@ test.describe('Pearl of the Day on the site', () => {
     await expect(label.locator('[lang="ar"]')).toHaveText('دُرَّةُ اليَوْم');
     await expect(label.locator('[lang="ar"]')).toHaveAttribute('dir', 'rtl');
     // The label belongs to today's card only.
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowLeft');
     await expect(label).toHaveCount(0);
   });
 
@@ -37,43 +37,38 @@ test.describe('Pearl of the Day on the site', () => {
   });
 });
 
-test.describe('still learning: linger', () => {
-  test('the lingering card never blocks: the next card is focused and swipeable at once', async ({ page }) => {
+test.describe('turning pages', () => {
+  test('a turned or known card never blocks: the next card is focused and swipeable at once', async ({ page }) => {
     await page.goto(`/word/${other.slug}`);
     await waitForScene(page);
     await page.keyboard.press('ArrowLeft');
     const next = await focusedSlug(page);
     expect(next).not.toBe(other.slug);
-    // Swipe again straight away, well inside the linger window.
-    await page.keyboard.press('ArrowRight');
+    // Again straight away, while the last card is still gliding off.
+    await page.keyboard.press('ArrowUp');
     await expect(focused(page)).not.toHaveAttribute('data-slug', next);
-  });
-
-  test('a still-learning word comes back twice, spaced out', async ({ page }) => {
-    await page.goto(`/word/${other.slug}`);
-    await waitForScene(page);
+    const third = await focusedSlug(page);
     await page.keyboard.press('ArrowLeft');
-    const seen: string[] = [];
-    for (let i = 0; i < 14; i++) {
-      seen.push(await focusedSlug(page));
-      await page.keyboard.press('ArrowRight'); // “known” every time after the first swipe
-    }
-    const returns = seen.map((s, i) => (s === other.slug ? i : -1)).filter((i) => i >= 0);
-    // Back after 3 cards, then (known on review) once more after 7 more.
-    expect(returns).toEqual([3, 11]);
+    await expect(focused(page)).not.toHaveAttribute('data-slug', third);
   });
 
-  test('the text-only view keeps the word visible a moment longer', async ({ page }) => {
+  test('the text-only view lets the card leave the way it went', async ({ page }) => {
     await page.goto(`/word/${other.slug}`);
     await waitForScene(page);
     await page.getByTestId('mode-toggle').click();
     await page.keyboard.press('ArrowLeft');
-    const ghost = page.getByTestId('linger-card');
-    await expect(ghost).toBeVisible();
+    const ghost = page.getByTestId('leaving-card');
+    await expect(ghost).toHaveAttribute('data-kind', 'next');
     await expect(ghost).toContainText(other.translit);
     await expect(ghost).toHaveAttribute('aria-hidden', 'true');
     await expect(page.getByTestId('html-card').locator('h2')).not.toHaveText(other.ar);
-    await expect(ghost).toHaveCount(0, { timeout: 6000 });
+    await expect(ghost).toHaveCount(0, { timeout: 3000 });
+    await page.keyboard.press('ArrowRight');
+    await expect(page.getByTestId('html-card').locator('h2')).toHaveText(other.ar);
+    await expect(ghost).toHaveAttribute('data-kind', 'previous');
+    await page.keyboard.press('ArrowUp');
+    await expect(ghost).toHaveAttribute('data-kind', 'know');
+    await expect(ghost).toContainText(other.translit);
   });
 });
 

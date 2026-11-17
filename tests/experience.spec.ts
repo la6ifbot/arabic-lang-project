@@ -18,20 +18,24 @@ test.describe('immersive scene', () => {
     expect(errors).toEqual([]);
   });
 
-  test('arrow keys swipe: right = known, left = still learning (resurfaces soon)', async ({ page }) => {
+  test('arrow keys: ← next, → previous (right to left), ↑ “I know it”', async ({ page }) => {
     await page.goto('/');
     await waitForScene(page);
+    await expect(page.getByTestId('progress-note')).toHaveAttribute('data-progress', 'ready', { timeout: 20_000 });
     const first = await focusedSlug(page);
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowLeft');
     await expect(focused(page)).not.toHaveAttribute('data-slug', first);
     await expect(page).toHaveURL(/\/word\/[a-z-]+$/);
+    const second = await focusedSlug(page);
 
-    const learning = await focusedSlug(page);
+    await page.keyboard.press('ArrowRight');
+    await expect(focused(page)).toHaveAttribute('data-slug', first);
     await page.keyboard.press('ArrowLeft');
-    await expect(focused(page)).not.toHaveAttribute('data-slug', learning);
-    // Reinserted a few cards later: it comes back after three more swipes.
-    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
-    await expect(focused(page)).toHaveAttribute('data-slug', learning);
+    await expect(focused(page)).toHaveAttribute('data-slug', second);
+
+    await page.keyboard.press('ArrowUp');
+    await expect(focused(page)).not.toHaveAttribute('data-slug', second);
+    await expect(page.getByTestId('progress-status')).toContainText('Marked known');
   });
 
   test('mouse drag past the threshold swipes; a short drag springs back', async ({ page }) => {
@@ -47,11 +51,17 @@ test.describe('immersive scene', () => {
     await page.waitForTimeout(300);
     await expect(focused(page)).toHaveAttribute('data-slug', start);
 
+    // Right: the next card. Left: back to the previous one.
     await page.mouse.move(width / 2, height / 2);
     await page.mouse.down();
     await page.mouse.move(width / 2 + 320, height / 2 + 10, { steps: 12 });
     await page.mouse.up();
     await expect(focused(page)).not.toHaveAttribute('data-slug', start);
+    await page.mouse.move(width / 2, height / 2);
+    await page.mouse.down();
+    await page.mouse.move(width / 2 - 320, height / 2 - 10, { steps: 12 });
+    await page.mouse.up();
+    await expect(focused(page)).toHaveAttribute('data-slug', start);
   });
 
   test('trackpad horizontal swipe (wheel deltaX) swipes once per gesture', async ({ page }) => {
@@ -60,7 +70,7 @@ test.describe('immersive scene', () => {
     const { width, height } = page.viewportSize()!;
     await page.mouse.move(width / 2, height / 2);
     const order: string[] = [await focusedSlug(page)];
-    // Fingers moving right → negative deltaX → “known”; followed by a momentum tail.
+    // Fingers moving right → negative deltaX → the next card; followed by a momentum tail.
     await page.mouse.wheel(-200, 0);
     await page.waitForTimeout(100);
     order.push(await focusedSlug(page));
@@ -69,16 +79,27 @@ test.describe('immersive scene', () => {
     for (let i = 0; i < 3; i++) await page.mouse.wheel(-60, 0);
     await page.waitForTimeout(300);
     expect(await focusedSlug(page)).toBe(order[1]);
+    // Fingers moving left: back to the previous card.
+    await page.waitForTimeout(500);
+    await page.mouse.wheel(200, 0);
+    await expect.poll(() => focusedSlug(page)).toBe(order[0]);
   });
 
-  test('on-screen controls are keyboard reachable buttons', async ({ page }) => {
+  test('on-screen controls are keyboard reachable buttons: Next, I know it, Previous', async ({ page }) => {
     await page.goto('/');
     await waitForScene(page);
     const start = await focusedSlug(page);
-    await page.getByTestId('btn-known').focus();
+    await expect(page.getByRole('button', { name: 'Previous word' })).toBeDisabled();
+    await page.getByTestId('btn-next').focus();
     await page.keyboard.press('Enter');
     await expect(focused(page)).not.toHaveAttribute('data-slug', start);
-    await expect(page.getByRole('button', { name: /still learning/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^I know it/ })).toBeVisible();
+    // Laid out right to left: Next on the left, Previous on the right, I know it between them.
+    const x = async (id: string) => (await page.getByTestId(id).boundingBox())!.x;
+    expect(await x('btn-next')).toBeLessThan(await x('btn-know'));
+    expect(await x('btn-know')).toBeLessThan(await x('btn-previous'));
+    await page.getByRole('button', { name: 'Previous word' }).click();
+    await expect(focused(page)).toHaveAttribute('data-slug', start);
   });
 });
 
@@ -170,7 +191,7 @@ test.describe('fallbacks & accessibility', () => {
     await page.getByTestId('mode-toggle').click();
     await expect(page.getByTestId('text-view')).toBeVisible();
     await expect(page.getByTestId('html-card').locator('h2')).toHaveText(today().ar);
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowLeft');
     await expect(page.getByTestId('html-card').locator('h2')).not.toHaveText(today().ar);
     await page.getByTestId('mode-toggle').click();
     await expect(page.locator('[data-testid=scene] canvas')).toBeVisible();
@@ -183,7 +204,11 @@ test.describe('fallbacks & accessibility', () => {
     await expect(page.getByTestId('help-box')).toBeHidden();
     await help.click();
     await expect(help).toHaveAttribute('aria-expanded', 'true');
-    await expect(page.getByRole('region', { name: 'How it works' })).toContainText('Swipe right');
+    const how = page.getByRole('region', { name: 'How it works' });
+    await expect(how).toContainText('Swipe right or press ← for the next word');
+    await expect(how).toContainText('Swipe left or press → to go back');
+    await expect(how).toContainText('Swipe up or press ↑ when you know the word');
+    await expect(how).not.toContainText(/still learning/i);
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('help-box')).toBeHidden();
     await expect(help).toBeFocused();
@@ -216,13 +241,21 @@ test.describe('fallbacks & accessibility', () => {
       for (const step of ['word', 'swipe', 'buttons', 'topics']) {
         await page.getByTestId('tour-next').click();
         await expect(tour).toHaveAttribute('data-step', step);
+        // The walk-through explains the new gestures, and points out Previous and Hard words.
+        if (step === 'swipe') {
+          await expect(tour).toContainText('Swipe right for the next word and left to go back');
+          await expect(tour).toContainText('Swipe it up');
+          await expect(tour).toContainText('Previous');
+          await expect(tour).not.toContainText(/still learning/i);
+        }
+        if (step === 'buttons') await expect(tour).toContainText('Hard words');
       }
       await expect(page.getByTestId('tour-next')).toHaveText('Start');
       await page.getByTestId('tour-next').click();
       await expect(tour).toHaveCount(0);
       expect(await focusedSlug(page)).toBe(before);
       // Afterwards the sea works as usual.
-      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('ArrowLeft');
       await expect.poll(() => focusedSlug(page)).not.toBe(before);
 
       await page.reload();
@@ -273,21 +306,22 @@ test.describe('fallbacks & accessibility', () => {
     await expect(dialog).toBeVisible();
   });
 
-  test('“back” brings the last swiped word back', async ({ page }) => {
+  test('Previous (and Backspace) brings the last word back', async ({ page }) => {
     await page.goto('/');
     await waitForScene(page);
-    await expect(page.getByTestId('btn-back')).toHaveCount(0);
+    await expect(page.getByTestId('btn-previous')).toBeDisabled();
+    await expect(page.getByTestId('btn-previous')).toHaveText(/Previous/);
     const first = await focusedSlug(page);
-    await page.getByTestId('btn-known').click();
+    await page.getByTestId('btn-next').click();
     await expect.poll(() => focusedSlug(page)).not.toBe(first);
     const second = await focusedSlug(page);
-    await page.getByTestId('btn-learning').click();
+    await page.getByTestId('btn-know').click();
     await expect.poll(() => focusedSlug(page)).not.toBe(second);
     await page.keyboard.press('Backspace');
     await expect.poll(() => focusedSlug(page)).toBe(second);
-    await page.getByTestId('btn-back').click();
+    await page.getByTestId('btn-previous').click();
     await expect.poll(() => focusedSlug(page)).toBe(first);
-    await expect(page.getByTestId('btn-back')).toHaveCount(0);
+    await expect(page.getByTestId('btn-previous')).toBeDisabled();
   });
 
   test('the live region announces the focused word', async ({ page }) => {

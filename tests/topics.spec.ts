@@ -27,7 +27,7 @@ test.describe('topic picker', () => {
     for (let i = 0; i < 6; i++) {
       expect(sky.has(await focusedSlug(page)), `card ${i} is in Sky & stars`).toBe(true);
       const before = await focusedSlug(page);
-      await page.keyboard.press('ArrowRight');
+      await page.keyboard.press('ArrowLeft');
       await expect(focused(page)).not.toHaveAttribute('data-slug', before);
     }
     // The address stays on the topic while swiping.
@@ -242,7 +242,8 @@ test.describe('topics in search and the Library', () => {
   test('the Library filters by topic', async ({ page }) => {
     const at = Date.now();
     const iso = (t: number) => new Date(t).toISOString();
-    const items = ['najm', 'badr', 'bahr', 'hanin'].map((slug) => ({ slug, box: 2, dueAt: iso(at + 86_400_000), lastReviewedAt: iso(at - 60_000), timesSeen: 1, lapses: 0 }));
+    // ḥanīn is still learning (from before the Phase 0.9 gestures), so that filter shows.
+    const items = ['najm', 'badr', 'bahr', 'hanin'].map((slug) => ({ slug, box: slug === 'hanin' ? 1 : 2, dueAt: iso(at + 86_400_000), lastReviewedAt: iso(at - 60_000), timesSeen: 1, lapses: 0 }));
     await page.addInitScript((value) => {
       if (!localStorage.getItem('durar-progress')) localStorage.setItem('durar-progress', value);
     }, JSON.stringify({ v: 1, seed: 'test', items }));

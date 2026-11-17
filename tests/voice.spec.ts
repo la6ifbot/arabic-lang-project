@@ -130,7 +130,7 @@ test.describe('speaker buttons, text-only view', () => {
     await openTextView(page);
     await textCard(page).getByTestId('speak-word').click();
     await expect(textCard(page).getByTestId('speak-word')).toHaveAttribute('data-state', 'playing');
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowLeft');
     await expect(textCard(page).locator('h2')).not.toHaveText(durrah.ar);
     await expect(page.locator('[data-testid=speak-word][data-state=playing]')).toHaveCount(0);
   });

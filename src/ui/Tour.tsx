@@ -60,9 +60,9 @@ const STEPS: Step[] = [
   },
   {
     id: 'swipe',
-    title: 'Swipe the card',
+    title: 'Turn the pages',
     text: () =>
-      'Know the word? Swipe the card right. Still learning it? Swipe left, and it comes back soon. The arrows below do the same, and “back” shows the last word again.',
+      'Swipe right for the next word and left to go back, like the pages of an Arabic book. Know a word? Swipe it up and it sinks into the deep. The Next, I know it and Previous buttons below do the same.',
     target: () => {
       // On phones the words under the round arrows hang below the row: light them too.
       const b = box('.controls');
@@ -79,7 +79,7 @@ const STEPS: Step[] = [
     id: 'buttons',
     title: 'Under the card',
     text: () =>
-      `Listen to the word, see its letters, look up the hard words in its sentence (the little book), share it${accountsMode !== 'off' ? ', or keep it with the small pearl' : ''}.`,
+      `Listen to the word, see its letters, look up the harder words in its sentence with “Hard words”, share it${accountsMode !== 'off' ? ', or keep it with the small pearl' : ''}.`,
     target: () => box('.save-anchor .card-actions') ?? box('.card-actions-in-card'),
   },
   {
@@ -233,9 +233,10 @@ export default function Tour() {
         </p>
         {s.demo && (
           <div className="tour-demo" aria-hidden="true">
-            <span className="tour-demo-side">← learning</span>
+            <span className="tour-demo-up">↑ I know it</span>
+            <span className="tour-demo-side">← previous</span>
             <span className="tour-demo-card" />
-            <span className="tour-demo-side">I know this →</span>
+            <span className="tour-demo-side">next →</span>
           </div>
         )}
         <div className="tour-actions">

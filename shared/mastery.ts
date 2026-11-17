@@ -2,9 +2,11 @@
  * Mastery: the five-box schedule. One module for the rules, shared by the site, the email sender
  * and the tests, so they can never disagree.
  *
- * - A word's first swipe puts it in box 2 (right, “I know this”) or box 1 (left, “still learning”).
- * - After that, right moves it up one box (box 5 is the ceiling) and left sends it back to box 1,
- *   counting a lapse.
+ * - A word's first “known” review puts it in box 2; a “learning” review puts it in box 1.
+ * - After that, “known” moves it up one box (box 5 is the ceiling) and “learning” sends it back to
+ *   box 1, counting a lapse.
+ * - Since Phase 0.9 the site only sends “known” (swipe up, “I know it”); next and previous change
+ *   nothing. “learning” stays in the rules for older data and the server's checks.
  * - Each box sets when the word comes back. `due_at` is recalculated on every counted swipe, and a
  *   word is due when `due_at <= now` (a timestamp, no calendar-day logic).
  */

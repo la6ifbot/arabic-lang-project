@@ -37,9 +37,9 @@ export default function AboutModal() {
           with its full vowel marks, its meaning, its root and a few example sentences.
         </p>
         <p className="modal-text">
-          Swipe right on the words you know and they sink into the deep. Swipe left on the ones you’re still learning and
-          they stay close. Words you know come back after a few days, then after longer and longer gaps, so they stay with
-          you.
+          Swipe right for the next word and left to go back, like turning the pages of an Arabic book. When you know a
+          word, swipe it up and it sinks into the deep. Words you know come back after a few days, then after longer and
+          longer gaps, so they stay with you.
         </p>
         <p className="modal-text">
           It’s free, and you don’t need an account. Sign in only if you want to save pearls and keep your progress on

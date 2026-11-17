@@ -3,13 +3,22 @@ import { hasCoarsePointer } from '../lib/anatomyTeach';
 import { noteWordHinted, onWordTap, readWordTap, wordHint } from '../lib/wordTap';
 import { wordTap } from '../state/anchors';
 import { useDialogs } from '../state/dialogs';
+import { nudge } from './DragLabel';
+import { nudgePending } from './SwipeNudge';
 
 /** How long the first-time hint stays (ms), unless the word is tapped sooner. */
 export const HINT_MS = 6000;
 
-/** Free to show: the card has settled, and no dialog or “How it works” box is over the sea. */
+/**
+ * Free to show: the card has settled, no dialog or “How it works” box is over the sea, and the
+ * first-card swipe nudge has had its turn (one hint at a time, Phase 0.9 decision 23).
+ */
 const clear = () =>
-  wordTap.el?.dataset.visible === 'true' && !document.body.dataset.modal && !document.querySelector('.help-box:not([hidden])');
+  wordTap.el?.dataset.visible === 'true' &&
+  !document.body.dataset.modal &&
+  !document.querySelector('.help-box:not([hidden])') &&
+  !nudgePending() &&
+  nudge.strength === 0;
 
 /**
  * Shows that the focused card's Arabic word can be tapped to see its letters: a soft glow breathes on

@@ -35,32 +35,37 @@ const noViolations = async (page: Page) => {
   expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target).join(', ')}`)).toEqual([]);
 };
 
-async function swipe(page: Page, key: 'ArrowRight' | 'ArrowLeft') {
+/** ↑ = “I know it”, ← = next card (Phase 0.9 gestures). */
+const KEYS = { know: 'ArrowUp', next: 'ArrowLeft', previous: 'ArrowRight' } as const;
+async function swipe(page: Page, action: keyof typeof KEYS) {
   const before = await focusedSlug(page);
-  await page.keyboard.press(key);
+  await page.keyboard.press(KEYS[action]);
   await expect(page.getByTestId('focused-word')).not.toHaveAttribute('data-slug', before);
 }
+/** Signed in, a review reaches the server once its Undo time (5 s) has passed. */
+const SAVED_WITHIN = { timeout: 15_000 };
 
 test.describe('mastery: progress is saved', () => {
   test('signed out: a swipe is announced, kept in this browser and survives a reload', async ({ page }) => {
     await page.goto(`/word/${W[0]}`);
     await waitForSea(page);
     await ready(page);
-    await swipe(page, 'ArrowRight');
+    await swipe(page, 'know');
     await expect(progressStatus(page)).toHaveText('Marked known · returns in 3 days');
     await expect(page.locator('.progress-caption')).toHaveText('Marked known · returns in 3 days');
-    await swipe(page, 'ArrowLeft');
-    await expect(progressStatus(page)).toHaveText('Still learning · back tomorrow');
+    // Next and previous never change progress.
+    await swipe(page, 'next');
+    await swipe(page, 'previous');
     const copy = await guestCopy(page);
-    expect(copy.items.map((p: SeedProgress) => [p.slug, p.box]).sort()).toHaveLength(2);
+    expect(copy.items.map((p: SeedProgress) => [p.slug, p.box])).toEqual([[W[0], 2]]);
 
     await page.goto('/library');
-    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 1 still learning · 0 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 0 saved');
     const card = page.getByTestId('library-list').locator(`a[data-slug="${W[0]}"]`);
     await expect(card).toContainText('In the deep · 2 of 5');
     await expect(card).toContainText('returns in 3 days');
     await page.reload();
-    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 1 still learning · 0 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 0 saved');
   });
 
   test('signed in: progress is saved to the account and survives a reload', async ({ page }) => {
@@ -68,14 +73,28 @@ test.describe('mastery: progress is saved', () => {
     await page.goto(`/word/${W[1]}`);
     await waitForSea(page);
     await ready(page);
-    await swipe(page, 'ArrowRight');
-    await expect.poll(async () => (await mockProgress(page)).map((p: SeedProgress) => [p.slug, p.box])).toEqual([[W[1], 2]]);
+    await swipe(page, 'know');
+    await expect.poll(async () => (await mockProgress(page)).map((p: SeedProgress) => [p.slug, p.box]), SAVED_WITHIN).toEqual([[W[1], 2]]);
     expect(await guestCopy(page)).toBeNull();
     await page.reload();
     await waitForSea(page);
     await ready(page);
     await page.goto('/library');
-    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 0 still learning · 0 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 0 saved');
+  });
+
+  test('signed in: Undo within its few seconds means the server never hears of it', async ({ page }) => {
+    await seed(page, { signedIn: true });
+    await page.goto(`/word/${W[9]}`);
+    await waitForSea(page);
+    await ready(page);
+    await swipe(page, 'know');
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByTestId('focused-word')).toHaveAttribute('data-slug', W[9]);
+    // Well past the hold: still nothing saved, and nothing waiting to be sent.
+    await page.waitForTimeout(7000);
+    expect(await mockProgress(page)).toEqual([]);
+    expect(await page.evaluate(() => localStorage.getItem('durar-progress-outbox'))).toBeNull();
   });
 
   test('offline: saving retries quietly until the network is back', async ({ page }) => {
@@ -84,9 +103,9 @@ test.describe('mastery: progress is saved', () => {
     await waitForSea(page);
     await ready(page);
     await page.evaluate(() => (window as unknown as { __durarMock: { failNext(op: string): void } }).__durarMock.failNext('recordReviews'));
-    await swipe(page, 'ArrowLeft');
-    await expect(progressStatus(page)).toHaveText('Still learning · back tomorrow');
-    await expect.poll(async () => (await mockProgress(page)).map((p: SeedProgress) => p.slug), { timeout: 15_000 }).toEqual([W[2]]);
+    await swipe(page, 'know');
+    await expect(progressStatus(page)).toHaveText('Marked known · returns in 3 days');
+    await expect.poll(async () => (await mockProgress(page)).map((p: SeedProgress) => p.slug), { timeout: 25_000 }).toEqual([W[2]]);
   });
 
   test('private mode (storage blocked) never breaks the site', async ({ page }) => {
@@ -103,9 +122,9 @@ test.describe('mastery: progress is saved', () => {
     await page.goto(`/word/${W[3]}`);
     await waitForSea(page);
     await ready(page);
-    await swipe(page, 'ArrowRight');
+    await swipe(page, 'know');
     await expect(progressStatus(page)).toHaveText('Marked known · returns in 3 days');
-    await swipe(page, 'ArrowLeft');
+    await swipe(page, 'next');
     expect(errors).toEqual([]);
   });
 });
@@ -120,13 +139,13 @@ test.describe('mastery: guest progress merges on sign-in', () => {
     await page.goto(`/word/${W[5]}`);
     await waitForSea(page);
     await ready(page);
-    await swipe(page, 'ArrowLeft'); // W[5] → box 1 in this browser, reviewed now
+    await swipe(page, 'know'); // W[5] → box 2 in this browser, reviewed now
     await page.getByTestId('sign-in').click();
     await signInViaDialog(page);
     await expect(page.getByTestId('account-button')).toBeVisible();
     await expect
       .poll(async () => Object.fromEntries((await mockProgress(page)).map((p: SeedProgress) => [p.slug, p.box])))
-      .toEqual({ [W[5]]: 1, [W[6]]: 3 });
+      .toEqual({ [W[5]]: 2, [W[6]]: 3 });
     expect(await guestCopy(page)).toBeNull();
   });
 
@@ -134,7 +153,7 @@ test.describe('mastery: guest progress merges on sign-in', () => {
     await page.goto(`/word/${W[7]}`);
     await waitForSea(page);
     await ready(page);
-    await swipe(page, 'ArrowRight');
+    await swipe(page, 'know');
     await page.getByTestId('sign-in').click();
     await dialog(page).getByRole('button', { name: 'Continue with Google' }).click();
     await expect(page.getByTestId('account-button')).toBeVisible();
@@ -148,7 +167,7 @@ test.describe('mastery: guest progress merges on sign-in', () => {
     await page.goto(`/word/${W[8]}`);
     await waitForSea(page);
     await ready(page);
-    await swipe(page, 'ArrowRight');
+    await swipe(page, 'know');
     await expect.poll(async () => (await guestCopy(page))?.items?.length ?? 0).toBe(1);
     // The sign-in finishes on another page load (as after a redirect).
     await page.evaluate((id) => {
@@ -171,28 +190,28 @@ test.describe('mastery: the queue', () => {
     await page.goto(`/word/${W[10]}`);
     await waitForSea(page);
     await ready(page);
-    await swipe(page, 'ArrowLeft'); // box 1: back tomorrow
-    await expect(progressStatus(page)).toHaveText('Still learning · back tomorrow');
+    await swipe(page, 'know'); // box 2: back in 3 days
+    await expect(progressStatus(page)).toHaveText('Marked known · returns in 3 days');
 
-    // Two days later, in a new tab (same browser storage).
+    // Four days later, in a new tab (same browser storage).
     await expect.poll(async () => (await guestCopy(page))?.items?.length ?? 0).toBe(1);
     const later = await page.context().newPage();
     await page.close();
     page = later;
-    await page.clock.setFixedTime(T0 + 2 * DAY);
+    await page.clock.setFixedTime(T0 + 4 * DAY);
     await page.goto(`/word/${W[11]}`);
     await waitForSea(page);
     await ready(page);
     const seen = [];
     for (let i = 0; i < 3; i++) {
-      await swipe(page, 'ArrowRight');
+      await swipe(page, 'next');
       seen.push(await focusedSlug(page));
     }
     expect(seen[2]).toBe(W[10]);
     expect(seen.slice(0, 2)).not.toContain(W[10]);
-    // Right on a due box-1 word: up to box 2.
-    await swipe(page, 'ArrowRight');
-    await expect(progressStatus(page)).toHaveText('Marked known · returns in 3 days');
+    // “I know it” on a due box-2 word: down to box 3.
+    await swipe(page, 'know');
+    await expect(progressStatus(page)).toHaveText('Marked known · returns in 7 days');
   });
 
   test('about one due word (most overdue, lowest box first) per two new words; Pearl of the Day stays first', async ({ page }) => {
@@ -209,7 +228,7 @@ test.describe('mastery: the queue', () => {
     expect(await focusedSlug(page)).toBe(potd);
     const seen: string[] = [];
     for (let i = 0; i < 9; i++) {
-      await swipe(page, 'ArrowRight');
+      await swipe(page, 'next');
       seen.push(await focusedSlug(page));
     }
     const due = [W[20], W[21], W[22]];
@@ -229,8 +248,8 @@ test.describe('mastery: the queue', () => {
     await ready(page);
     expect(await focusedSlug(page)).toBe(potd);
     await expect(page.getByTestId('met-all')).toHaveText('You’ve met every pearl for now. The sea will bring some back soon.');
-    await swipe(page, 'ArrowRight');
-    await swipe(page, 'ArrowRight');
+    await swipe(page, 'next');
+    await swipe(page, 'next');
     await expect(page.getByTestId('met-all')).toBeVisible();
     await noViolations(page);
     // Search still reaches any word.
@@ -292,7 +311,7 @@ test.describe('mastery: depth', () => {
     await waitForSea(page);
     await ready(page);
     await expect(page.getByTestId('focused-depth')).toHaveText('In the deep · 3 of 5');
-    await swipe(page, 'ArrowRight');
+    await swipe(page, 'know');
     await expect(progressStatus(page)).toHaveText('Marked known · returns in 16 days');
   });
 
@@ -306,8 +325,8 @@ test.describe('mastery: depth', () => {
     await page.getByRole('combobox').fill(words.find((w) => w.slug === W[42])!.translit);
     await page.keyboard.press('Enter');
     await expect(page.getByTestId('card-depth')).toHaveText('Still learning');
-    await page.keyboard.press('ArrowLeft');
-    await expect(progressStatus(page)).toHaveText('Still learning · back tomorrow');
+    await page.keyboard.press('ArrowUp');
+    await expect(progressStatus(page)).toHaveText('Marked known · returns in 3 days');
     await noViolations(page);
   });
 });
@@ -357,8 +376,10 @@ test.describe('mastery: Library and reset', () => {
     const filter = (name: string) => page.getByRole('group', { name: 'Show' }).getByRole('button', { name, exact: true });
     await filter('Saved').click();
     await expect(page.getByTestId('library-empty-saved')).toContainText('No saved pearls yet.');
-    await filter('Still learning').click();
-    await expect(page.getByTestId('library-empty-learning')).toContainText('Nothing still learning.');
+    // “Still learning” only holds words from before the Phase 0.9 gestures, so it's hidden when empty.
+    await expect(filter('Still learning')).toHaveCount(0);
+    await filter('In the deep').click();
+    await expect(page.getByTestId('library-list').locator('a')).toHaveCount(1);
     await noViolations(page);
   });
 
@@ -384,13 +405,13 @@ test.describe('mastery: Library and reset', () => {
     await expect(status(page)).toContainText('Your progress has been reset');
     expect(await mockProgress(page)).toEqual([]);
     await page.goto('/library');
-    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 0 still learning · 1 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('0 in the deep · 1 saved');
   });
 
   test('signed out: reset from the Library clears this browser’s copy', async ({ page }) => {
     await seedGuest(page, [prog(W[55], 2, 3 * DAY)]);
     await page.goto('/library');
-    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 0 still learning · 0 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 0 saved');
     await page.getByTestId('library-reset').click();
     await dialog(page).getByRole('button', { name: 'Reset progress' }).click();
     await expect(page.getByTestId('library-empty-all')).toBeVisible();
@@ -400,7 +421,7 @@ test.describe('mastery: Library and reset', () => {
   test('deleting the account deletes its progress', async ({ page }) => {
     await seed(page, { signedIn: true, progress: [prog(W[56], 2, 3 * DAY)] });
     await page.goto('/library');
-    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 0 still learning · 0 saved');
+    await expect(page.getByTestId('library-count')).toHaveText('1 in the deep · 0 saved');
     await page.getByTestId('account-button').click();
     await page.getByRole('menuitem', { name: /Delete my account/ }).click();
     await expect(dialog(page)).toContainText('along with your progress, and stops any Pearl of the Day email');

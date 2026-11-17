@@ -9,7 +9,7 @@ test('without WebGL the quiet text-only version appears and works', async ({ pag
   await expect(page.getByRole('status')).toContainText(/text-only/);
   const card = page.getByTestId('html-card');
   await expect(card.locator('h2')).toHaveText('صَبْر');
-  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowLeft');
   await expect(card.locator('h2')).not.toHaveText('صَبْر');
   await page.getByRole('combobox').fill('moon');
   await page.keyboard.press('Enter');

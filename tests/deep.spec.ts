@@ -160,7 +160,7 @@ test.describe('The Deep', () => {
     await page.goto(`/word/${W[4]}`);
     await waitForSea(page);
     await expect(page.getByTestId('progress-note')).toHaveAttribute('data-progress', 'ready', { timeout: 20_000 });
-    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowUp');
     await expect(page.getByTestId('progress-status')).toHaveText('Already in the deep · returns in 6 days');
     const copy = await page.evaluate(() => JSON.parse(localStorage.getItem('durar-progress')!));
     expect(copy.items.find((p: SeedProgress) => p.slug === W[4]).box).toBe(3);

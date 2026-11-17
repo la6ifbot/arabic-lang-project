@@ -4,18 +4,14 @@ import { prefersReducedMotion } from '../lib/device';
 import { topicSlugs } from '../lib/topics';
 import { TODAY, WORD_BY_SLUG } from '../lib/words';
 import { MAX_ZOOM, MIN_ZOOM, ZOOM_FIT } from '../lib/zoom';
-import type { SwipeDir } from '../types';
+import type { DragMode } from '../lib/swipeGesture';
 
-/** A “still learning” card resurfaces after this many swipes… */
-export const LEARNING_REINSERT_AT = 4;
-/** …and, once reviewed, one more time after this many (spaced out). */
-export const REVIEW_REINSERT_AT = 8;
-/** Comebacks still owed after the first one, when a card is marked “still learning”. */
-const REVIEWS_AFTER_FIRST = 1;
-/** How many swiped words “Back” can step through. */
+/** How many turned-away words “Previous” can step back through. */
 export const HISTORY_MAX = 30;
-/** How long a departing (“known”) card keeps rendering while it sinks. */
-export const EXIT_MS = 3200;
+/** How long a departing (“I know it”) card keeps rendering while it rises, then sinks. */
+export const EXIT_MS = 3400;
+/** How long “Undo” stays after “I know it” (decision 4). The engine holds that review back as long. */
+export const UNDO_MS = 5000;
 
 export interface Departure {
   slug: string;
@@ -25,10 +21,13 @@ export interface Departure {
 /** Cards the 3D scene is drawing in the rotation right now (written by CardField). */
 export const sceneCards = { visible: [] as string[] };
 
-/** A swipe as the progress engine sees it; `returning` = an in-session comeback of a “still learning” word. */
+/**
+ * “I know it”, as the progress engine sees it. Next and previous never reach the engine: they don't
+ * change progress. `returning` stays for the engine's rules and is always false now.
+ */
 export interface SwipeEvent {
   slug: string;
-  dir: SwipeDir;
+  dir: 'known';
   returning: boolean;
   /** Date.now() at the swipe. */
   at: number;
@@ -36,9 +35,20 @@ export interface SwipeEvent {
 
 /**
  * Set by the progress engine once it loads (a lazy chunk). Swipes before that are kept in `early`
- * and replayed, so none is lost while the engine is still on its way.
+ * and replayed, so none is lost while the engine is still on its way. `undo` takes one back.
  */
-export const swipeHook: { after: ((e: SwipeEvent) => void) | null; early: SwipeEvent[] } = { after: null, early: [] };
+export const swipeHook: { after: ((e: SwipeEvent) => void) | null; undo: ((slug: string) => void) | null; early: SwipeEvent[] } = {
+  after: null,
+  undo: null,
+  early: [],
+};
+
+/** The card just turned away: by next (+1, it glides right) or previous (-1, it glides left). */
+export interface Turn {
+  slug: string;
+  dir: 1 | -1;
+  at: number;
+}
 
 export interface Motion {
   slug: string;
@@ -49,24 +59,29 @@ interface DurarState {
   /** Rotation queue; order[0] is the focused card. */
   order: string[];
   departures: Departure[];
-  /** Last card sent back as “still learning” (drives its drift-aside motion). */
-  learning: Motion | null;
+  /** The card last turned away by next or previous (drives its glide aside). */
+  turn: Turn | null;
   /** Card currently rising from the depths after a search. */
   surfacing: Motion | null;
-  /** Session-only counts; persistence arrives with accounts (Phase 0.2/0.5). */
+  /** Next, previous and “I know it” this visit. */
   swipes: number;
-  /** Still-learning words and how many more comebacks each is owed this session. */
-  reviews: Record<string, number>;
+  /** The last “I know it” while it can still be undone (`at`: Date.now() at the swipe). */
+  known: { slug: string; at: number } | null;
   textMode: boolean;
   /** The chosen topic's id, or null for the whole sea. The rotation only holds its words. */
   topic: string | null;
   /** When the topic last changed (performance.now()), for the switch choreography. */
   switchedAt: number;
-  /** Words swiped away this visit, oldest first: “Back” brings the last one back into focus. */
+  /** Words turned away this visit, oldest first: “Previous” brings the last one back into focus. */
   history: string[];
-  swipe: (dir: SwipeDir) => void;
-  /** Brings the last swiped word back into focus (the answer given stays counted). */
-  back: () => void;
+  /** Swipe right, ← or Next: the next card. Progress doesn't change; a due word stays due. */
+  next: () => void;
+  /** Swipe left, →, Previous or Backspace: the last word comes back (an answer given stays counted). */
+  previous: () => void;
+  /** Swipe up, ↑ or the button: the card rises, then sinks; the server's rules decide if it moves deeper. */
+  know: () => void;
+  /** Takes back the last “I know it” within UNDO_MS: the card comes back and its review is never sent. */
+  undo: () => void;
   /** Switches the sea to a topic (null: the whole sea): its cards rise as the current ones sink. */
   setTopic: (topic: string | null) => void;
   surface: (slug: string) => void;
@@ -108,66 +123,75 @@ export const useDurar = create<DurarState>((set, get) => ({
   topic: null,
   switchedAt: 0,
   departures: [],
-  learning: null,
+  turn: null,
   surfacing: null,
   swipes: 0,
-  reviews: {},
+  known: null,
   history: [],
   textMode: false,
 
-  swipe: (dir) => {
-    const { order, departures, swipes, reviews, history } = get();
+  next: () => {
+    const { order, history, swipes } = get();
+    if (order.length < 2) return;
+    const [current, ...rest] = order;
+    set({
+      order: [...rest, current],
+      history: [...history.filter((h) => h !== current), current].slice(-HISTORY_MAX),
+      turn: { slug: current, dir: 1, at: performance.now() },
+      surfacing: null,
+      swipes: swipes + 1,
+    });
+  },
+
+  previous: () => {
+    const { history, order, departures, swipes } = get();
+    const last = history[history.length - 1];
+    if (!last) return;
+    set({
+      history: history.slice(0, -1),
+      order: [last, ...order.filter((s) => s !== last)],
+      turn: order[0] !== last ? { slug: order[0], dir: -1, at: performance.now() } : null,
+      departures: departures.filter((d) => d.slug !== last),
+      surfacing: null,
+      swipes: swipes + 1,
+    });
+  },
+
+  know: () => {
+    const { order, departures, swipes, history } = get();
     if (order.length < 2) return;
     const now = performance.now();
     const [current, ...rest] = order;
-    set({ history: [...history.filter((h) => h !== current), current].slice(-HISTORY_MAX) });
-    const owed = reviews[current] ?? 0;
-    const event: SwipeEvent = { slug: current, dir, returning: current in reviews, at: Date.now() };
-    const fresh = departures.filter((d) => now - d.at < EXIT_MS && d.slug !== current);
-    if (dir === 'known' && owed > 0) {
-      // Known on review: it still comes back once more, later (spaced repetition, in miniature).
-      const next = [...rest];
-      next.splice(Math.min(REVIEW_REINSERT_AT - 1, next.length), 0, current);
-      set({
-        order: next,
-        departures: [...fresh, { slug: current, at: now }],
-        reviews: { ...reviews, [current]: owed - 1 },
-        swipes: swipes + 1,
-        surfacing: null,
-      });
-    } else if (dir === 'known') {
-      const { [current]: _done, ...rest2 } = reviews;
-      void _done;
-      set({
-        order: [...rest, current],
-        departures: [...fresh, { slug: current, at: now }],
-        reviews: rest2,
-        swipes: swipes + 1,
-        surfacing: null,
-      });
-    } else {
-      // Still learning: linger in view a moment, come back soon, then once more later.
-      const next = [...rest];
-      next.splice(Math.min(LEARNING_REINSERT_AT - 1, next.length), 0, current);
-      set({
-        order: next,
-        learning: { slug: current, at: now },
-        reviews: { ...reviews, [current]: REVIEWS_AFTER_FIRST },
-        departures: fresh,
-        swipes: swipes + 1,
-        surfacing: null,
-      });
-    }
+    const event: SwipeEvent = { slug: current, dir: 'known', returning: false, at: Date.now() };
+    set({
+      order: [...rest, current],
+      departures: [...departures.filter((d) => now - d.at < EXIT_MS && d.slug !== current), { slug: current, at: now }],
+      history: [...history.filter((h) => h !== current), current].slice(-HISTORY_MAX),
+      known: { slug: current, at: event.at },
+      turn: null,
+      swipes: swipes + 1,
+      surfacing: null,
+    });
     if (swipeHook.after) swipeHook.after(event);
     else swipeHook.early.push(event);
   },
 
-  back: () => {
-    const { history, order, surface } = get();
-    const last = history[history.length - 1];
-    if (!last) return;
-    set({ history: history.slice(0, -1) });
-    if (order[0] !== last) surface(last);
+  undo: () => {
+    const { known, order, departures, history } = get();
+    if (!known || Date.now() - known.at > UNDO_MS) return;
+    const { slug } = known;
+    // The card glides back up from wherever its sink has got to.
+    set({
+      known: null,
+      order: [slug, ...order.filter((s) => s !== slug)],
+      departures: departures.filter((d) => d.slug !== slug),
+      history: history.filter((h) => h !== slug),
+      turn: null,
+      surfacing: null,
+    });
+    const early = swipeHook.early.findIndex((e) => e.slug === slug && e.at === known.at);
+    if (early >= 0) swipeHook.early.splice(early, 1);
+    else swipeHook.undo?.(slug);
   },
 
   surface: (slug) => {
@@ -191,9 +215,9 @@ export const useDurar = create<DurarState>((set, get) => ({
       topic,
       switchedAt: now,
       order: next,
-      reviews: {},
       history: [],
-      learning: null,
+      known: null,
+      turn: null,
       // Reduced motion: no rise from the deep; the new cards fade in where they belong.
       surfacing: next[0] === order[0] || prefersReducedMotion() ? null : { slug: next[0], at: now },
       departures: [...departures.filter((d) => now - d.at < EXIT_MS && !leaving.includes(d.slug)), ...leaving.map((slug) => ({ slug, at: now }))],
@@ -215,8 +239,12 @@ onNavigate((route, path) => {
 
 /** High-frequency input state, kept out of React to avoid re-rendering at pointer rate. */
 export const gesture = {
-  /** Horizontal drag offset of the focused card, in CSS pixels. */
+  /** Horizontal drag offset of the focused card, in CSS pixels (right = next, left = previous). */
   dragPx: 0,
+  /** Upward drag offset (≤ 0) toward “I know it”, in CSS pixels. */
+  dragPy: 0,
+  /** What the current drag is (src/lib/swipeGesture.ts), for the drag label. */
+  mode: 'undecided' as DragMode,
   dragging: false,
   /** Pointer position in normalized device coords, for subtle camera parallax. */
   px: 0,

@@ -20,10 +20,10 @@ const SHAFT_GEOMETRY = new THREE.PlaneGeometry(CARD_W * 1.7, 16);
 /** Surfacing choreography (ms): the light finds the pearl, then it rises and breaks the surface. */
 const SURFACE_HOLD = 550;
 const SURFACE_END = 3600;
-/** “Still learning”: readable beside the new card for a while, then back into the water. */
-const LINGER_HOLD = 2200;
-/** Reduced motion: a short still hold in place, then a fade. */
-const STILL_HOLD = 800;
+/** Next / previous: the turned-away card glides aside (the way it was swiped), then back into the water. */
+const TURN_HOLD = 900;
+/** “I know it”: the card rises and catches the light for this long, then sinks into the deep. */
+const RISE_MS = 700;
 
 const KEYS = ['x', 'y', 'z', 'rx', 'ry', 'rz', 's'] as const;
 const GLINT_MS = 1150;
@@ -85,7 +85,7 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
     const dt = Math.min(rawDt, 0.25); // keeps near real-time pacing even on very slow devices
     const now = performance.now();
     const t = STILL ? 0 : state.clock.elapsedTime;
-    const { surfacing, learning } = useDurar.getState();
+    const { surfacing, turn } = useDurar.getState();
     const idx = indexRef.current;
     const slot = driftRef.current;
     // Mastery: each word sits at the depth of its box (unseen words mid-water).
@@ -120,11 +120,23 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
     let focusTarget = 0;
 
     if (departAt !== undefined) {
-      const k = (now - departAt) / EXIT_MS;
-      // Reduced motion: no sinking, the card fades where it is.
-      target = reducedMotion ? { ...s.pose } : layout.sunk(s.pose.x, depth);
-      smooth = 1.2;
-      opacityTarget = k < (reducedMotion ? 0.05 : 0.35) ? 1 : 0;
+      const since = now - departAt;
+      const k = since / EXIT_MS;
+      if (reducedMotion) {
+        // No rise and no sinking: the card fades where it is.
+        target = { ...s.pose };
+        smooth = 1.2;
+      } else if (since < RISE_MS) {
+        // “I know it”: up toward the light first…
+        const f = layout.focus();
+        target = { ...f, y: f.y + layout.halfH(f.z) * 0.22, rx: -0.12, s: f.s * 1.04 };
+        smooth = 0.28;
+      } else {
+        // …then down into the deep.
+        target = layout.sunk(s.pose.x, depth);
+        smooth = 1.2;
+      }
+      opacityTarget = k < (reducedMotion ? 0.05 : 0.4) ? 1 : 0;
     } else if (idx === 0) {
       target = layout.focus();
       // Zoom only as far as this card's widest line still fits across the screen.
@@ -141,11 +153,20 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
         smooth = surf < SURFACE_HOLD ? 40 : 1.15;
         focusTarget = surf < SURFACE_HOLD + 900 ? 0 : 1;
       }
-      if (gesture.dragging || gesture.dragPx !== 0) {
+      if (gesture.dragging || gesture.dragPx !== 0 || gesture.dragPy !== 0) {
         const worldPerPx = (layout.halfW(0) * 2) / state.size.width;
         const dx = gesture.dragPx * worldPerPx;
         const n = gesture.dragPx / state.size.width;
-        target = { ...target, x: target.x + dx, y: target.y - Math.abs(n) * 0.6 * (n > 0 ? 1 : -0.4), rz: -n * 0.5, ry: n * 0.9, rx: Math.abs(n) * 0.3 };
+        // Up toward “I know it”: the card follows the finger and tips back a little to the light.
+        const up = -gesture.dragPy / state.size.height;
+        target = {
+          ...target,
+          x: target.x + dx,
+          y: target.y - Math.abs(n) * 0.6 * (n > 0 ? 1 : -0.4) - gesture.dragPy * ((layout.halfH(0) * 2) / state.size.height),
+          rz: -n * 0.5,
+          ry: n * 0.9,
+          rx: Math.abs(n) * 0.3 - up * 0.5,
+        };
         smooth = 0.07;
       }
     } else if (slot !== undefined) {
@@ -154,19 +175,19 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
       smooth = 1.5;
     } else {
       target = layout.slot(idx, depth);
-      const lingering = learning && learning.slug === slug ? now - learning.at : -1;
-      if (lingering >= 0 && lingering < LINGER_HOLD) {
-        // Never blocks: the next card is already in focus and interactive while this one lingers.
-        focusTarget = 1;
+      const turning = turn && turn.slug === slug ? now - turn.at : -1;
+      if (turning >= 0 && turning < TURN_HOLD) {
+        // A page turned: the card glides off the way it was swiped. Never blocks: the new card is
+        // already in focus and takes gestures while this one goes.
         if (reducedMotion) {
-          target = { ...layout.focus(), z: 0.25 };
+          target = { ...s.pose };
+          opacityTarget = 0;
           smooth = 0.2;
-          opacityTarget = lingering < STILL_HOLD ? 1 : 0;
         } else {
-          target = layout.aside();
-          smooth = 1.7; // noticeably slower than a “known” sink
+          target = layout.aside(turn!.dir);
+          smooth = 0.45;
         }
-      } else if (reducedMotion && lingering >= LINGER_HOLD && s.opacity < 0.05) {
+      } else if (reducedMotion && turning >= 0 && s.opacity < 0.05) {
         // Faded out in place: reappear quietly in its slot instead of drifting there.
         Object.assign(s.pose, target);
       }
@@ -197,9 +218,11 @@ export function PearlCard({ slug, index, departAt, drift, layout, reducedMotion 
     u.uFocus.value = s.focus;
     u.uOpacity.value = s.opacity;
     u.uHover.value = s.hover;
-    const sinceLearning = learning && learning.slug === slug ? (now - learning.at) / 1000 : 99;
-    u.uPulse.value = sinceLearning < 8 ? (0.5 + 0.5 * Math.sin(sinceLearning * 2.4)) * (1 - sinceLearning / 8) : 0;
-    u.uGlow.value = rising ? Math.max(0, Math.sin(Math.PI * THREE.MathUtils.clamp((surf - 1700) / 1700, 0, 1))) : 0;
+    u.uPulse.value = 0;
+    // The light catches the card: rising after a search, lifted toward “I know it”, and on its way up.
+    const lifted = idx === 0 && departAt === undefined ? Math.min(1, -gesture.dragPy / (state.size.height * 0.16)) * 0.6 : 0;
+    const known = departAt !== undefined && !reducedMotion ? Math.sin(Math.PI * THREE.MathUtils.clamp((now - departAt) / (RISE_MS + 500), 0, 1)) : 0;
+    u.uGlow.value = Math.max(rising ? Math.max(0, Math.sin(Math.PI * THREE.MathUtils.clamp((surf - 1700) / 1700, 0, 1))) : 0, lifted, known);
     const glint = useAccount.getState().glint;
     const gk = glint && glint.slug === slug ? (now - glint.at) / GLINT_MS : -1;
     u.uGlint.value = gk >= 0 && gk <= 1 ? gk : -1;

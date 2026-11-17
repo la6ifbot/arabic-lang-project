@@ -103,19 +103,24 @@ export function HelpBox({ ready = false, textToggle = false }: { ready?: boolean
         <ul className="help-list">
           <li>
             <span className="help-key">Swipe right</span>
-            <span className="help-kbd"> or press →</span> when you know the word. The pearl sinks into the deep.
+            <span className="help-kbd"> or press ←</span> for the next word, like turning a page in an Arabic book.
           </li>
           <li>
             <span className="help-key">Swipe left</span>
-            <span className="help-kbd"> or press ←</span> if you’re still learning it. It comes back soon.
+            <span className="help-kbd"> or press →</span> to go back to the previous word. The Previous button
+            <span className="help-kbd"> and Backspace</span> do the same.
           </li>
           <li>
-            <span className="help-key">Hard words</span> in a sentence: the little book under the card
+            <span className="help-key">Swipe up</span>
+            <span className="help-kbd"> or press ↑</span> when you know the word. The pearl sinks into the deep and comes
+            back later. Changed your mind? Tap Undo.
+          </li>
+          <li>
+            Words you don’t mark simply come back on their own schedule.
+          </li>
+          <li>
+            <span className="help-key">Hard words</span> in a sentence: the book under the card
             <span className="help-kbd"> or press W</span> gives their meanings.
-          </li>
-          <li>
-            <span className="help-key">Back</span>
-            <span className="help-kbd"> or Backspace</span> brings the last word back.
           </li>
           <li>
             <span className="help-key">Tap a pearl</span> in the background to bring it forward.

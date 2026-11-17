@@ -35,7 +35,7 @@ export default function PrivacyPage() {
             <strong>The words you save</strong> and when you saved each one.
           </li>
           <li>
-            <strong>Your progress</strong>: for each word you’ve swiped, which of the five boxes it’s in, when it’s due back,
+            <strong>Your progress</strong>: for each word you’ve marked “I know it”, which of the five boxes it’s in, when it’s due back,
             when you last reviewed it, how many times you’ve seen it and how many times it slipped back to “still learning”.
           </li>
         </ul>
@@ -43,8 +43,8 @@ export default function PrivacyPage() {
 
         <h2>Your progress</h2>
         <p>
-          Progress is what lets a word you know sink deeper and come back later, and a word you’re learning come back
-          tomorrow. It’s used only for that: the order of the sea, how deep each pearl sits, the Library, and one line in
+          Progress is what lets a word you know sink deeper and come back later. Turning to the next or previous card
+          isn’t recorded. It’s used only for that: the order of the sea, how deep each pearl sits, the Library, and one line in
           the daily email (below). Nothing else, and never for ads or tracking.
         </p>
         <p>

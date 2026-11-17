@@ -65,8 +65,6 @@ export interface Topic {
   cover?: string;
 }
 
-export type SwipeDir = 'known' | 'learning';
-
 /**
  * A pronunciation fix for one headword or sentence's audio (shared/audio.ts, docs/CONTENT.md). At
  * most one of `ar` (a different spelling for the voice only, e.g. extra vowel marks) and `ipa` (the

@@ -180,7 +180,7 @@ export default function LibraryPage() {
     all: (
       <>
         <p className="lib-empty-lead">No pearls yet.</p>
-        <p>Dive in. Every word you swipe finds its place here, and the ones you keep shine a little brighter.</p>
+        <p>Dive in. Every word you swipe up (“I know it”) finds its place here, and the ones you keep shine a little brighter.</p>
         {dive}
       </>
     ),
@@ -201,13 +201,13 @@ export default function LibraryPage() {
     learning: (
       <>
         <p className="lib-empty-lead">Nothing still learning.</p>
-        <p>Words you swipe left stay near the light, here, until they settle.</p>
+        <p>Words that came back to the light stay here until you know them again.</p>
       </>
     ),
     deep: (
       <>
         <p className="lib-empty-lead">Nothing in the deep yet.</p>
-        <p>Words you know sink here, a little deeper each time they come back to you.</p>
+        <p>Swipe a word up when you know it, and it sinks here, a little deeper each time it comes back to you.</p>
       </>
     ),
   };
@@ -233,11 +233,12 @@ export default function LibraryPage() {
         {items.length > 0 && (
           <>
             <p className="lib-count" data-testid="library-count">
-              {counts.deep} in the deep · {counts.learning} still learning · {counts.saved} saved
+              {counts.deep} in the deep{counts.learning > 0 && ` · ${counts.learning} still learning`} · {counts.saved} saved
             </p>
             <div className="lib-bar">
               <div className="lib-sort lib-filter" role="group" aria-label="Show">
-                {FILTERS.map((f) => (
+                {/* “Still learning” only holds words from before Phase 0.9 (there's no gesture for it now). */}
+                {FILTERS.filter((f) => f.id !== 'learning' || counts.learning > 0 || filter === 'learning').map((f) => (
                   <button key={f.id} type="button" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)}>
                     {f.label}
                   </button>
